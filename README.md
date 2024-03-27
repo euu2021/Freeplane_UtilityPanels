@@ -44,7 +44,7 @@ Other aspects:
 # Todo
 
 Features
-- Drag and Drop interacion. So, the user can make drag and drop operations like in the Freeplane map. For example, dragging an item from the list into the a node in the map, will make the item node be moved as a child of the map node. Also, for creating connectors.
+- Drag and Drop interacion. So, the user can make drag and drop operations like in the Freeplane map. For example, dragging an item from the list into a node in the map, will make the item node be moved as a child of the map node. Also, for creating connectors.
 - Drafts Panel. A panel to store nodes that the user wants to keep as a draft, instead of including in the map.
 - Post it panel. A type of panel that is a simple text panel where the user can keep some text. It then will have buttons to quickly tranform the text into a node to be inserted as a child of the select node, or be transformed in a draft node and included in the Draft panel.
 - Querry search panel. A type of panel where the user can create a search criteria, and it will show all node that match that criteria, and keep updating that list.
@@ -52,4 +52,4 @@ Features
 Implementation
 - easy positioning of the panels, with anchoring
 - more items in the list; and scrollbars on hover
-- buttons on the panel to do things like minimize, close, move etc
+- buttons on the panel to do things like minimize, close, resize, move etc
