@@ -1,5 +1,5 @@
 # UtilityPanels for FreePlane
-UtilityPanels us a script that creates integrated panels in the Freeplane interface.
+UtilityPanels is a script that creates integrated panels in the Freeplane interface.
 
 ![explorer_SLM5empCmN](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/6b102950-96c3-4ac6-93de-09d66a2ff058)
 
