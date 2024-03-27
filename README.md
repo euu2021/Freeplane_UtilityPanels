@@ -34,6 +34,11 @@ Other aspects:
 
 ![javaw_t0YcE237zu](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ac451cbb-ac9a-4034-a45f-b462922a8d5f)
 
+- The panels are transparent:
+
+![javaw_2jN2VSzuVX](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/b794fe6b-8fa7-4b25-99f6-d2a2e7b19073)
+
+
 
 
 ## Current limitations that will be improved:
