@@ -58,3 +58,4 @@ Implementation
 - easy positioning of the panels, with anchoring
 - more items in the list; and scrollbars on hover
 - buttons on the panel to do things like minimize, close, resize, move etc
+- avoid symbols that can have rendering problems. See issue https://github.com/freeplane/freeplane/discussions/1752#discussioncomment-8933090.
