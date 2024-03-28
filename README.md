@@ -19,6 +19,15 @@ UtilityPanels is a script that creates integrated panels in the Freeplane interf
 
 ![javaw_UtEw62hVSn](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ed551399-268f-47bd-a8b8-81703f954db4)
 
+- Inspector tooltip:
+
+![javaw_JGBwl2m7hB](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/97cac151-1934-45b1-80f4-364a84a2d5f4)
+
+- Inception navigation in the Inspector tooltip:
+
+![javaw_53IlSUvy3F](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/d069a63d-0ba6-4be4-84a8-c79739c9ab53)
+
+
 
 Other aspects:
 
@@ -45,6 +54,7 @@ Other aspects:
 - pinned nodes are not saved on FreePlane restart
 - the navigation doesn't work across multiple maps
 - the MapOverview (View->Controls->Map overview) must be active in order to avoid the panel blink. It's possible to use without the MapOverview, but the blinking can be annoying.
+- inception navigation is currently limited to two inspector levels
 
 # Todo
 
