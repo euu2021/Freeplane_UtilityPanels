@@ -1,3 +1,6 @@
+
+
+
 # UtilityPanels for FreePlane
 UtilityPanels is a script that creates integrated panels in the Freeplane interface.
 
@@ -6,18 +9,24 @@ UtilityPanels is a script that creates integrated panels in the Freeplane interf
 
 # Features
 
-- Recent nodes panel. A list with recently selected nodes.
+## Panels
+
+### Recent nodes panel
+
+- A list with recently selected nodes.
   
 ![javaw_302ZRQ6PV4](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ab9062e7-b0e3-4f36-b85d-1395ee6fdb6b)
 
 
-- Pinned nodes panel.
+### Pinned nodes panel
   
 ![chrome_aAZD6TPbjq](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/c35baba5-7a97-49d4-b938-acd88ce61cae)
 
-- Clicking the panel item navigates to the node.
+### Quick search panel
 
-![javaw_UtEw62hVSn](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ed551399-268f-47bd-a8b8-81703f954db4)
+
+
+## Inspector
 
 - Inspector tooltip:
 
@@ -27,9 +36,27 @@ UtilityPanels is a script that creates integrated panels in the Freeplane interf
 
 ![javaw_53IlSUvy3F](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/d069a63d-0ba6-4be4-84a8-c79739c9ab53)
 
+## Other Features
+
+- Drag and Drop operations
+It's possible to do drag and drop between itens in the panel, nodes in the map, and vice versa.
+
+![dragff](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/778afe20-0d6e-4fd5-8896-a6a8f36816fe)
 
 
-Other aspects:
+![dragff2](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/9e3ac515-f84d-4ac1-92a1-3b9805bbda63)
+
+
+
+- Clicking the panel item navigates to the node.
+
+![javaw_UtEw62hVSn](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ed551399-268f-47bd-a8b8-81703f954db4)
+
+
+
+
+
+## Other interesting aspects:
 
 - The panel follows the active tab
 
