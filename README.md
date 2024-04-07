@@ -43,8 +43,7 @@ It's possible to do drag and drop between itens in the panel, nodes in the map, 
 
 ![dragff](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/778afe20-0d6e-4fd5-8896-a6a8f36816fe)
 
-
-![dragff2](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/9e3ac515-f84d-4ac1-92a1-3b9805bbda63)
+![dragff3 borda](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/085660ae-3ed1-4f29-9501-4167c05d385a)
 
 
 
