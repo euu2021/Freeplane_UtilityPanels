@@ -20,15 +20,15 @@ UtilityPanels is a script that creates integrated panels in the Freeplane interf
 
 ### Pinned nodes panel
 
-Pinned nodes are saved on FreePlane restart
+Pinned nodes are saved on FreePlane restarts
   
 ![chrome_aAZD6TPbjq](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/c35baba5-7a97-49d4-b938-acd88ce61cae)
 
 ### Quick Search panel
 
-Quick search that uses the Jumper search engine, so it has transversal search, and other good stuff. See intructions bellow about how to integrate with Jumper.
+A quick search that uses the Jumper search engine, so it has transversal search, and other good stuff. See instructions below about how to integrate with Jumper.
 
-The Jumper settings are used in the Quick Search panel. In other words, the settings that the user choose inside Jumper are used by the Quick Search panel.
+The Jumper settings are used in the Quick Search panel. In other words, the settings that the user chooses inside Jumper are used by the Quick Search panel.
 
 Results are highlighted everywhere: in the panels, in the inspectors, and in the map:
 
@@ -78,7 +78,7 @@ It's possible to do drag and drop (move nodes) between itens in the panel, nodes
 
 ![chrome_6rDGvc0k22](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/5f95de56-da52-4847-9506-ad2004f3c5e5)
 
-- deleting a node in the map, immediatly deletes the item in the list:
+- deleting a node in the map, immediately deletes the item in the list:
 
  ![chrome_Fs2nVtzqKp](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/a642a622-71f4-41c7-bb65-fff36764d095)
 
@@ -105,10 +105,10 @@ It's possible to do drag and drop (move nodes) between itens in the panel, nodes
 It needs integration with Jumper. I created a fork of Jumper that allows this integration. 
 
 I will make it easier in the future, but now it's necessary to 
-- unistall the Jumper add-on and delete the folder that it leaves inside the user folder/addons. Don't worry you will be able to use Jumper normally.
+- uninstall the Jumper add-on and delete the folder that it leaves inside the user folder/addons. Don't worry, you will be able to use Jumper normally.
 - download the [branch called dev in my fork](https://github.com/euu2021/Freeplane-Jumper/tree/dev) (go into Code/Download ZIP)
 - unzip it into a folder
-- inside Freeplane, do into `Preferences…->Plugins->Scripting->Script classpath: Additional directories containing classes and/or JARs` and set here the path of the folder above
+- in Freeplane, go into `Preferences…->Plugins->Scripting->Script classpath: Additional directories containing classes and/or JARs` and set here the path of the folder above
 
 Now, to make the usual Kumper start, you need to run this script: `lilive.jumper.Jumper.start()`
 
@@ -117,10 +117,10 @@ If Jumper, or the Quick Search panel are not showing any results, then [see this
 # Todo
 
 Features
-- Drag and Drop interacion. So, the user can make drag and drop operations like in the Freeplane map. For example, dragging an item from the list into a node in the map, will make the item node be moved as a child of the map node. Also, for creating connectors.
+- Drag and Drop interaction. So, the user can make drag and drop operations like in the Freeplane map. For example, dragging an item from the list into a node in the map, will make the item node be moved as a child of the map node. Also, for creating connectors.
 - Drafts Panel. A panel to store nodes that the user wants to keep as a draft, instead of including in the map.
-- Post it panel. A type of panel that is a simple text panel where the user can keep some text. It then will have buttons to quickly tranform the text into a node to be inserted as a child of the select node, or be transformed in a draft node and included in the Draft panel.
-- Querry search panel. A type of panel where the user can create a search criteria, and it will show all node that match that criteria, and keep updating that list.
+- Post it panel. A type of panel that is a simple text panel where the user can keep some text. It then will have buttons to quickly tranform the text into a node to be inserted as a child of the select node, or be transformed into a draft node and included in the Draft panel.
+- Querry search panel. A type of panel where the user can create a search criteria, and it will show all nodes that match that criteria, and keep updating that list.
 
 Implementation
 - easy positioning of the panels, with anchoring
