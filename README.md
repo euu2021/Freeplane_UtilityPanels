@@ -121,6 +121,8 @@ Features
 - Post it panel. A type of panel that is a simple text panel where the user can keep some text. It then will have buttons to quickly tranform the text into a node to be inserted as a child of the select node, or be transformed into a draft node and included in the Draft panel.
 - Querry search panel. A type of panel where the user can create a search criteria, and it will show all nodes that match that criteria, and keep updating that list.
 - Backlinks list: see https://github.com/freeplane/freeplane/discussions/485#discussioncomment-9988635
+- Breadcrumbs panel: see https://github.com/freeplane/freeplane/issues/2145
+- Tags panel: see https://github.com/freeplane/freeplane/discussions/1996#discussioncomment-10455859
 
 Implementation
 - easy positioning of the panels, with anchoring
