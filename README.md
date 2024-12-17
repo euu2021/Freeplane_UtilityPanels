@@ -123,12 +123,14 @@ Features
 - Backlinks list: see https://github.com/freeplane/freeplane/discussions/485#discussioncomment-9988635
 - Breadcrumbs panel: see https://github.com/freeplane/freeplane/issues/2145
 - Tags panel: see https://github.com/freeplane/freeplane/discussions/1996#discussioncomment-10455859
+- Add a frozen sliding panel to the top history panel. See: https://github.com/euu2021/Freeplane_UtilityPanels/issues/5
 
 Implementation
 - easy positioning of the panels, with anchoring
 - more items in the list; and scrollbars on hover
 - buttons on the panel to do things like minimize, close, resize, move etc
 - avoid symbols that can have rendering problems. See issue https://github.com/freeplane/freeplane/discussions/1752#discussioncomment-8933090.
+- improve the inspector layout: see https://github.com/euu2021/Freeplane_UtilityPanels/issues/4
 
 # Disclaimer
 
