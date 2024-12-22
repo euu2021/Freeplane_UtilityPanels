@@ -1,4 +1,4 @@
-// version: 1.1
+// version: 1.2
 
 import groovy.transform.Field
 
@@ -1201,11 +1201,6 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
                 visibleInspectors.add(subInspectorPanel)
                 locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
                 visibleInspectors.each{
-                    parentPanel.pack()
-                    parentPanel.revalidate()
-                    parentPanel.repaint()
-                    it.revalidate()
-                    it.repaint()
                     if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
                         it.setVisible(false)}
                 }
