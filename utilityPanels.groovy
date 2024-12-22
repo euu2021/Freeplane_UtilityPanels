@@ -1,3 +1,5 @@
+// version: 1.1
+
 import groovy.transform.Field
 
 import groovy.json.JsonOutput
@@ -490,27 +492,34 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
 JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
-    JPanel inspectorPanel = new JPanel(new BorderLayout())
+    JPanel inspectorPanel = new JPanel(new BorderLayout()) {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g); // limpa o fundo, cuida da opacidade, etc.
+            g.setColor(getBackground());
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+    }
+
+
     inspectorPanel.setLayout(new BorderLayout())
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK))
-    inspectorPanel.setBackground(Color.WHITE)
-
-
+    inspectorPanel.setBackground( Color.BLACK )
 
 
     ////////////// Node Text Panel ///////////////
 
 
     JTextPane textLabel = new JTextPane();
-
     textLabel.setContentType("text/html")
 
-    textLabel.setSize(textLabel.getPreferredSize())
+
     configureLabelForNode(textLabel, node)
 
     JScrollPane textScrollPane = new JScrollPane(textLabel)
-    textScrollPane.setPreferredSize(new Dimension(200, 200))
-    textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+    textScrollPane.setPreferredSize(new Dimension(200, 100))
+
+    textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
     textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
 
     inspectorPanel.addMouseListener(sharedMouseListener)
@@ -571,15 +580,34 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     JList<NodeModel> ancestorsLineList = new JList<>(ancestorLineModel)
     commonJListsConfigs(ancestorsLineList, ancestorLineModel, inspectorPanel)
 
+
+
     TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
     titledBorderAncestors.setTitleJustification(TitledBorder.CENTER)
     ancestorsLineList.setBorder(titledBorderAncestors)
 
-    JScrollPane scrollPaneAncestorsLineList = new JScrollPane(ancestorsLineList)
-    scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, 200))
+    JScrollPane scrollPaneAncestorsLineList = new JScrollPane(ancestorsLineList){
+        protected void paintComponent(Graphics g)
+        {
+            g.setColor( getBackground() )
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+
+
+    ancestorsLineList.setSize(ancestorsLineList.getPreferredSize())
+    ancestorsLineList.revalidate()
+    Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
+    int maxHeight = 350
+    int finalHeight = Math.min(listPreferredSize.height, maxHeight)
+    scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, finalHeight + 30))
+
+
     ancestorsLineList.addMouseListener(sharedMouseListener)
     scrollPaneAncestorsLineList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPaneAncestorsLineList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+
 
     /////////////////////////////////////////////////////////
 
@@ -608,12 +636,14 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
-    scrollPanelSiblingsList.setPreferredSize(new Dimension(200, 200))
 
-    JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, textScrollPane, scrollPanelSiblingsList)
-    splitPane.setMinimumSize(new Dimension(600, 10))
-    splitPane.setPreferredSize(new Dimension(200, 300))
-    splitPane.setResizeWeight(0.5)
+
+    siblingsList.setSize(siblingsList.getPreferredSize())
+    siblingsList.revalidate()
+    Dimension listPreferredSize2 = siblingsList.getPreferredSize()
+    int maxHeight2 = maxHeight
+    int finalHeight2 = Math.min(listPreferredSize2.height, maxHeight2)
+    scrollPanelSiblingsList.setPreferredSize(new Dimension(200, finalHeight2 + 30))
 
     siblingsList.addMouseListener(sharedMouseListener)
     scrollPanelSiblingsList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
@@ -645,7 +675,16 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     childrenList.setBorder(titledBorderChildren)
 
     JScrollPane scrollPaneChildrenList = new JScrollPane(childrenList)
-    scrollPaneChildrenList.setPreferredSize(new Dimension(200, 300))
+
+
+    childrenList.setSize(childrenList.getPreferredSize())
+    childrenList.revalidate()
+    Dimension listPreferredSize3 = childrenList.getPreferredSize()
+    int maxHeight3 = maxHeight
+    int finalHeight3 = Math.min(listPreferredSize3.height, maxHeight3)
+    scrollPaneChildrenList.setPreferredSize(new Dimension(200, finalHeight3 + 30))
+
+
     childrenList.addMouseListener(sharedMouseListener)
     scrollPaneChildrenList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPaneChildrenList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
@@ -673,37 +712,59 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     //////////// add the panels /////////////
 
+
+
+    JPanel columnsPanel = new JPanel(){
+        protected void paintComponent(Graphics g)
+        {
+            g.setColor( getBackground() )
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    columnsPanel.setLayout(new GridLayout())
+
+    columnsPanel.setBackground( new Color(0, 0, 0, 0) )
+
+
+
+    columnsPanel.add(scrollPaneAncestorsLineList);
+    columnsPanel.add(scrollPanelSiblingsList);
+    columnsPanel.add(scrollPaneChildrenList);
+
+
+
+
+
+
+
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
 
     verticalStackPanel.add(buttonPanel, BorderLayout.NORTH)
-    verticalStackPanel.add(scrollPaneAncestorsLineList)
-    verticalStackPanel.add(splitPane, BorderLayout.CENTER)
-    verticalStackPanel.add(scrollPaneChildrenList)
+    verticalStackPanel.add(textScrollPane, BorderLayout.NORTH)
+    verticalStackPanel.add(columnsPanel, BorderLayout.NORTH)
 
-    inspectorPanel.add(verticalStackPanel, BorderLayout.CENTER)
+    inspectorPanel.add(verticalStackPanel, BorderLayout.NORTH)
+
+    verticalStackPanel.revalidate()
+
+    inspectorPanel.setSize(200, 500)
+
+    inspectorPanel.revalidate();
+    inspectorPanel.repaint();
 
 
-    SwingUtilities.invokeLater(() -> {
-        for (Component component : splitPane.getComponents()) {
-            if (component instanceof BasicSplitPaneDivider) {
-                BasicSplitPaneDivider divider = (BasicSplitPaneDivider) component;
-                divider.addMouseListener(sharedMouseListener);
-                break
-            }
-        }
-    });
+
+
 
 
 
     /////////////////////////////////////////
 
 
-    def inspectorPanelHeightRelativeToFirstPanel = firstPanelHeight * 2
-    inspectorPanel.setSize(200, inspectorPanelHeightRelativeToFirstPanel)
-
     int x = sourcePanel.getLocation().x + sourcePanel.getWidth() + 5
-    int y = sourcePanel.getLocation().y
+    int y = 0
     inspectorPanel.setLocation(x, y)
     inspectorPanel.setVisible(true)
     parentPanel.add(inspectorPanel)
@@ -1140,6 +1201,11 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
                 visibleInspectors.add(subInspectorPanel)
                 locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
                 visibleInspectors.each{
+                    parentPanel.pack()
+                    parentPanel.revalidate()
+                    parentPanel.repaint()
+                    it.revalidate()
+                    it.repaint()
                     if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
                         it.setVisible(false)}
                 }
