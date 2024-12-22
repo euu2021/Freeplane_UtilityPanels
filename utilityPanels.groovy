@@ -1,4 +1,4 @@
-// version: 1.2
+// version: 1.3
 
 import groovy.transform.Field
 
@@ -90,6 +90,7 @@ deleteCurrentListenersFromPreviousExecutions()
 
 @Field boolean mouseOverList = false
 @Field boolean freezeInspectors = false
+@Field boolean inspectorUpdateSelection = false
 
 firstPanelHeight = 170
 
@@ -173,6 +174,10 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             }
             SwingUtilities.invokeLater { updateAllGUIs() }
         }
+        if (inspectorUpdateSelection == true) {
+            subInspectorPanel2 = createInspectorPanel(node, recentSelectedNodesPanel)
+            visibleInspectors.add(subInspectorPanel2)
+            }
     }
 }
 
@@ -495,7 +500,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
         protected void paintComponent(Graphics g) {
-            super.paintComponent(g); // limpa o fundo, cuida da opacidade, etc.
+            super.paintComponent(g);
             g.setColor(getBackground());
             g.fillRect(0, 0, getWidth(), getHeight());
         }
@@ -558,10 +563,38 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
         button1.setBackground(Color.GRAY)
         button1.setForeground(Color.BLACK)
     }
+
+
+    JButton button2 = new JButton("Update Selection")
+    button2.addActionListener(e -> {
+        inspectorUpdateSelection = !inspectorUpdateSelection
+
+        if (inspectorUpdateSelection) {
+            button2.setBackground(Color.BLUE)
+            button2.setForeground(Color.BLACK)
+        } else {
+            button2.setBackground(Color.GRAY)
+            button2.setForeground(Color.BLACK)
+        }
+    })
+    button2.setOpaque(true)
+    button2.setBorderPainted(false)
+
+    if (inspectorUpdateSelection) {
+        button2.setBackground(Color.BLUE)
+        button2.setForeground(Color.BLACK)
+    } else {
+        button2.setBackground(Color.GRAY)
+        button2.setForeground(Color.BLACK)
+    }
+
+
     buttonPanel.add(button1)
+    buttonPanel.add(button2)
 
     buttonPanel.addMouseListener(sharedMouseListener)
     button1.addMouseListener(sharedMouseListener)
+    button2.addMouseListener(sharedMouseListener)
 
     /////////////////////////////////////////////////////////
 
@@ -1192,7 +1225,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            if (freezeInspectors == true) {return}
+            //if (freezeInspectors == true) {return}
             sourcePanel = sourcePanel
             int index = list.locationToIndex(e.getPoint())
             if (index >= 0) {
