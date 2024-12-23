@@ -95,7 +95,6 @@ It's possible to do drag and drop (move nodes) between itens in the panel, nodes
 
 ## Current limitations that will be improved:
 - I don't use multiple maps, so I don't know  how the script behaves in that situation. I know that there are limitations. For example, the navigation doesn't work across multiple maps. 
-- the MapOverview (View->Controls->Map overview) must be active in order to avoid the panel blink. It's possible to use without the MapOverview, but the blinking can be annoying.
 - Drag and drop operations are limited to the Move operations. In the future, I will add the others, like the option to create connectors.
 - The auto update of the Quick Search panel doesn't react to all changes in the map (for example, deleting a node).
 
