@@ -1,4 +1,5 @@
-// version: 1.5: performance improvement when Update Selection is enabled.
+// version: 1.6: Inspector height adapts to the content.
+// version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
 
 import groovy.transform.Field
 
@@ -516,7 +517,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     inspectorPanel.setLayout(new BorderLayout())
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK))
-    inspectorPanel.setBackground( Color.BLACK )
+    inspectorPanel.setBackground( new Color(0, 0, 0, 0) )
 
 
     ////////////// Node Text Panel ///////////////
@@ -789,7 +790,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     verticalStackPanel.revalidate()
 
-    inspectorPanel.setSize(500, 500)
+    inspectorPanel.setSize(500, (int) inspectorPanel.getPreferredSize().height)
 
     inspectorPanel.revalidate();
     inspectorPanel.repaint();
