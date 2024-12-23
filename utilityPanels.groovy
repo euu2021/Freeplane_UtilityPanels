@@ -506,6 +506,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
         }
     }
 
+    inspectorPanel.putClientProperty("referenceNode", node)
 
     inspectorPanel.setLayout(new BorderLayout())
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK))
@@ -519,7 +520,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     textLabel.setContentType("text/html")
 
 
-    configureLabelForNode(textLabel, node)
+    configureLabelForNode(textLabel, node, inspectorPanel)
 
     JScrollPane textScrollPane = new JScrollPane(textLabel)
     textScrollPane.setPreferredSize(new Dimension(200, 100))
@@ -538,7 +539,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     /////////////////////////// Buttons panel //////////////////
 
-    JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT))
+    JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER))
     buttonPanel.setBackground(Color.LIGHT_GRAY)
 
     JButton button1 = new JButton("Freeze")
@@ -616,7 +617,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
 
     TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
-    titledBorderAncestors.setTitleJustification(TitledBorder.CENTER)
+    titledBorderAncestors.setTitleJustification(TitledBorder.LEFT)
     ancestorsLineList.setBorder(titledBorderAncestors)
 
     JScrollPane scrollPaneAncestorsLineList = new JScrollPane(ancestorsLineList){
@@ -658,14 +659,14 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
         node.parent.getChildren().each {
             siblingsModel.addElement(it)
         }
-        siblingsModel.removeElement(node)
+        //siblingsModel.removeElement(node)
     }
 
     JList<NodeModel> siblingsList = new JList<>(siblingsModel)
     commonJListsConfigs(siblingsList, siblingsModel, inspectorPanel)
 
     TitledBorder titledBorderSiblings = BorderFactory.createTitledBorder("Siblings")
-    titledBorderSiblings.setTitleJustification(TitledBorder.CENTER)
+    titledBorderSiblings.setTitleJustification(TitledBorder.LEFT)
     siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
@@ -704,7 +705,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     commonJListsConfigs(childrenList, childrenModel, inspectorPanel)
 
     TitledBorder titledBorderChildren = BorderFactory.createTitledBorder("Children")
-    titledBorderChildren.setTitleJustification(TitledBorder.CENTER)
+    titledBorderChildren.setTitleJustification(TitledBorder.LEFT)
     childrenList.setBorder(titledBorderChildren)
 
     JScrollPane scrollPaneChildrenList = new JScrollPane(childrenList)
@@ -822,7 +823,7 @@ void hideInspectorPanelIfNeeded() {
     }
 }
 
-void configureLabelForNode(JComponent component, NodeModel node) {
+void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePanel) {
     Color backgroundColor = NodeStyleController.getController().getBackgroundColor(node, StyleOption.FOR_UNSELECTED_NODE)
     Color fontColor = NodeStyleController.getController().getColor(node, StyleOption.FOR_UNSELECTED_NODE)
     String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
@@ -852,15 +853,23 @@ void configureLabelForNode(JComponent component, NodeModel node) {
             prefix += "📌";
         }
 
+        NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
+
+        if (storedNode == node) {
+            label.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+        }
+
         String labelText = prefix + node.text;
 
         if (quickSearchResults.contains(node)) {
             textWithHighlight = highlightSearchTerms(labelText, searchedTerms);
         } else {
-            textWithHighlight = labelText;
+            textWithHighlight = labelText
         }
 
-        label.setText(textWithHighlight);
+        label.setText(textWithHighlight)
+
+
 
 
         return
@@ -914,7 +923,7 @@ void commonJListsConfigs(JList<NodeModel> theJlist, DefaultListModel<NodeModel> 
     configureListFont(theJlist);
     configureListSelection(theJlist);
     configureListContextMenu(theJlist);
-    configureListCellRenderer(theJlist)
+    configureListCellRenderer(theJlist, thePanelPanel)
     configureMouseMotionListener(theJlist, theListModel, thePanelPanel)
     configureMouseExitListener(theJlist)
 }
@@ -1203,14 +1212,14 @@ void configureDragAndDrop(JList<NodeModel> list) {
     });
 }
 
-void configureListCellRenderer(JList<NodeModel> listParameter) {
+void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
     listParameter.setCellRenderer(new DefaultListCellRenderer() {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
             if (value instanceof NodeModel) {
                 NodeModel currentNode = (NodeModel) value
-                configureLabelForNode(label, currentNode)
+                configureLabelForNode(label, currentNode, sourcePanel)
             }
             if (isSelected) {
                 label.setBackground(list.getSelectionBackground())
@@ -1225,7 +1234,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            //if (freezeInspectors == true) {return}
+            if (freezeInspectors == true) {return}
             sourcePanel = sourcePanel
             int index = list.locationToIndex(e.getPoint())
             if (index >= 0) {
