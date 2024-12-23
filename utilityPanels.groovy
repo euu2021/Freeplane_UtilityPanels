@@ -1,4 +1,4 @@
-// version: 1.4
+// version: 1.5: performance improvement when Update Selection is enabled.
 
 import groovy.transform.Field
 
@@ -175,6 +175,12 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             SwingUtilities.invokeLater { updateAllGUIs() }
         }
         if (inspectorUpdateSelection == true) {
+            visibleInspectors.each{
+                it.setVisible(false)
+            }
+            visibleInspectors.clear()
+            parentPanel.revalidate()
+            parentPanel.repaint()
             subInspectorPanel2 = createInspectorPanel(node, recentSelectedNodesPanel)
             visibleInspectors.add(subInspectorPanel2)
             }
@@ -783,7 +789,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     verticalStackPanel.revalidate()
 
-    inspectorPanel.setSize(200, 500)
+    inspectorPanel.setSize(500, 500)
 
     inspectorPanel.revalidate();
     inspectorPanel.repaint();
