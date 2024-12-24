@@ -1,5 +1,21 @@
-// version: 1.6: Inspector height adapts to the content.
-// version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
+
+/*
+version: 1.7: Inspector max height is equal to the window height.
+ Not necessary to have Map Overview active anymore.
+ Solved graphical glitch problem (actually, it was multiple inspectors being created).
+ Master panel expands on hover.
+ Width os the Master Panel is relative to the width of the window.
+ Master panel adapts to the size (width and height) of the window automatically, when it's resized.
+ User settings section, to make things easier to config.
+ Quick search panel now is transparent
+ Right clicking on a list item doesn't navigate to it, anymore.
+
+version: 1.6: Inspector height adapts to the content.
+
+version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
+ */
+
+// @ExecutionModes({ON_SINGLE_NODE="/menu_bar/euu"})
 
 import groovy.transform.Field
 
@@ -44,6 +60,8 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.Graphics2D;
 import java.awt.Color;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
@@ -74,6 +92,26 @@ import org.freeplane.view.swing.map.MapView;
 import org.freeplane.features.map.IMapSelection;
 import org.freeplane.features.mode.Controller;
 
+
+
+//↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+
+panelTextFontName = "Dialog"
+panelTextFontSize = 15
+fontForListItens = Font.PLAIN
+
+nodeTextPanelFixedHeight = 100
+
+retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the panels width
+expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
+widthFactorForInspector = 5 //the higher the factor, the wider the inspector panel width
+
+
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
+
 uniqueIdForScript = 999
 deleteCurrentListenersFromPreviousExecutions()
 
@@ -83,6 +121,7 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field List<JPanel> visibleInspectors = []
 
 @Field JScrollPane parentPanel
+@Field JPanel masterPanel
 @Field JPanel recentSelectedNodesPanel
 @Field JPanel inspectorPanel
 @Field JPanel pinnedItemsPanel
@@ -93,11 +132,7 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field boolean freezeInspectors = false
 @Field boolean inspectorUpdateSelection = false
 
-firstPanelHeight = 170
 
-panelTextFontName = "Dialog"
-panelTextFontSize = 10
-fontForItems = new Font(panelTextFontName, Font.PLAIN, panelTextFontSize)
 
 @Field boolean quickSearchNeedsRefresh = true
 @Field String searchText = ""
@@ -175,6 +210,9 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             }
             SwingUtilities.invokeLater { updateAllGUIs() }
         }
+        parentPanel.revalidate()
+        parentPanel.repaint()
+        if (freezeInspectors == true) {return}
         if (inspectorUpdateSelection == true) {
             visibleInspectors.each{
                 it.setVisible(false)
@@ -184,7 +222,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             parentPanel.repaint()
             subInspectorPanel2 = createInspectorPanel(node, recentSelectedNodesPanel)
             visibleInspectors.add(subInspectorPanel2)
-            }
+        }
     }
 }
 
@@ -201,8 +239,13 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         }
         parentPanel.remove(recentSelectedNodesPanel)
         parentPanel.remove(pinnedItemsPanel)
+        parentPanel.remove(quickSearchPanel)
         saveSettings()
+        masterPanel.setVisible(false)
         createPanels()
+        masterPanel.revalidate()
+        masterPanel.repaint()
+        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
 
@@ -224,6 +267,25 @@ IMapChangeListener myMapChangeListener = new IMapChangeListener() {
 createdMapChangeListener = myMapChangeListener
 
 Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
+
+
+viewportSizeChangeListener = new ComponentAdapter() {
+    @Override
+    public void componentResized(final ComponentEvent e) {
+        parentPanel.remove(recentSelectedNodesPanel)
+        parentPanel.remove(pinnedItemsPanel)
+        parentPanel.remove(quickSearchPanel)
+        saveSettings()
+        masterPanel.setVisible(false)
+        createPanels()
+        masterPanel.revalidate()
+        masterPanel.repaint()
+        SwingUtilities.invokeLater { updateAllGUIs() }
+    }
+}
+
+Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.addComponentListener(viewportSizeChangeListener);
+
 
 
 Controller controllerForHighlighter = Controller.currentModeController.controller
@@ -288,6 +350,20 @@ def createPanels(){
     parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
     Dimension parentSize = parentPanel.getSize()
 
+
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Master Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+    masterPanel = new JPanel()
+    masterPanel.setLayout(new BoxLayout(masterPanel, BoxLayout.Y_AXIS))
+
+    masterPanel.setOpaque(false)
+
+    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.height -05)
+
+
+
+    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Master Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Recent Nodes Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
     recentSelectedNodesPanel = new JPanel(new BorderLayout()) {
@@ -302,7 +378,7 @@ def createPanels(){
     recentSelectedNodesPanel.setBackground( new Color(0, 0, 0, 0) )
 
     int recentSelectedNodesPanelWidth = 80
-    int recentSelectedNodesPanelHeight = firstPanelHeight
+    int recentSelectedNodesPanelHeight = 170
 
     recentSelectedNodesPanel.setBounds(0, 0, recentSelectedNodesPanelWidth, recentSelectedNodesPanelHeight)
 
@@ -436,24 +512,44 @@ def createPanels(){
     panelForSearchBox.add(searchField, BorderLayout.CENTER);
     panelForSearchBox.add(clearButton, BorderLayout.EAST);
 
+    panelForSearchBox.setOpaque(false)
+    panelForSearchBox.setBackground( new Color(0, 0, 0, 0) )
+
     quickSearchPanel.add(panelForSearchBox, BorderLayout.NORTH);
 
     innerPanelInQuickSearchPanel = new JPanel(new BorderLayout());
+
+    innerPanelInQuickSearchPanel.setOpaque(false)
+    innerPanelInQuickSearchPanel.setBackground( new Color(0, 0, 0, 0) )
+
     quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER);
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
+    masterPanel.add(recentSelectedNodesPanel)
+//    masterPanel.setComponentZOrder(recentSelectedNodesPanel, 0)
+
+    masterPanel.add(Box.createVerticalStrut(20))
+
+    masterPanel.add(pinnedItemsPanel)
+//    masterPanel.setComponentZOrder(pinnedItemsPanel, 0)
+
+    masterPanel.add(Box.createVerticalStrut(20))
+
+    masterPanel.add(quickSearchPanel)
+//    masterPanel.setComponentZOrder(quickSearchPanel, 0)
 
 
-    parentPanel.add(recentSelectedNodesPanel)
-    parentPanel.setComponentZOrder(recentSelectedNodesPanel, 0)
+    masterPanel.revalidate()
+    masterPanel.repaint()
 
-    parentPanel.add(pinnedItemsPanel)
-    parentPanel.setComponentZOrder(pinnedItemsPanel, 0)
+    masterPanel.setVisible(true)
 
-    parentPanel.add(quickSearchPanel)
-    parentPanel.setComponentZOrder(quickSearchPanel, 0)
+
+
+    parentPanel.add(masterPanel)
+    parentPanel.setComponentZOrder(masterPanel, 0)
 
     parentPanel.revalidate()
     parentPanel.repaint()
@@ -504,6 +600,8 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
 JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
+
+
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
         protected void paintComponent(Graphics g) {
@@ -526,11 +624,10 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     JTextPane textLabel = new JTextPane();
     textLabel.setContentType("text/html")
 
-
     configureLabelForNode(textLabel, node, inspectorPanel)
 
     JScrollPane textScrollPane = new JScrollPane(textLabel)
-    textScrollPane.setPreferredSize(new Dimension(200, 100))
+    textScrollPane.setPreferredSize(new Dimension(200, nodeTextPanelFixedHeight))
 
     textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
     textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
@@ -557,20 +654,13 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
             button1.setBackground(Color.BLUE)
             button1.setForeground(Color.BLACK)
         } else {
-            button1.setBackground(Color.GRAY)
+            button1.setBackground(Color.WHITE)
             button1.setForeground(Color.BLACK)
         }
     })
     button1.setOpaque(true)
     button1.setBorderPainted(false)
-
-    if (freezeInspectors) {
-        button1.setBackground(Color.BLUE)
-        button1.setForeground(Color.BLACK)
-    } else {
-        button1.setBackground(Color.GRAY)
-        button1.setForeground(Color.BLACK)
-    }
+    button1.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
 
     JButton button2 = new JButton("Update Selection")
@@ -581,24 +671,27 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
             button2.setBackground(Color.BLUE)
             button2.setForeground(Color.BLACK)
         } else {
-            button2.setBackground(Color.GRAY)
+            button2.setBackground(Color.WHITE)
             button2.setForeground(Color.BLACK)
         }
     })
     button2.setOpaque(true)
     button2.setBorderPainted(false)
+    button2.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
     if (inspectorUpdateSelection) {
         button2.setBackground(Color.BLUE)
         button2.setForeground(Color.BLACK)
     } else {
-        button2.setBackground(Color.GRAY)
+        button2.setBackground(Color.WHITE)
         button2.setForeground(Color.BLACK)
     }
 
 
     buttonPanel.add(button1)
-    buttonPanel.add(button2)
+    if(visibleInspectors.size() <= 2) {
+        buttonPanel.add(button2)
+    }
 
     buttonPanel.addMouseListener(sharedMouseListener)
     button1.addMouseListener(sharedMouseListener)
@@ -625,6 +718,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
     titledBorderAncestors.setTitleJustification(TitledBorder.LEFT)
+    titledBorderAncestors.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
     ancestorsLineList.setBorder(titledBorderAncestors)
 
     JScrollPane scrollPaneAncestorsLineList = new JScrollPane(ancestorsLineList){
@@ -640,7 +734,9 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     ancestorsLineList.setSize(ancestorsLineList.getPreferredSize())
     ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
-    int maxHeight = 350
+
+    int maxHeight = (int) Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.height -175
+
     int finalHeight = Math.min(listPreferredSize.height, maxHeight)
     scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, finalHeight + 30))
 
@@ -674,6 +770,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     TitledBorder titledBorderSiblings = BorderFactory.createTitledBorder("Siblings")
     titledBorderSiblings.setTitleJustification(TitledBorder.LEFT)
+    titledBorderSiblings.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
     siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
@@ -713,6 +810,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     TitledBorder titledBorderChildren = BorderFactory.createTitledBorder("Children")
     titledBorderChildren.setTitleJustification(TitledBorder.LEFT)
+    titledBorderChildren.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
     childrenList.setBorder(titledBorderChildren)
 
     JScrollPane scrollPaneChildrenList = new JScrollPane(childrenList)
@@ -790,15 +888,10 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     verticalStackPanel.revalidate()
 
-    inspectorPanel.setSize(500, (int) inspectorPanel.getPreferredSize().height)
+    inspectorPanel.setSize(calculateInspectorWidth(), (int) inspectorPanel.getPreferredSize().height)
 
     inspectorPanel.revalidate();
     inspectorPanel.repaint();
-
-
-
-
-
 
 
     /////////////////////////////////////////
@@ -824,6 +917,11 @@ void hideInspectorPanelIfNeeded() {
             it.setVisible(false)
         }
         visibleInspectors.clear()
+
+        bounds = masterPanel.getBounds()
+        bounds.width = calculateRetractedWidthForMasterPanel()
+        masterPanel.setBounds(bounds)
+
         parentPanel.revalidate()
         parentPanel.repaint()
         return
@@ -835,6 +933,8 @@ void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePa
     Color fontColor = NodeStyleController.getController().getColor(node, StyleOption.FOR_UNSELECTED_NODE)
     String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
     String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
+
+    fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
     component.setBackground(backgroundColor)
     component.setForeground(fontColor)
@@ -958,7 +1058,6 @@ void configureListContextMenu(JList<NodeModel> list) {
             if (SwingUtilities.isRightMouseButton(e)) {
                 int index = list.locationToIndex(e.getPoint())
                 if (index >= 0) {
-                    list.setSelectedIndex(index)
                     NodeModel selectedItem = list.getModel().getElementAt(index)
 
                     JPopupMenu popupMenu = new JPopupMenu()
@@ -1242,6 +1341,19 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
         @Override
         public void mouseMoved(MouseEvent e) {
             if (freezeInspectors == true) {return}
+
+
+            if(sourcePanel == recentSelectedNodesPanel || sourcePanel == quickSearchPanel || sourcePanel == pinnedItemsPanel) {
+                visibleInspectors.each{
+                    it.setVisible(false)
+                }
+                visibleInspectors.clear()
+            }
+
+            bounds = masterPanel.getBounds()
+            bounds.width = calculateExpandedWidthForMasterPanel()
+            masterPanel.setBounds(bounds)
+
             sourcePanel = sourcePanel
             int index = list.locationToIndex(e.getPoint())
             if (index >= 0) {
@@ -1252,6 +1364,12 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
                 visibleInspectors.each{
                     if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
                         it.setVisible(false)}
+
+                    if(it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse){
+                        it.setVisible(false)
+                    }
+
+
                 }
             }
         }
@@ -1343,4 +1461,20 @@ def deleteCurrentListenersFromPreviousExecutions() {
     listenersToRemove2.each { listenerToRemove ->
         Controller.currentController.modeController.mapController.removeMapChangeListener(listenerToRemove)
     }
+}
+
+def int calculateRetractedWidthForMasterPanel() {
+    width = Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.width / retractedWidthFactorForMasterPanel
+    return width
+}
+
+def int calculateExpandedWidthForMasterPanel() {
+    retractedWidth = calculateRetractedWidthForMasterPanel()
+    width = retractedWidth * expandedWidthFactorForMasterPanel
+    return width
+}
+
+def int calculateInspectorWidth() {
+    width = Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.width / widthFactorForInspector
+    return width
 }
