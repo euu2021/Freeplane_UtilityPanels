@@ -1,5 +1,8 @@
 
 /*
+version 1.8: selection delay
+    Fixed size calculations relative to map view window.
+
 version: 1.7: Inspector max height is equal to the window height.
  Not necessary to have Map Overview active anymore.
  Solved graphical glitch problem (actually, it was multiple inspectors being created).
@@ -107,6 +110,7 @@ retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the
 expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
 widthFactorForInspector = 5 //the higher the factor, the wider the inspector panel width
 
+@Field selectionDelay = 100 //miliseconds
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -131,8 +135,9 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field boolean mouseOverList = false
 @Field boolean freezeInspectors = false
 @Field boolean inspectorUpdateSelection = false
+@Field boolean isMasterPanelExpanded = false
 
-
+mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.mapView.parent
 
 @Field boolean quickSearchNeedsRefresh = true
 @Field String searchText = ""
@@ -158,6 +163,41 @@ sharedMouseListener = new MouseAdapter() {
         hideInspectorTimer.restart()
     }
 }
+
+@Field Timer hoverTimer = new Timer(selectionDelay, null)
+@Field Point lastMouseLocation = null
+
+hoverTimer.setRepeats(false)
+hoverTimer.addActionListener(e -> {
+    if (freezeInspectors) return
+    
+    if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
+        visibleInspectors.each{
+            it.setVisible(false)
+        }
+        visibleInspectors.clear()
+    }
+    
+    if (lastMouseLocation) {
+        int index = currentList.locationToIndex(lastMouseLocation)
+        if (index >= 0) {
+            NodeModel subNode = currentListModel.getElementAt(index)
+            subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
+            visibleInspectors.add(subInspectorPanel)
+            locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
+            visibleInspectors.each{
+                if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
+                    it.setVisible(false)}
+
+                if(it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse){
+                    it.setVisible(false)
+                }
+            }
+        }
+    }
+})
+
+
 
 class NodeModelTransferable implements Transferable {
     private static final DataFlavor NODE_MODEL_FLAVOR = new DataFlavor(NodeModel.class, "NodeModel");
@@ -284,7 +324,7 @@ viewportSizeChangeListener = new ComponentAdapter() {
     }
 }
 
-Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.addComponentListener(viewportSizeChangeListener);
+mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener);
 
 
 
@@ -358,7 +398,7 @@ def createPanels(){
 
     masterPanel.setOpaque(false)
 
-    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.height -05)
+    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -05)
 
 
 
@@ -600,8 +640,6 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
 JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
-
-
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
         protected void paintComponent(Graphics g) {
@@ -735,7 +773,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
 
-    int maxHeight = (int) Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.height -175
+    int maxHeight = (int) mapViewWindowForSizeReferences.height -175
 
     int finalHeight = Math.min(listPreferredSize.height, maxHeight)
     scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, finalHeight + 30))
@@ -871,12 +909,6 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     columnsPanel.add(scrollPanelSiblingsList);
     columnsPanel.add(scrollPaneChildrenList);
 
-
-
-
-
-
-
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
 
@@ -897,7 +929,14 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     /////////////////////////////////////////
 
 
-    int x = sourcePanel.getLocation().x + sourcePanel.getWidth() + 5
+    int x
+
+    if(isMasterPanelExpanded) {
+        x = sourcePanel.getLocation().x + calculateExpandedWidthForMasterPanel() + 5
+    }
+    else {
+        x = sourcePanel.getLocation().x + sourcePanel.getWidth() + 5
+    }
     int y = 0
     inspectorPanel.setLocation(x, y)
     inspectorPanel.setVisible(true)
@@ -921,6 +960,7 @@ void hideInspectorPanelIfNeeded() {
         bounds = masterPanel.getBounds()
         bounds.width = calculateRetractedWidthForMasterPanel()
         masterPanel.setBounds(bounds)
+        isMasterPanelExpanded = false
 
         parentPanel.revalidate()
         parentPanel.repaint()
@@ -1342,36 +1382,26 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
         public void mouseMoved(MouseEvent e) {
             if (freezeInspectors == true) {return}
 
+//            if(sourcePanel == recentSelectedNodesPanel || sourcePanel == quickSearchPanel || sourcePanel == pinnedItemsPanel) {
+//                if(sourcePanel.width != calculateExpandedWidthForMasterPanel()) {
+//                    visibleInspectors.each{
+//                        it.setVisible(false)
+//                    }
+//                    visibleInspectors.clear()
+//                }
+//            }
 
-            if(sourcePanel == recentSelectedNodesPanel || sourcePanel == quickSearchPanel || sourcePanel == pinnedItemsPanel) {
-                visibleInspectors.each{
-                    it.setVisible(false)
-                }
-                visibleInspectors.clear()
-            }
+            hoverTimer.stop()
+            currentList = list
+            currentListModel = listModel
+            currentSourcePanel = sourcePanel
+            lastMouseLocation = e.getPoint()
+            hoverTimer.restart()
 
             bounds = masterPanel.getBounds()
             bounds.width = calculateExpandedWidthForMasterPanel()
             masterPanel.setBounds(bounds)
-
-            sourcePanel = sourcePanel
-            int index = list.locationToIndex(e.getPoint())
-            if (index >= 0) {
-                NodeModel subNode = listModel.getElementAt(index)
-                subInspectorPanel = createInspectorPanel(subNode, sourcePanel)
-                visibleInspectors.add(subInspectorPanel)
-                locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                visibleInspectors.each{
-                    if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
-                        it.setVisible(false)}
-
-                    if(it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse){
-                        it.setVisible(false)
-                    }
-
-
-                }
-            }
+            isMasterPanelExpanded = true
         }
     })
 }
@@ -1464,7 +1494,7 @@ def deleteCurrentListenersFromPreviousExecutions() {
 }
 
 def int calculateRetractedWidthForMasterPanel() {
-    width = Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.width / retractedWidthFactorForMasterPanel
+    width = mapViewWindowForSizeReferences.width / retractedWidthFactorForMasterPanel
     return width
 }
 
@@ -1475,6 +1505,6 @@ def int calculateExpandedWidthForMasterPanel() {
 }
 
 def int calculateInspectorWidth() {
-    width = Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent.parent.parent.parent.parent.width / widthFactorForInspector
+    width = mapViewWindowForSizeReferences.width / widthFactorForInspector
     return width
 }
