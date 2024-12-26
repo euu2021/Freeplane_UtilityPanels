@@ -1,7 +1,11 @@
 
 /*
+version 1.9: Fixed calculation of inspector location.
+ Fixed node text panel scrollbar not starting at the top.
+ Option to reverse the order of ancestors list.
+
 version 1.8: selection delay
-    Fixed size calculations relative to map view window.
+ Fixed size calculations relative to map view window.
 
 version: 1.7: Inspector max height is equal to the window height.
  Not necessary to have Map Overview active anymore.
@@ -111,6 +115,8 @@ expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the pan
 widthFactorForInspector = 5 //the higher the factor, the wider the inspector panel width
 
 @Field selectionDelay = 100 //miliseconds
+
+reverseAncestorsList = true
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -670,6 +676,11 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
     textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
 
+    SwingUtilities.invokeLater {
+        textScrollPane.getVerticalScrollBar().setValue(0)
+        textScrollPane.getHorizontalScrollBar().setValue(0)
+    }
+
     inspectorPanel.addMouseListener(sharedMouseListener)
     textLabel.addMouseListener(sharedMouseListener)
     textScrollPane.addMouseListener(sharedMouseListener)
@@ -744,8 +755,16 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     ////////////////// Ancestors panel /////////////////////
 
     DefaultListModel<NodeModel> ancestorLineModel = new DefaultListModel<>()
-    node.getPathToRoot().each {
-        ancestorLineModel.addElement(it)
+
+    if(reverseAncestorsList) {
+        node.getPathToRoot().reverse().each {
+            ancestorLineModel.addElement(it)
+        }
+    }
+    else{
+        node.getPathToRoot().each {
+            ancestorLineModel.addElement(it)
+        }
     }
     ancestorLineModel.removeElement(node)
 
@@ -931,7 +950,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     int x
 
-    if(isMasterPanelExpanded) {
+    if(isMasterPanelExpanded && visibleInspectors.size() == 0) {
         x = sourcePanel.getLocation().x + calculateExpandedWidthForMasterPanel() + 5
     }
     else {
