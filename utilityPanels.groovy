@@ -1,5 +1,7 @@
 
 /*
+version 1.12: In siblings panel, scrollbar rolls automatically to selected node.
+
 version 1.11: Fine tuned reaction to mouse listeners.
     Fixed calculation of inspector locations.
 
@@ -861,7 +863,6 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
         node.parent.getChildren().each {
             siblingsModel.addElement(it)
         }
-        //siblingsModel.removeElement(node)
     }
 
     JList<NodeModel> siblingsList = new JList<>(siblingsModel)
@@ -887,9 +888,12 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     scrollPanelSiblingsList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPanelSiblingsList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
 
-
-
-
+    int selectedIndex = siblingsModel.indexOf(node)
+    if (selectedIndex >= 0) {
+        SwingUtilities.invokeLater {
+            siblingsList.ensureIndexIsVisible(selectedIndex);
+        }
+    }
 
 
     //////////////////////////////////////////////////
