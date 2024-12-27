@@ -1,5 +1,7 @@
 
 /*
+version 1.13: Quick Search now works without Jumper integration.
+
 version 1.12: In siblings panel, scrollbar rolls automatically to selected node.
 
 version 1.11: Fine tuned reaction to mouse listeners.
@@ -542,30 +544,43 @@ def createPanels(){
         public void doLiveSearch() {
             searchText = searchField.getText();
             quickSearchResults.clear()
-            if (lilive.jumper.Jumper.instance && quickSearchNeedsRefresh == false) {
-                lilive.jumper.Jumper.startHeadlessCall(searchText)
-            }
-            else {
-                lilive.jumper.Jumper.startHeadlessCall(searchText)
-                PropertyChangeListener searchCompleteListener = new PropertyChangeListener() {
-                    void propertyChange(PropertyChangeEvent evt) {
-                        if ("searchInProgress".equals(evt.getPropertyName()) && Boolean.FALSE.equals(evt.getNewValue())) {
-                            if (lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().size() == 0) {
-                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-                                return
-                            }
-                            quickSearchResults.clear()
-                            lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().each { quickSearchResults.add(it.delegate) }
-                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-                            updateAllGUIs()
-                        }
-                    }
-                }
-                lilive.jumper.Jumper.instance.addPropertyChangeListener(searchCompleteListener)
-                quickSearchNeedsRefresh = false
-            }
+
+
+
+
+            NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot
+
+            // Inicia a busca recursiva a partir do nó raiz
+            searchNodesRecursively(rootNode, searchText, quickSearchResults)
+
+
+//            if (lilive.jumper.Jumper.instance && quickSearchNeedsRefresh == false) {
+//                lilive.jumper.Jumper.startHeadlessCall(searchText)
+//            }
+//            else {
+//                lilive.jumper.Jumper.startHeadlessCall(searchText)
+//                PropertyChangeListener searchCompleteListener = new PropertyChangeListener() {
+//                    void propertyChange(PropertyChangeEvent evt) {
+//                        if ("searchInProgress".equals(evt.getPropertyName()) && Boolean.FALSE.equals(evt.getNewValue())) {
+//                            if (lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().size() == 0) {
+//                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//                                return
+//                            }
+//                            quickSearchResults.clear()
+//                            lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().each { quickSearchResults.add(it.delegate) }
+//                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//                            updateAllGUIs()
+//                        }
+//                    }
+//                }
+//                lilive.jumper.Jumper.instance.addPropertyChangeListener(searchCompleteListener)
+//                quickSearchNeedsRefresh = false
+//            }
+
+
+
             Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
             Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
             updateAllGUIs()
@@ -1594,4 +1609,14 @@ def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
 
     int y = 0
     inspectorPanel.setLocation(x, y)
+}
+
+def searchNodesRecursively(NodeModel node, String searchText, List<NodeModel> results) {
+    if (node.text?.toLowerCase().contains(searchText.toLowerCase())) {
+        results.add(node)
+    }
+
+    node.children.each { child ->
+        searchNodesRecursively(child, searchText, results)
+    }
 }
