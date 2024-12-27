@@ -1,5 +1,8 @@
 
 /*
+version 1.11: Fine tuned reaction to mouse listeners.
+    Fixed calculation of inspector locations.
+
 version 1.10: Fixed inspector hiding with Update Selection enabled.
  Fixed Update Selection button only in first inspector.
  Created option paddingBeforeHorizontalScrollBar, to avoid the vertical scrollbar appearing unnecessarily;
@@ -144,6 +147,8 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field JPanel quickSearchPanel
 @Field JPanel innerPanelInQuickSearchPanel
 
+@Field JPanel currentSourcePanel
+
 @Field boolean mouseOverList = false
 @Field boolean freezeInspectors = false
 @Field boolean inspectorUpdateSelection = false
@@ -185,6 +190,12 @@ hoverTimer.addActionListener(e -> {
     
 
     if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
+        bounds = masterPanel.getBounds()
+        bounds.width = calculateExpandedWidthForMasterPanel()
+        masterPanel.setBounds(bounds)
+        isMasterPanelExpanded = true
+
+
         visibleInspectors.each{
             if(!inspectorUpdateSelection) {
                 it.setVisible(false)
@@ -202,7 +213,7 @@ hoverTimer.addActionListener(e -> {
         else {
             visibleInspectors.removeAll { it != visibleInspectors[0] }
             if(visibleInspectors.size() != 0) {
-                setInspectorLocation(visibleInspectors[0], masterPanel, false)
+                setInspectorLocation(visibleInspectors[0], masterPanel)
             }
         }
     }
@@ -215,12 +226,7 @@ hoverTimer.addActionListener(e -> {
             if (index >= 0) {
                 NodeModel subNode = currentListModel.getElementAt(index)
 
-                if(inspectorUpdateSelection && visibleInspectors.size() == 1) {
-                    subInspectorPanel = createInspectorPanel(subNode, visibleInspectors[0])
-                }
-                else {
-                    subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
-                }
+                subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
 
                 visibleInspectors.add(subInspectorPanel)
                 locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
@@ -987,7 +993,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     /////////////////////////////////////////
 
 
-    setInspectorLocation(inspectorPanel, sourcePanel, false)
+    setInspectorLocation(inspectorPanel, sourcePanel)
     inspectorPanel.setVisible(true)
     parentPanel.add(inspectorPanel)
     parentPanel.setComponentZOrder(inspectorPanel, 0)
@@ -1018,7 +1024,7 @@ void hideInspectorPanelIfNeeded() {
         else {
             visibleInspectors.removeAll { it != visibleInspectors[0] }
             if(visibleInspectors.size() != 0) {
-                setInspectorLocation(visibleInspectors[0], masterPanel, true)
+                setInspectorLocation(visibleInspectors[0], masterPanel)
             }
         }
 
@@ -1029,6 +1035,11 @@ void hideInspectorPanelIfNeeded() {
 
         parentPanel.revalidate()
         parentPanel.repaint()
+
+        if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
+            setInspectorLocation(visibleInspectors[0], masterPanel)
+        }
+
         return
     }
 }
@@ -1452,12 +1463,21 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
             currentListModel = listModel
             currentSourcePanel = sourcePanel
             lastMouseLocation = e.getPoint()
+            mouseOverList = true
             hoverTimer.restart()
 
-            bounds = masterPanel.getBounds()
-            bounds.width = calculateExpandedWidthForMasterPanel()
-            masterPanel.setBounds(bounds)
-            isMasterPanelExpanded = true
+
+            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
+                bounds = masterPanel.getBounds()
+                bounds.width = calculateExpandedWidthForMasterPanel()
+                masterPanel.setBounds(bounds)
+                masterPanel.revalidate()
+                masterPanel.repaint()
+                isMasterPanelExpanded = true
+                if(visibleInspectors.size() != 0) {
+                    setInspectorLocation(visibleInspectors[0], masterPanel)
+                }
+            }
         }
     })
 }
@@ -1565,15 +1585,9 @@ def int calculateInspectorWidth() {
     return width
 }
 
-def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel, boolean forceRetractedPosition) {
-    int x
+def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
+    int x = sourcePanel.getLocation().x + sourcePanel.width + 5
 
-    if(isMasterPanelExpanded && !forceRetractedPosition) {
-        x = sourcePanel.getLocation().x + calculateExpandedWidthForMasterPanel() + 5
-    }
-    else {
-        x = sourcePanel.getLocation().x + calculateRetractedWidthForMasterPanel() + 5
-    }
     int y = 0
     inspectorPanel.setLocation(x, y)
 }
