@@ -1,5 +1,12 @@
 
 /*
+version 1.14: add horizontal scrollbar to pinned nodes, quick search and history panels.
+ Created option additionalInspectorDistanceToTheBottomOfTheScreen.
+ Fixed Blinking "Update Selection" panel when mouse on an empty space of a list.
+ Added history of recent searches.
+ Added shortcut to quick search.
+ Automatically remove panels, in the Inspector, that have no nodes
+
 version 1.13: Quick Search now works without Jumper integration.
 
 version 1.12: In siblings panel, scrollbar rolls automatically to selected node.
@@ -50,6 +57,11 @@ import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
+import java.awt.event.KeyEvent
+import javax.swing.KeyStroke
+import javax.swing.InputMap
+import javax.swing.ActionMap
+import javax.swing.AbstractAction
 
 import java.util.List
 import java.util.regex.Pattern
@@ -131,6 +143,10 @@ reverseAncestorsList = true
 
 paddingBeforeHorizontalScrollBar = 30
 
+additionalInspectorDistanceToTheBottomOfTheScreen = 175
+
+@Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
+
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
@@ -142,6 +158,8 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field List<NodeModel> pinnedItems = []
 @Field List<NodeModel> quickSearchResults = []
 @Field List<JPanel> visibleInspectors = []
+@Field List<String> savedSearchCriteria = []
+savedSearchCriteria.add("")
 
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
@@ -157,12 +175,16 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field boolean freezeInspectors = false
 @Field boolean inspectorUpdateSelection = false
 @Field boolean isMasterPanelExpanded = false
+@Field boolean isMouseOverSearchBox = false
 
 mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.mapView.parent
 
-@Field boolean quickSearchNeedsRefresh = true
 @Field String searchText = ""
+@Field String lastSearchText = ""
 @Field DocumentListener searchTextBoxListener
+
+@Field Timer liveSearchTimer = new Timer(200, null);
+liveSearchTimer.setRepeats(false);
 
 @Field Timer hideInspectorTimer = new Timer(500, null)
 
@@ -190,7 +212,7 @@ sharedMouseListener = new MouseAdapter() {
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
-    if (freezeInspectors) return
+    if (freezeInspectors || isMouseOverSearchBox) return
     
 
     if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
@@ -245,6 +267,9 @@ hoverTimer.addActionListener(e -> {
             }
         }
         else {
+            if(inspectorUpdateSelection && visibleInspectors.size() == 1) {
+                visibleInspectors[0].setVisible(true)
+            }
         }
     }
 })
@@ -285,12 +310,6 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
     @Override
     public void onDeselect(NodeModel node) {
         SwingUtilities.invokeLater { updateAllGUIs() }
-        quickSearchNeedsRefresh = true
-        try {
-            lilive.jumper.Jumper.instance.headlessEnd()
-        }
-        catch (Exception e) {
-        }
     }
 
     @Override
@@ -304,7 +323,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
         }
         parentPanel.revalidate()
         parentPanel.repaint()
-        if (freezeInspectors == true) {return}
+        if (freezeInspectors || isMouseOverSearchBox) {return}
         if (inspectorUpdateSelection == true) {
             visibleInspectors.each{
                 it.setVisible(false)
@@ -397,41 +416,34 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     }
 });
 
-NodeChangeListener myNodeChangeListener = { NodeChanged event ->
-    /* enum ChangedElement {TEXT, DETAILS, NOTE, ICON, ATTRIBUTE, FORMULA_RESULT, UNKNOWN} */
-    if (
-            event.changedElement == NodeChanged.ChangedElement.TEXT
-                    || event.changedElement == NodeChanged.ChangedElement.DETAILS
-                    || event.changedElement == NodeChanged.ChangedElement.NOTE
-                    || event.changedElement == NodeChanged.ChangedElement.ATTRIBUTE) {
-
-        quickSearchNeedsRefresh = true
-
-        if (searchText == "") {return}
-        String[] searchWords = searchText.split("\\s+");
-        boolean containsSearchText = false;
-        for (String word : searchWords) {
-            if (event.node.text.contains(word)) {
-                containsSearchText = true;
-                break
-            }
-        }
-        if (containsSearchText) {
-            searchTextBoxListener.doLiveSearch()
-            return
-        }
-        else {
-        }
-
-        try {
-            lilive.jumper.Jumper.instance.headlessEnd()
-        }
-        catch (Exception e) {
-        }
-    }
-} as NodeChangeListener
-
-mindMap.addListener(myNodeChangeListener)
+//NodeChangeListener myNodeChangeListener = { NodeChanged event ->
+//    /* enum ChangedElement {TEXT, DETAILS, NOTE, ICON, ATTRIBUTE, FORMULA_RESULT, UNKNOWN} */
+//    if (
+//            event.changedElement == NodeChanged.ChangedElement.TEXT
+//                    || event.changedElement == NodeChanged.ChangedElement.DETAILS
+//                    || event.changedElement == NodeChanged.ChangedElement.NOTE
+//                    || event.changedElement == NodeChanged.ChangedElement.ATTRIBUTE) {
+//
+//
+//        if (searchText == "") {return}
+//        String[] searchWords = searchText.split("\\s+");
+//        boolean containsSearchText = false;
+//        for (String word : searchWords) {
+//            if (event.node.text.contains(word)) {
+//                containsSearchText = true;
+//                break
+//            }
+//        }
+//        if (containsSearchText) {
+//            searchTextBoxListener.doLiveSearch()
+//            return
+//        }
+//        else {
+//        }
+//    }
+//} as NodeChangeListener
+//
+//mindMap.addListener(myNodeChangeListener)
 
 return
 
@@ -450,7 +462,7 @@ def createPanels(){
 
     masterPanel.setOpaque(false)
 
-    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -05)
+    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
 
 
 
@@ -518,86 +530,95 @@ def createPanels(){
     int quickSearchPanelHeight = 130
     quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
 
-    JTextField searchField = new JTextField();
 
-    searchTextBoxListener = new DocumentListener() {
 
+    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]));
+    searchField.setEditable(true);
+
+
+
+    JTextField searchEditor = (JTextField) searchField.getEditor().getEditorComponent();
+
+    searchEditor.getDocument().addDocumentListener(new DocumentListener() {
+        @Override
         public void insertUpdate(DocumentEvent e) {
-            doLiveSearch();
+            scheduleLiveSearch();
         }
 
+        @Override
         public void removeUpdate(DocumentEvent e) {
-            if (searchField.getText() == "") {
-                searchText = ""
-                quickSearchResults.clear()
-                updateAllGUIs()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-                return
-            }
-            doLiveSearch()
+            scheduleLiveSearch();
         }
 
+        @Override
         public void changedUpdate(DocumentEvent e) {
+            scheduleLiveSearch();
         }
 
-        public void doLiveSearch() {
-            searchText = searchField.getText();
-            quickSearchResults.clear()
-
-
-
-
-            NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot
-
-            // Inicia a busca recursiva a partir do nó raiz
-            searchNodesRecursively(rootNode, searchText, quickSearchResults)
-
-
-//            if (lilive.jumper.Jumper.instance && quickSearchNeedsRefresh == false) {
-//                lilive.jumper.Jumper.startHeadlessCall(searchText)
-//            }
-//            else {
-//                lilive.jumper.Jumper.startHeadlessCall(searchText)
-//                PropertyChangeListener searchCompleteListener = new PropertyChangeListener() {
-//                    void propertyChange(PropertyChangeEvent evt) {
-//                        if ("searchInProgress".equals(evt.getPropertyName()) && Boolean.FALSE.equals(evt.getNewValue())) {
-//                            if (lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().size() == 0) {
-//                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-//                                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-//                                return
-//                            }
-//                            quickSearchResults.clear()
-//                            lilive.jumper.Jumper.retrieveResultsAsNodeProxyList().each { quickSearchResults.add(it.delegate) }
-//                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-//                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-//                            updateAllGUIs()
-//                        }
-//                    }
-//                }
-//                lilive.jumper.Jumper.instance.addPropertyChangeListener(searchCompleteListener)
-//                quickSearchNeedsRefresh = false
-//            }
-
-
-
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-            updateAllGUIs()
+        private void scheduleLiveSearch() {
+            liveSearchTimer.stop();
+            liveSearchTimer.start();
         }
-    };
-    searchField.getDocument().addDocumentListener(searchTextBoxListener)
+    });
+
+
+
+    liveSearchTimer.addActionListener(new ActionListener() {
+        @Override
+        void actionPerformed(ActionEvent e) {
+            searchText = searchEditor.getText().trim();
+
+            if (!searchText.equals(lastSearchText)) {
+                lastSearchText = searchText
+                refreshList(searchText)
+            }
+
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
+            updateAllGUIs();
+
+        }
+
+        private void refreshList(String searchText) {
+            if (!searchText.isEmpty()) {
+                quickSearchResults.clear();
+                NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot;
+                searchNodesRecursively(rootNode, searchText, quickSearchResults);
+
+                if (!savedSearchCriteria.contains(searchText)) {
+                    savedSearchCriteria.add(0, searchText);
+                } else {
+                    savedSearchCriteria.remove(searchText);
+                    savedSearchCriteria.add(0, searchText);
+                }
+
+                saveSettings()
+
+                int caretPosition = searchEditor.getCaretPosition();
+
+                searchField.removeAllItems();
+                for (String term : savedSearchCriteria) {
+                    searchField.addItem(term);
+                }
+
+                searchEditor.setText(searchText);
+
+                if (!searchField.isPopupVisible()) {
+                    searchEditor.setCaretPosition(Math.min(caretPosition, searchText.length()));
+                }
+            }
+        }
+    });
 
     JButton clearButton = new JButton("X");
     clearButton.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            searchField.setText("");
-            searchText = ""
-            quickSearchResults.clear()
-            updateAllGUIs()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+            searchField.setSelectedItem("");
+            quickSearchResults.clear();
+            updateAllGUIs();
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
         }
     });
 
@@ -608,9 +629,6 @@ def createPanels(){
     clearButton.setOpaque(true);
     clearButton.setBorderPainted(true);
     clearButton.setFocusPainted(false);
-
-    clearButton.setContentAreaFilled(true);
-    clearButton.setFocusable(false);
 
     JPanel panelForSearchBox = new JPanel(new BorderLayout());
 
@@ -628,6 +646,63 @@ def createPanels(){
     innerPanelInQuickSearchPanel.setBackground( new Color(0, 0, 0, 0) )
 
     quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER);
+
+
+    searchField.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            isMouseOverSearchBox = true;
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            isMouseOverSearchBox = false;
+        }
+    });
+
+
+
+    panelForSearchBox.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            isMouseOverSearchBox = true;
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            isMouseOverSearchBox = false;
+        }
+    });
+
+
+    searchEditor.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            isMouseOverSearchBox = true;
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            isMouseOverSearchBox = false;
+        }
+    });
+
+
+    clearButton.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            isMouseOverSearchBox = true;
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            isMouseOverSearchBox = false;
+        }
+    });
+
+    addQuickSearchShortcut(searchField)
+
+
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -694,7 +769,7 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
     scrollPane.getViewport().setOpaque(false)
 
 //    scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER)
-    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
+    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
 
     jListPanel.add(scrollPane, BorderLayout.CENTER)
@@ -851,7 +926,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
 
-    int maxHeight = (int) mapViewWindowForSizeReferences.height -175
+    int maxHeight = (int) mapViewWindowForSizeReferences.height -additionalInspectorDistanceToTheBottomOfTheScreen
 
     int finalHeight = Math.min(listPreferredSize.height, maxHeight)
     scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, finalHeight + paddingBeforeHorizontalScrollBar))
@@ -988,9 +1063,16 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
 
 
-    columnsPanel.add(scrollPaneAncestorsLineList);
-    columnsPanel.add(scrollPanelSiblingsList);
-    columnsPanel.add(scrollPaneChildrenList);
+    if(ancestorLineModel.getSize() > 0) {
+        columnsPanel.add(scrollPaneAncestorsLineList);
+    }
+    if(siblingsModel.getSize() > 0) {
+        columnsPanel.add(scrollPanelSiblingsList);
+    }
+    if(childrenModel.getSize() > 0) {
+        columnsPanel.add(scrollPaneChildrenList);
+    }
+
 
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
@@ -1023,7 +1105,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 }
 
 void hideInspectorPanelIfNeeded() {
-    if (freezeInspectors == true) {return}
+    if (freezeInspectors || isMouseOverSearchBox) {return}
     if (!mouseOverList) {
 
         visibleInspectors.each{
@@ -1045,6 +1127,10 @@ void hideInspectorPanelIfNeeded() {
             if(visibleInspectors.size() != 0) {
                 setInspectorLocation(visibleInspectors[0], masterPanel)
             }
+        }
+
+        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
+            visibleInspectors[0].setVisible(true)
         }
 
         bounds = masterPanel.getBounds()
@@ -1103,6 +1189,7 @@ void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePa
 
         String labelText = prefix + node.text;
 
+
         if (quickSearchResults.contains(node)) {
             textWithHighlight = highlightSearchTerms(labelText, searchedTerms);
         } else {
@@ -1110,6 +1197,9 @@ void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePa
         }
 
         label.setText(textWithHighlight)
+
+        label.revalidate()
+        label.repaint()
 
 
 
@@ -1475,7 +1565,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            if (freezeInspectors == true) {return}
+            if (freezeInspectors || isMouseOverSearchBox) {return}
 
             hoverTimer.stop()
             currentList = list
@@ -1514,20 +1604,22 @@ void configureMouseExitListener(JList<NodeModel> list) {
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Lists configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-private void saveSettings(){
-
+private void saveSettings() {
     File file = getSettingsFile()
 
     List<String> pinnedItemsIds = pinnedItems.collect { it.id }
-
-    String jsonString = "[" + pinnedItemsIds.collect { "\"$it\"" }.join(", ") + "]"
+    String jsonString = new JsonBuilder([
+            pinnedItems: pinnedItemsIds,
+            recentSearches: savedSearchCriteria
+    ]).toPrettyString()
 
     try {
         file.text = jsonString
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
     }
 }
+
+
 
 File getSettingsFile(){
     File file = new File(
@@ -1546,15 +1638,20 @@ private void loadSettings() {
 
     try {
         String content = file.text
+        def settings = new JsonSlurper().parseText(content)
 
-        List<String> pinnedItemsIds = new JsonSlurper().parseText(content)
-
-        pinnedItems = pinnedItemsIds.collect { id ->
+        pinnedItems = settings.pinnedItems.collect { id ->
             Controller.currentController.map.getNodeForID(id)
         }.findAll { it != null }
+
+        if (settings.recentSearches instanceof List) {
+            savedSearchCriteria.clear()
+            savedSearchCriteria.addAll(settings.recentSearches)
+        }
     } catch (Exception e) {
     }
 }
+
 
 def deleteCurrentListenersFromPreviousExecutions() {
     def listenersToRemove = []
@@ -1619,4 +1716,17 @@ def searchNodesRecursively(NodeModel node, String searchText, List<NodeModel> re
     node.children.each { child ->
         searchNodesRecursively(child, searchText, results)
     }
+}
+
+def addQuickSearchShortcut(JComboBox searchField) {
+    InputMap inputMap = searchField.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+    ActionMap actionMap = searchField.getActionMap()
+
+    inputMap.put(keyStrokeToQuickSearch, "focusQuickSearch")
+    actionMap.put("focusQuickSearch", new AbstractAction() {
+        @Override
+        void actionPerformed(ActionEvent e) {
+            searchField.requestFocusInWindow()
+        }
+    })
 }
