@@ -1,5 +1,16 @@
 
 /*
+version 1.15: substring search with multiple terms: Quick Search now supports partial word matching, allowing nodes to be found if their text contains fragments of the searched terms. For example, searching for 'ab 12' will find 'abc 123'.
+ Transversal Search: Quick Search now supports transversal search, finding nodes that contain at least one of the searched terms and whose ancestors complement the other terms. For example, searching for 'ab 12' will find a node with text 'abc' if any ancestor contains '12'.
+ Folded nodes with matching descendants are now highlighted in red, indicating they have hidden search results. Orange for nodes directly found that also have highlighted descendants and are folded.
+ Recent Nodes Panel: improved the logic for the recent nodes panel: selected nodes are now always moved to the top of the list, avoiding duplicates. If the node is not already in the list, it is added at the top.
+ Recent Nodes Panel increased the number of nodes that can be stored to 200.
+ Automatically remove panels, in the Inspector, that have no nodes. And, inspector gets smaller when there are less panels.
+ Changed design of inspector panel buttons.
+ Update selection is active by default.
+ Created the user option: widthOfTheClearButtonOnQuickSearchPanel.
+ Fixed mouse click while mouse moving was interpreted as a drag to itself.
+
 version 1.14: add horizontal scrollbar to pinned nodes, quick search and history panels.
  Created option additionalInspectorDistanceToTheBottomOfTheScreen.
  Fixed Blinking "Update Selection" panel when mouse on an empty space of a list.
@@ -135,7 +146,7 @@ nodeTextPanelFixedHeight = 100
 
 retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the panels width
 expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
-widthFactorForInspector = 5 //the higher the factor, the smaller the inspector panel width
+widthFactorForInspector = 15 //the higher the factor, the smaller the inspector panel width
 
 @Field selectionDelay = 100 //miliseconds
 
@@ -144,6 +155,8 @@ reverseAncestorsList = true
 paddingBeforeHorizontalScrollBar = 30
 
 additionalInspectorDistanceToTheBottomOfTheScreen = 175
+
+widthOfTheClearButtonOnQuickSearchPanel = 30
 
 @Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
 
@@ -173,7 +186,7 @@ savedSearchCriteria.add("")
 
 @Field boolean mouseOverList = false
 @Field boolean freezeInspectors = false
-@Field boolean inspectorUpdateSelection = false
+@Field boolean inspectorUpdateSelection = true
 @Field boolean isMasterPanelExpanded = false
 @Field boolean isMouseOverSearchBox = false
 
@@ -181,6 +194,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 @Field String searchText = ""
 @Field String lastSearchText = ""
+
 @Field DocumentListener searchTextBoxListener
 
 @Field Timer liveSearchTimer = new Timer(200, null);
@@ -314,27 +328,35 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 
     @Override
     public void onSelect(NodeModel node) {
-        if (!history.contains(node)) {
-            history.add(node)
-            if (history.size() > 10) {
-                history.remove(0)
-            }
-            SwingUtilities.invokeLater { updateAllGUIs() }
+        if (history.contains(node)) {
+            history.remove(node)
         }
+        history.add(0, node)
+
+        if (history.size() > 200) {
+            history.remove(200)
+        }
+
+        SwingUtilities.invokeLater { updateAllGUIs() }
+
         parentPanel.revalidate()
         parentPanel.repaint()
-        if (freezeInspectors || isMouseOverSearchBox) {return}
-        if (inspectorUpdateSelection == true) {
-            visibleInspectors.each{
+
+        if (freezeInspectors || isMouseOverSearchBox) {
+            return
+        }
+        if (inspectorUpdateSelection) {
+            visibleInspectors.each {
                 it.setVisible(false)
             }
             visibleInspectors.clear()
             parentPanel.revalidate()
             parentPanel.repaint()
-            subInspectorPanel2 = createInspectorPanel(node, recentSelectedNodesPanel)
-            visibleInspectors.add(subInspectorPanel2)
+            JPanel subInspectorPanel = createInspectorPanel(node, recentSelectedNodesPanel)
+            visibleInspectors.add(subInspectorPanel)
         }
     }
+
 }
 
 createdSelectionListener = mySelectionListener
@@ -399,51 +421,57 @@ mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener);
 
 
 
+
 Controller controllerForHighlighter = Controller.currentModeController.controller
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
-        return !isPrinting
-                && quickSearchResults.contains(node)
+        if (isPrinting) {
+            return false;
+        }
+        return quickSearchResults.contains(node) || isFoldedWithHighlightedDescendants(node);
     }
 
     @Override
     public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        g.setColor(new Color(0, 255, 0,255));
-        g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                BasicStroke.JOIN_MITER, 10, new float[] { 10, 2 }, 0));
+        boolean isFound = quickSearchResults.contains(node);
+        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendants(node);
+
+        if (isFound && hasFoldedDescendants) {
+            g.setColor(new Color(255, 165, 0, 255));
+            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+        } else if (isFound) {
+            g.setColor(new Color(0, 255, 0, 255));
+            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+        } else if (hasFoldedDescendants) {
+            g.setColor(new Color(255, 0, 0, 255));
+            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+        }
+    }
+
+    private boolean isFoldedWithHighlightedDescendants(NodeModel node) {
+        if (!node.folded) {
+            return false;
+        }
+        return hasHighlightedDescendants(node);
+    }
+
+    private boolean hasHighlightedDescendants(NodeModel node) {
+        for (NodeModel child : node.children) {
+            if (quickSearchResults.contains(child) || hasHighlightedDescendants(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 });
 
-//NodeChangeListener myNodeChangeListener = { NodeChanged event ->
-//    /* enum ChangedElement {TEXT, DETAILS, NOTE, ICON, ATTRIBUTE, FORMULA_RESULT, UNKNOWN} */
-//    if (
-//            event.changedElement == NodeChanged.ChangedElement.TEXT
-//                    || event.changedElement == NodeChanged.ChangedElement.DETAILS
-//                    || event.changedElement == NodeChanged.ChangedElement.NOTE
-//                    || event.changedElement == NodeChanged.ChangedElement.ATTRIBUTE) {
-//
-//
-//        if (searchText == "") {return}
-//        String[] searchWords = searchText.split("\\s+");
-//        boolean containsSearchText = false;
-//        for (String word : searchWords) {
-//            if (event.node.text.contains(word)) {
-//                containsSearchText = true;
-//                break
-//            }
-//        }
-//        if (containsSearchText) {
-//            searchTextBoxListener.doLiveSearch()
-//            return
-//        }
-//        else {
-//        }
-//    }
-//} as NodeChangeListener
-//
-//mindMap.addListener(myNodeChangeListener)
+
+
 
 return
 
@@ -622,7 +650,7 @@ def createPanels(){
         }
     });
 
-    clearButton.setPreferredSize(new Dimension(10, 1));
+    clearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1));
     clearButton.setForeground(Color.BLACK);
     clearButton.setBackground(Color.WHITE);
     clearButton.setBorder(BorderFactory.createEtchedBorder());
@@ -793,7 +821,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     inspectorPanel.setLayout(new BorderLayout())
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK))
-    inspectorPanel.setBackground( new Color(0, 0, 0, 0) )
+    inspectorPanel.setBackground(Color.LIGHT_GRAY)
 
 
     ////////////// Node Text Panel ///////////////
@@ -826,7 +854,8 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     /////////////////////////// Buttons panel //////////////////
 
-    JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER))
+    JPanel buttonPanel = new JPanel();
+    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
     buttonPanel.setBackground(Color.LIGHT_GRAY)
 
     JButton button1 = new JButton("Freeze")
@@ -834,7 +863,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
         freezeInspectors = !freezeInspectors
 
         if (freezeInspectors) {
-            button1.setBackground(Color.BLUE)
+            button1.setBackground(Color.CYAN)
             button1.setForeground(Color.BLACK)
         } else {
             button1.setBackground(Color.WHITE)
@@ -845,13 +874,20 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     button1.setBorderPainted(false)
     button1.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
+    if (freezeInspectors) {
+        button1.setBackground(Color.CYAN)
+        button1.setForeground(Color.BLACK)
+    } else {
+        button1.setBackground(Color.WHITE)
+        button1.setForeground(Color.BLACK)
+    }
 
     JButton button2 = new JButton("Update Selection")
     button2.addActionListener(e -> {
         inspectorUpdateSelection = !inspectorUpdateSelection
 
         if (inspectorUpdateSelection) {
-            button2.setBackground(Color.BLUE)
+            button2.setBackground(Color.GRAY)
             button2.setForeground(Color.BLACK)
         } else {
             button2.setBackground(Color.WHITE)
@@ -863,7 +899,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     button2.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
     if (inspectorUpdateSelection) {
-        button2.setBackground(Color.BLUE)
+        button2.setBackground(Color.GRAY)
         button2.setForeground(Color.BLACK)
     } else {
         button2.setBackground(Color.WHITE)
@@ -1061,21 +1097,24 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     columnsPanel.setBackground( new Color(0, 0, 0, 0) )
 
+    int ammountOfPannelsInInspector = 0
 
+    columnsPanel.add(scrollPaneAncestorsLineList);
+    ammountOfPannelsInInspector++
 
-    if(ancestorLineModel.getSize() > 0) {
-        columnsPanel.add(scrollPaneAncestorsLineList);
-    }
-    if(siblingsModel.getSize() > 0) {
+    if(siblingsModel.getSize() > 1) {
         columnsPanel.add(scrollPanelSiblingsList);
+        ammountOfPannelsInInspector++
     }
     if(childrenModel.getSize() > 0) {
         columnsPanel.add(scrollPaneChildrenList);
+        ammountOfPannelsInInspector++
     }
 
 
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
+    verticalStackPanel.setBackground( new Color(0, 0, 0, 0) )
 
     verticalStackPanel.add(buttonPanel, BorderLayout.NORTH)
     verticalStackPanel.add(textScrollPane, BorderLayout.NORTH)
@@ -1085,7 +1124,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     verticalStackPanel.revalidate()
 
-    inspectorPanel.setSize(calculateInspectorWidth(), (int) inspectorPanel.getPreferredSize().height)
+    inspectorPanel.setSize(calculateInspectorWidth(ammountOfPannelsInInspector), (int) inspectorPanel.getPreferredSize().height)
 
     inspectorPanel.revalidate();
     inspectorPanel.repaint();
@@ -1513,6 +1552,11 @@ void configureDragAndDrop(JList<NodeModel> list) {
                     if (targetNodeModel != null && nodeModels != null) {
                         List<NodeModel> nodesToMove = new ArrayList<>(nodeModels);
 
+                        if (nodesToMove[0] == targetNodeModel) {
+                            Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(targetNodeModel)
+                            return
+                        }
+
                         final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
 
                         mapController.moveNodesAsChildren(nodesToMove, targetNodeModel);
@@ -1696,8 +1740,9 @@ def int calculateExpandedWidthForMasterPanel() {
     return width
 }
 
-def int calculateInspectorWidth() {
+def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
     width = mapViewWindowForSizeReferences.width / widthFactorForInspector
+    width = width * ammountOfPannelsInInspector
     return width
 }
 
@@ -1709,14 +1754,36 @@ def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
 }
 
 def searchNodesRecursively(NodeModel node, String searchText, List<NodeModel> results) {
-    if (node.text?.toLowerCase().contains(searchText.toLowerCase())) {
-        results.add(node)
+    String[] terms = searchText.toLowerCase().split("\\s+");
+
+    def termsMatchedInNode = terms.findAll { term ->
+        node.text?.toLowerCase().contains(term)
+    }
+
+    def remainingTerms = terms - termsMatchedInNode
+
+    if (!termsMatchedInNode.isEmpty() && remainingTerms.every { term -> containsTermInAncestors(node, term) }) {
+        results.add(node);
     }
 
     node.children.each { child ->
-        searchNodesRecursively(child, searchText, results)
+        searchNodesRecursively(child, searchText, results);
     }
 }
+
+def containsTermInAncestors(NodeModel node, String term) {
+    node = node.parent;
+    while (node != null) {
+        if (node.text?.toLowerCase().contains(term)) {
+            return true;
+        }
+        node = node.parent;
+    }
+    return false;
+}
+
+
+
 
 def addQuickSearchShortcut(JComboBox searchField) {
     InputMap inputMap = searchField.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
