@@ -1,11 +1,17 @@
 
 /*
+version 1.16: Quick search: search field is cleared when map view is changed.
+ Created caching mechanism in the NodeHighlighter to optimize performance. By storing and reusing the state of highlighted nodes and their descendants, the script reduces unnecessary recursive operations, resulting in faster load times and a more responsive user interface, particularly in complex and large-scale maps
+ Automatically remove panels, in the Inspector that have no nodes, including the ancestors panel.
+ Included shared mouse listener in context menu and in master panel.
+ Removed space between masterpanel and inspectorpanel. Also, removed space between inspector panels. Increased the border for inspector panels.
+
 version 1.15: substring search with multiple terms: Quick Search now supports partial word matching, allowing nodes to be found if their text contains fragments of the searched terms. For example, searching for 'ab 12' will find 'abc 123'.
  Transversal Search: Quick Search now supports transversal search, finding nodes that contain at least one of the searched terms and whose ancestors complement the other terms. For example, searching for 'ab 12' will find a node with text 'abc' if any ancestor contains '12'.
  Folded nodes with matching descendants are now highlighted in red, indicating they have hidden search results. Orange for nodes directly found that also have highlighted descendants and are folded.
  Recent Nodes Panel: improved the logic for the recent nodes panel: selected nodes are now always moved to the top of the list, avoiding duplicates. If the node is not already in the list, it is added at the top.
  Recent Nodes Panel increased the number of nodes that can be stored to 200.
- Automatically remove panels, in the Inspector, that have no nodes. And, inspector gets smaller when there are less panels.
+ Automatically remove panels, in the Inspector, that have no nodes. And, inspector gets smaller when there are fewer panels.
  Changed design of inspector panel buttons.
  Update selection is active by default.
  Created the user option: widthOfTheClearButtonOnQuickSearchPanel.
@@ -115,6 +121,7 @@ import org.freeplane.features.styles.LogicalStyleController.StyleOption
 import org.freeplane.features.ui.IMapViewChangeListener
 import org.freeplane.features.map.IMapChangeListener
 import org.freeplane.features.map.NodeDeletionEvent
+import org.freeplane.features.map.MapChangeEvent
 import org.freeplane.features.link.NodeLinkModel
 import org.freeplane.features.map.clipboard.MapClipboardController;
 import org.freeplane.features.map.mindmapmode.clipboard.MMapClipboardController;
@@ -184,6 +191,8 @@ savedSearchCriteria.add("")
 
 @Field JPanel currentSourcePanel
 
+@Field JTextField searchEditor
+
 @Field boolean mouseOverList = false
 @Field boolean freezeInspectors = false
 @Field boolean inspectorUpdateSelection = true
@@ -194,6 +203,9 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 @Field String searchText = ""
 @Field String lastSearchText = ""
+
+@Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
+
 
 @Field DocumentListener searchTextBoxListener
 
@@ -370,6 +382,10 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         if (newView == null) {
             return
         }
+
+        searchText = ""
+        quickSearchResults.clear()
+
         parentPanel.remove(recentSelectedNodesPanel)
         parentPanel.remove(pinnedItemsPanel)
         parentPanel.remove(quickSearchPanel)
@@ -395,9 +411,8 @@ IMapChangeListener myMapChangeListener = new IMapChangeListener() {
         saveSettings()
         SwingUtilities.invokeLater { updateAllGUIs() }
     }
-}
 
-createdMapChangeListener = myMapChangeListener
+}
 
 Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
 
@@ -427,6 +442,7 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
 
     @Override
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
+        if(searchText.equals("")) {return}
         if (isPrinting) {
             return false;
         }
@@ -455,21 +471,31 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
 
     private boolean isFoldedWithHighlightedDescendants(NodeModel node) {
         if (!node.folded) {
-            return false;
+            return false
         }
-        return hasHighlightedDescendants(node);
+        if (cachedHighlightedNodes.contains(node)) {
+            return true
+        }
+        boolean hasDescendants = hasHighlightedDescendants(node)
+        if (hasDescendants) {
+            cachedHighlightedNodes.add(node)
+        }
+        return hasDescendants
     }
 
     private boolean hasHighlightedDescendants(NodeModel node) {
         for (NodeModel child : node.children) {
             if (quickSearchResults.contains(child) || hasHighlightedDescendants(child)) {
-                return true;
+                return true
             }
         }
-        return false;
+        return false
     }
 });
 
+def refreshHighlighterCache() {
+    cachedHighlightedNodes.clear()
+}
 
 
 
@@ -491,6 +517,8 @@ def createPanels(){
     masterPanel.setOpaque(false)
 
     masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
+
+    masterPanel.addMouseListener(sharedMouseListener)
 
 
 
@@ -562,10 +590,9 @@ def createPanels(){
 
     JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]));
     searchField.setEditable(true);
+    searchField.setSelectedItem("")
 
-
-
-    JTextField searchEditor = (JTextField) searchField.getEditor().getEditorComponent();
+    searchEditor = (JTextField) searchField.getEditor().getEditorComponent();
 
     searchEditor.getDocument().addDocumentListener(new DocumentListener() {
         @Override
@@ -608,8 +635,9 @@ def createPanels(){
         }
 
         private void refreshList(String searchText) {
+            quickSearchResults.clear();
+            refreshHighlighterCache()
             if (!searchText.isEmpty()) {
-                quickSearchResults.clear();
                 NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot;
                 searchNodesRecursively(rootNode, searchText, quickSearchResults);
 
@@ -820,7 +848,7 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     inspectorPanel.putClientProperty("referenceNode", node)
 
     inspectorPanel.setLayout(new BorderLayout())
-    inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK))
+    inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
     inspectorPanel.setBackground(Color.LIGHT_GRAY)
 
 
@@ -1097,10 +1125,11 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
 
     columnsPanel.setBackground( new Color(0, 0, 0, 0) )
 
-    int ammountOfPannelsInInspector = 0
+    int ammountOfPannelsInInspector = 1
 
-    columnsPanel.add(scrollPaneAncestorsLineList);
-    ammountOfPannelsInInspector++
+    if(ancestorLineModel.getSize() > 0) {
+        columnsPanel.add(scrollPaneAncestorsLineList);
+    }
 
     if(siblingsModel.getSize() > 1) {
         columnsPanel.add(scrollPanelSiblingsList);
@@ -1342,7 +1371,7 @@ void configureListContextMenu(JList<NodeModel> list) {
                             updateAllGUIs()
                         })
                     }
-
+                    menuItem.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItem)
                     popupMenu.show(e.getComponent(), e.getX(), e.getY())
                 }
@@ -1747,7 +1776,7 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 }
 
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
-    int x = sourcePanel.getLocation().x + sourcePanel.width + 5
+    int x = sourcePanel.getLocation().x + sourcePanel.width
 
     int y = 0
     inspectorPanel.setLocation(x, y)
