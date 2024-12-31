@@ -1,5 +1,11 @@
+/////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+
+version 1.17: added mouse listeners to scrollbars and scrollbars arrows.
+    List of recent nodes is now saved between sessions.
+    Tags Panel (very basic).
+
 version 1.16: Quick search: search field is cleared when map view is changed.
  Created caching mechanism in the NodeHighlighter to optimize performance. By storing and reusing the state of highlighted nodes and their descendants, the script reduces unnecessary recursive operations, resulting in faster load times and a more responsive user interface, particularly in complex and large-scale maps
  Automatically remove panels, in the Inspector that have no nodes, including the ancestors panel.
@@ -139,11 +145,12 @@ import org.freeplane.features.map.NodeModel
 import org.freeplane.view.swing.map.MapView;
 import org.freeplane.features.map.IMapSelection;
 import org.freeplane.features.mode.Controller;
-
-
+import org.freeplane.features.icon.IconController;
+import org.freeplane.features.icon.Tag;
+import org.freeplane.features.icon.TagCategories;
+import org.freeplane.features.icon.mindmapmode.MIconController;
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
 
 panelTextFontName = "Dialog"
 panelTextFontSize = 15
@@ -169,6 +176,8 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
+@Field DefaultListModel<String> allTags = new DefaultListModel<String>()
+
 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
 uniqueIdForScript = 999
@@ -184,10 +193,11 @@ savedSearchCriteria.add("")
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
 @Field JPanel recentSelectedNodesPanel
-@Field JPanel inspectorPanel
 @Field JPanel pinnedItemsPanel
+@Field JPanel tagsPanel
 @Field JPanel quickSearchPanel
 @Field JPanel innerPanelInQuickSearchPanel
+@Field JPanel inspectorPanel
 
 @Field JPanel currentSourcePanel
 
@@ -204,8 +214,12 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 @Field String searchText = ""
 @Field String lastSearchText = ""
 
-@Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
+@Field NodeModel currentlySelectedNode
 
+@Field MIconController iconController = (MIconController) Controller.currentModeController.getExtension(IconController.class)
+
+
+@Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
 
 @Field DocumentListener searchTextBoxListener
 
@@ -241,7 +255,7 @@ hoverTimer.addActionListener(e -> {
     if (freezeInspectors || isMouseOverSearchBox) return
     
 
-    if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
+    if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
         bounds = masterPanel.getBounds()
         bounds.width = calculateExpandedWidthForMasterPanel()
         masterPanel.setBounds(bounds)
@@ -300,8 +314,6 @@ hoverTimer.addActionListener(e -> {
     }
 })
 
-
-
 class NodeModelTransferable implements Transferable {
     private static final DataFlavor NODE_MODEL_FLAVOR = new DataFlavor(NodeModel.class, "NodeModel");
     private final NodeModel nodeModel;
@@ -340,6 +352,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 
     @Override
     public void onSelect(NodeModel node) {
+        currentlySelectedNode = node
         if (history.contains(node)) {
             history.remove(node)
         }
@@ -348,6 +361,8 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
         if (history.size() > 200) {
             history.remove(200)
         }
+
+        saveSettings()
 
         SwingUtilities.invokeLater { updateAllGUIs() }
 
@@ -388,6 +403,7 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
 
         parentPanel.remove(recentSelectedNodesPanel)
         parentPanel.remove(pinnedItemsPanel)
+        parentPanel.remove(tagsPanel)
         parentPanel.remove(quickSearchPanel)
         saveSettings()
         masterPanel.setVisible(false)
@@ -422,6 +438,7 @@ viewportSizeChangeListener = new ComponentAdapter() {
     public void componentResized(final ComponentEvent e) {
         parentPanel.remove(recentSelectedNodesPanel)
         parentPanel.remove(pinnedItemsPanel)
+        parentPanel.remove(tagsPanel)
         parentPanel.remove(quickSearchPanel)
         saveSettings()
         masterPanel.setVisible(false)
@@ -435,14 +452,12 @@ viewportSizeChangeListener = new ComponentAdapter() {
 mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener);
 
 
-
-
 Controller controllerForHighlighter = Controller.currentModeController.controller
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
-        if(searchText.equals("")) {return}
+        if(searchText.equals("")) { return  }
         if (isPrinting) {
             return false;
         }
@@ -565,6 +580,27 @@ def createPanels(){
     pinnedItemsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, pinnedPanelHeight)
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Pinned Items Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+
+
+
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tags Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+    tagsPanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g)
+        {
+            g.setColor( getBackground() )
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    tagsPanel.setOpaque(false)
+    tagsPanel.setBackground( new Color(0, 0, 0, 0) )
+
+    int tagsPanelHeight = 130
+    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
+
+    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tags Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
 
@@ -773,6 +809,11 @@ def createPanels(){
 
     masterPanel.add(Box.createVerticalStrut(20))
 
+    masterPanel.add(tagsPanel)
+//    masterPanel.setComponentZOrder(tagsPanel, 0)
+
+    masterPanel.add(Box.createVerticalStrut(20))
+
     masterPanel.add(quickSearchPanel)
 //    masterPanel.setComponentZOrder(quickSearchPanel, 0)
 
@@ -795,6 +836,7 @@ def updateAllGUIs() {
     updateRecentNodesGui()
     updatePinnedItemsGui()
     updateQuickSearchGui()
+    updateTagsGui()
 }
 
 def updateRecentNodesGui() {
@@ -804,6 +846,7 @@ def updateRecentNodesGui() {
 def updatePinnedItemsGui() {
     updateSpecifiedGUIs(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
 }
+
 
 def updateQuickSearchGui() {
     updateSpecifiedGUIs(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
@@ -824,13 +867,134 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
     scrollPane.setOpaque(false)
     scrollPane.getViewport().setOpaque(false)
 
-//    scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER)
     scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
 
 
     jListPanel.add(scrollPane, BorderLayout.CENTER)
     jListPanel.revalidate()
     jListPanel.repaint()
+}
+
+def updateTagsGui() {
+    tagsPanel.removeAll()
+
+    DefaultListModel<String> listModel = new DefaultListModel<>()
+    NodeModel selectedNode = currentlySelectedNode
+    loadTagsIntoModel(listModel, selectedNode)
+
+    JList<String> jList = new JList<>(listModel)
+//    commonJListsConfigs(jList, listModel, tagsPanel)
+
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+
+
+    //configureListSelection(theJlist);
+
+    jList.addListSelectionListener({ e ->
+        if (!e.getValueIsAdjusting()) {
+            int selectedItemIndex = jList.getSelectedIndex()
+            if (selectedItemIndex != -1) {
+                tagSelected = jList.getModel().getElementAt(selectedItemIndex)
+                List<Tag> tagToInsert = new ArrayList<Tag>(iconController.getTags(currentlySelectedNode))
+                tagToInsert.add(tagSelected)
+                iconController.setTags(currentlySelectedNode, tagToInsert, false)
+            }
+        }
+    } as ListSelectionListener)
+
+    //configureListCellRenderer(theJlist, thePanelPanel)
+
+    jList.setCellRenderer(new DefaultListCellRenderer() {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            if (value instanceof Tag) {
+                Tag currentTag = (Tag) value
+
+//                configureLabelForNode(label, currentNode, tagsPanel)
+                Color backgroundColor = currentTag.getColor()
+//                Color fontColor = NodeStyleController.getController().getColor(node, StyleOption.FOR_UNSELECTED_NODE)
+                String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
+//                String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
+
+                fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
+
+                label.setBackground(backgroundColor)
+//                component.setForeground(fontColor)
+                label.setFont(fontForItems)
+            }
+            if (isSelected) {
+                label.setBackground(list.getSelectionBackground())
+                label.setForeground(list.getSelectionForeground())
+            }
+            return label
+        }
+    })
+
+
+    //configureMouseMotionListener(jList, listModel, tagsPanel)
+    jList.addMouseMotionListener(new MouseAdapter() {
+        @Override
+        public void mouseMoved(MouseEvent e) {
+            if (freezeInspectors || isMouseOverSearchBox) {return}
+
+            hoverTimer.stop()
+//            currentList = list
+//            currentListModel = listModel
+            currentSourcePanel = tagsPanel
+            lastMouseLocation = e.getPoint()
+            mouseOverList = true
+            hoverTimer.restart()
+
+
+            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+                bounds = masterPanel.getBounds()
+                bounds.width = calculateExpandedWidthForMasterPanel()
+                masterPanel.setBounds(bounds)
+                masterPanel.revalidate()
+                masterPanel.repaint()
+                isMasterPanelExpanded = true
+                if(visibleInspectors.size() != 0) {
+                    setInspectorLocation(visibleInspectors[0], masterPanel)
+                }
+            }
+        }
+    })
+
+    //The same as the commonJListsConfigs() ↓
+    configureListFont(jList)
+    configureMouseExitListener(jList)
+
+
+    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+    JScrollPane scrollPane = new JScrollPane(jList) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    scrollPane.setBackground(new Color(0, 0, 0, 0))
+    jList.setOpaque(false)
+    scrollPane.setOpaque(false)
+    scrollPane.getViewport().setOpaque(false)
+
+    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
+
+
+    tagsPanel.add(scrollPane, BorderLayout.CENTER)
+    tagsPanel.revalidate()
+    tagsPanel.repaint()
 }
 
 
@@ -876,6 +1040,8 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     textScrollPane.addMouseListener(sharedMouseListener)
     textScrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     textScrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(textScrollPane.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(textScrollPane.getHorizontalScrollBar())
 
     /////////////////////////////////////////////////////////
 
@@ -999,6 +1165,8 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     ancestorsLineList.addMouseListener(sharedMouseListener)
     scrollPaneAncestorsLineList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPaneAncestorsLineList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPaneAncestorsLineList.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPaneAncestorsLineList.getHorizontalScrollBar())
 
 
     /////////////////////////////////////////////////////////
@@ -1041,6 +1209,8 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     siblingsList.addMouseListener(sharedMouseListener)
     scrollPanelSiblingsList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPanelSiblingsList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPanelSiblingsList.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPanelSiblingsList.getHorizontalScrollBar())
 
     int selectedIndex = siblingsModel.indexOf(node)
     if (selectedIndex >= 0) {
@@ -1087,6 +1257,8 @@ JPanel createInspectorPanel(NodeModel node, JPanel sourcePanel) {
     childrenList.addMouseListener(sharedMouseListener)
     scrollPaneChildrenList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPaneChildrenList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPaneChildrenList.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPaneChildrenList.getHorizontalScrollBar())
 
 
     ////////////////////////////////////////////////////
@@ -1649,7 +1821,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
             hoverTimer.restart()
 
 
-            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel) {
+            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
                 bounds = masterPanel.getBounds()
                 bounds.width = calculateExpandedWidthForMasterPanel()
                 masterPanel.setBounds(bounds)
@@ -1681,9 +1853,12 @@ private void saveSettings() {
     File file = getSettingsFile()
 
     List<String> pinnedItemsIds = pinnedItems.collect { it.id }
+    List<String> recentNodesIds = history.collect { it.id }
+
     String jsonString = new JsonBuilder([
             pinnedItems: pinnedItemsIds,
-            recentSearches: savedSearchCriteria
+            recentSearches: savedSearchCriteria,
+            recentNodes: recentNodesIds
     ]).toPrettyString()
 
     try {
@@ -1721,6 +1896,14 @@ private void loadSettings() {
             savedSearchCriteria.clear()
             savedSearchCriteria.addAll(settings.recentSearches)
         }
+
+        if (settings.recentNodes instanceof List) {
+            history.clear()
+            history.addAll(settings.recentNodes.collect { id ->
+                Controller.currentController.map.getNodeForID(id)
+            }.findAll { it != null })
+        }
+
     } catch (Exception e) {
     }
 }
@@ -1826,3 +2009,31 @@ def addQuickSearchShortcut(JComboBox searchField) {
         }
     })
 }
+
+def addMouseListenerToScrollBarButtons(JScrollBar scrollBar) {
+    for (Component component : scrollBar.getComponents()) {
+        if (component instanceof JButton) {
+            component.addMouseListener(sharedMouseListener)
+        }
+    }
+}
+
+
+
+def loadTagsIntoModel(DefaultListModel<String> model, NodeModel node) {
+    model.clear()
+    List<String> tags = getAllTags(node)
+    tags.each { model.addElement(it) }
+}
+
+def getAllTags(NodeModel nodez) {
+    Set<String> tagss = new HashSet<>()
+
+
+    node.mindMap.root.findAll().each { nodes ->
+
+        tagss.addAll(iconController.getTags(nodes.delegate))
+    }
+    return tagss.toList()
+}
+
