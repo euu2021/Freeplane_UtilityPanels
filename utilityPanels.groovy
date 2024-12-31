@@ -1,6 +1,8 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.18: Tags: now, adding, adds to all selected nodes.
+ Tags: right click on tag opens context menu. Option to remove tag.
 
 version 1.17: added mouse listeners to scrollbars and scrollbars arrows.
     List of recent nodes is now saved between sessions.
@@ -900,12 +902,41 @@ def updateTagsGui() {
             int selectedItemIndex = jList.getSelectedIndex()
             if (selectedItemIndex != -1) {
                 tagSelected = jList.getModel().getElementAt(selectedItemIndex)
-                List<Tag> tagToInsert = new ArrayList<Tag>(iconController.getTags(currentlySelectedNode))
+                List<Tag> tagToInsert = new ArrayList<Tag>()
                 tagToInsert.add(tagSelected)
-                iconController.setTags(currentlySelectedNode, tagToInsert, false)
+                iconController.insertTagsIntoSelectedNodes(tagToInsert)
             }
         }
     } as ListSelectionListener)
+
+    //configureListContextMenu(theJlist)
+
+    jList.addMouseListener(new MouseAdapter() {
+        @Override
+        void mousePressed(MouseEvent e) {
+            if (SwingUtilities.isRightMouseButton(e)) {
+                int selectedItemIndex = jList.locationToIndex(e.getPoint())
+                if (selectedItemIndex >= 0) {
+                    tagSelected = jList.getModel().getElementAt(selectedItemIndex)
+                    Set<Tag> tagToRemove = new HashSet<Tag>()
+                    tagToRemove.add(tagSelected)
+
+                    JPopupMenu popupMenu = new JPopupMenu()
+                    JMenuItem menuItem
+
+                    menuItem = new JMenuItem("Remove")
+                    menuItem.addActionListener({
+                        iconController.removeSelectedTagsFromSelectedNodes(tagToRemove)
+                        updateAllGUIs()
+                    })
+
+                    menuItem.addMouseListener(sharedMouseListener)
+                    popupMenu.add(menuItem)
+                    popupMenu.show(e.getComponent(), e.getX(), e.getY())
+                }
+            }
+        }
+    })
 
     //configureListCellRenderer(theJlist, thePanelPanel)
 
