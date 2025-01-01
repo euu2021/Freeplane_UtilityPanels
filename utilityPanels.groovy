@@ -1,6 +1,8 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.20: Fixed bug when node style had no colors set.
+
 version 1.19: Fixed bug when node style had no colors set.
 
 version 1.18: Tags: now, adding, adds to all selected nodes.
@@ -1610,8 +1612,10 @@ void hideInspectorPanelIfNeeded() {
 void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
     Color backgroundColor = node.style.backgroundColor
     Color fontColor = node.style.textColor
-    String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
-    String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
+    String fontColorHex
+    if(fontColor != null) {
+         fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
+    } else {  fontColorHex = "#000000"}
 
     fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
