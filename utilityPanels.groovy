@@ -1,6 +1,8 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.22: Fixed bug in colors in the list.
+
 version 1.21: Fixed bug when UP configs file wasn't created.
 
 version 1.20: Fixed bug when node style had no colors set.
@@ -207,6 +209,8 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
 @Field List<Tags> selectedTagsInPanel = []
+
+@Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
@@ -598,14 +602,11 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
         boolean hasFoldedDescendants = isFoldedWithHighlightedDescendantsTags(node);
 
-
         if (hasFoldedDescendants) {
             g.setColor(new Color(1, 0, 255, 255));
             g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
                     BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
         }
-
-
     }
 
     private boolean isFoldedWithHighlightedDescendantsTags(NodeModel node) {
@@ -1005,19 +1006,18 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
 def updateTagsGui() {
 
-//    if(tagsNeedUpdate) {
 
 
-        tagsPanel.removeAll()
+    tagsPanel.removeAll()
 
 
-        DefaultListModel<String> listModel = new DefaultListModel<>()
-        NodeModel selectedNode = currentlySelectedNode
-        loadTagsIntoModel(listModel, selectedNode)
+    NodeModel selectedNode = currentlySelectedNode
+    if(tagsNeedUpdate) {
+        loadTagsIntoModel(listModelForAllTags, selectedNode)
+    }
 
-        JList<String> jList = new JList<>(listModel)
+    JList<String> jList = new JList<>(listModelForAllTags)
 
-        jList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
 
 
         // search field
@@ -1039,8 +1039,8 @@ def updateTagsGui() {
                 String searchText = searchField.getText().toLowerCase()
                 DefaultListModel<String> filteredModel = new DefaultListModel<>()
 
-                for (int i = 0; i < listModel.size(); i++) {
-                    tag = listModel.getElementAt(i)
+                for (int i = 0; i < listModelForAllTags.size(); i++) {
+                    tag = listModelForAllTags.getElementAt(i)
                     if (tag.getContent().toLowerCase().contains(searchText)) {
                         filteredModel.addElement(tag)
                     }
@@ -1058,6 +1058,7 @@ def updateTagsGui() {
             public void actionPerformed(ActionEvent e) {
                 selectedTagsInPanel.clear();
                 refreshHighlighterCacheTags()
+                cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
                 updateAllGUIs();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
@@ -1078,7 +1079,7 @@ def updateTagsGui() {
         //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 
-        commonTagsJListsConfigs(jList, listModel, tagsPanel)
+        commonTagsJListsConfigs(jList, listModelForAllTags, tagsPanel)
 
 
         //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
@@ -1116,7 +1117,6 @@ def updateTagsGui() {
         tagsPanel.repaint()
 
         tagsNeedUpdate = false
-//    }
 }
 
 
@@ -1612,8 +1612,8 @@ void hideInspectorPanelIfNeeded() {
 }
 
 void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
-    Color backgroundColor = node.style.backgroundColor
-    Color fontColor = node.style.textColor
+    Color backgroundColor = NodeStyleController.getController().getBackgroundColor(nodeNotProxy, StyleOption.FOR_UNSELECTED_NODE)
+    Color fontColor = NodeStyleController.getController().getColor(nodeNotProxy, StyleOption.FOR_UNSELECTED_NODE)
     String fontColorHex
     if(fontColor != null) {
          fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
@@ -1621,8 +1621,12 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
     fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
-    component.setBackground(backgroundColor)
-    component.setForeground(fontColor)
+    if(backgroundColor == null) {backgroundColor = Color.WHITE}
+    else {component.setBackground(backgroundColor)}
+
+    if(fontColor == null) {fontColor = Color.BLACK}
+    else(component.setForeground(fontColor))
+
     component.setFont(fontForItems)
 
     String textWithHighlight
