@@ -1,10 +1,12 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.19: Fixed bug when node style had no colors set.
+
 version 1.18: Tags: now, adding, adds to all selected nodes.
  Tags: right click on tag opens context menu. Option to remove tag.
  Tags: basic filtering of the tags list in the tags panel.
- Tags: highlighters for tags. It highlights nodes that have all the tags in the selection. 
+ Tags: highlighters for tags. It highlights nodes that have all the tags in the selection.
  Tags: tags selection. A tag is added to the selection on the right click context menu. The tag selection list appears on the fist inspector. Also there, appears a list of nodes containing the tags.
 
 version 1.17: added mouse listeners to scrollbars and scrollbars arrows.
@@ -157,6 +159,9 @@ import org.freeplane.features.icon.Tag;
 import org.freeplane.features.icon.Tags;
 import org.freeplane.features.icon.TagCategories;
 import org.freeplane.features.icon.mindmapmode.MIconController;
+import org.freeplane.api.NodeChangeListener
+import org.freeplane.api.NodeChanged
+import org.freeplane.api.NodeChanged.ChangedElement
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
@@ -217,6 +222,7 @@ savedSearchCriteria.add("")
 @Field boolean inspectorUpdateSelection = true
 @Field boolean isMasterPanelExpanded = false
 @Field boolean isMouseOverSearchBox = false
+@Field boolean tagsNeedUpdate = true
 
 mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.mapView.parent
 
@@ -230,7 +236,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 
 @Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
-@Field Set<Tags> cachedHighlightedNodesTags = new HashSet<>()
+@Field Set<NodeModel> cachedHighlightedNodesTags = new HashSet<>()
 
 @Field DocumentListener searchTextBoxListener
 
@@ -435,6 +441,18 @@ IMapChangeListener myMapChangeListener = new IMapChangeListener() {
 }
 
 Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
+
+
+NodeChangeListener myNodeChangeListener= {NodeChanged event->
+    if(event.changedElement == NodeChanged.ChangedElement.TAGS) {
+        tagsNeedUpdate = true
+        updateAllGUIs()
+        masterPanel.revalidate()
+        masterPanel.repaint()
+    }
+} as NodeChangeListener
+
+mindMap.addListener(myNodeChangeListener)
 
 
 viewportSizeChangeListener = new ComponentAdapter() {
@@ -982,119 +1000,119 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 }
 
 def updateTagsGui() {
-    tagsPanel.removeAll()
+
+//    if(tagsNeedUpdate) {
 
 
-    DefaultListModel<String> listModel = new DefaultListModel<>()
-    NodeModel selectedNode = currentlySelectedNode
-    loadTagsIntoModel(listModel, selectedNode)
-
-    JList<String> jList = new JList<>(listModel)
-
-    jList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+        tagsPanel.removeAll()
 
 
+        DefaultListModel<String> listModel = new DefaultListModel<>()
+        NodeModel selectedNode = currentlySelectedNode
+        loadTagsIntoModel(listModel, selectedNode)
+
+        JList<String> jList = new JList<>(listModel)
+
+        jList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
 
 
-    // search field
-    JTextField searchField = new JTextField()
+        // search field
+        JTextField searchField = new JTextField()
 
-    searchField.addMouseListener(sharedMouseListener)
+        searchField.addMouseListener(sharedMouseListener)
 
-    searchField.getDocument().addDocumentListener(new DocumentListener() {
-        @Override
-        void insertUpdate(DocumentEvent e) { filterTags() }
-        @Override
-        void removeUpdate(DocumentEvent e) { filterTags() }
-        @Override
-        void changedUpdate(DocumentEvent e) { filterTags() }
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            void insertUpdate(DocumentEvent e) { filterTags() }
 
-        private void filterTags() {
-            String searchText = searchField.getText().toLowerCase()
-            DefaultListModel<String> filteredModel = new DefaultListModel<>()
+            @Override
+            void removeUpdate(DocumentEvent e) { filterTags() }
 
-            for (int i = 0; i < listModel.size(); i++) {
-                tag = listModel.getElementAt(i)
-                if (tag.getContent().toLowerCase().contains(searchText)) {
-                    filteredModel.addElement(tag)
+            @Override
+            void changedUpdate(DocumentEvent e) { filterTags() }
+
+            private void filterTags() {
+                String searchText = searchField.getText().toLowerCase()
+                DefaultListModel<String> filteredModel = new DefaultListModel<>()
+
+                for (int i = 0; i < listModel.size(); i++) {
+                    tag = listModel.getElementAt(i)
+                    if (tag.getContent().toLowerCase().contains(searchText)) {
+                        filteredModel.addElement(tag)
+                    }
                 }
+                jList.setModel(filteredModel)
             }
-            jList.setModel(filteredModel)
+        })
+
+
+        // clear button
+
+        JButton clearButton = new JButton("X");
+        clearButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                selectedTagsInPanel.clear();
+                refreshHighlighterCacheTags()
+                updateAllGUIs();
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
+            }
+        });
+
+        clearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1));
+        clearButton.setForeground(Color.BLACK);
+        clearButton.setBackground(Color.WHITE);
+        clearButton.setBorder(BorderFactory.createEtchedBorder());
+        clearButton.setOpaque(true);
+        clearButton.setBorderPainted(true);
+        clearButton.setFocusPainted(false);
+
+        clearButton.addMouseListener(sharedMouseListener)
+
+
+        //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+
+        commonTagsJListsConfigs(jList, listModel, tagsPanel)
+
+
+        //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+        JScrollPane scrollPane = new JScrollPane(jList) {
+            protected void paintComponent(Graphics g) {
+                g.setColor(getBackground())
+                g.fillRect(0, 0, getWidth(), getHeight())
+                super.paintComponent(g)
+            }
         }
-    })
+        scrollPane.setBackground(new Color(0, 0, 0, 0))
+        jList.setOpaque(false)
+        scrollPane.setOpaque(false)
+        scrollPane.getViewport().setOpaque(false)
 
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+        scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+        scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+        addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
+        addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
 
+        JPanel panelForField = new JPanel(new BorderLayout());
 
-    // clear button
+        panelForField.add(searchField, BorderLayout.CENTER)
+        panelForField.add(clearButton, BorderLayout.EAST);
 
-    JButton clearButton = new JButton("X");
-    clearButton.addActionListener(new ActionListener() {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            selectedTagsInPanel.clear();
-            refreshHighlighterCacheTags()
-            updateAllGUIs();
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
-        }
-    });
+        panelForField.setOpaque(false)
+        panelForField.setBackground(new Color(0, 0, 0, 0))
 
-    clearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1));
-    clearButton.setForeground(Color.BLACK);
-    clearButton.setBackground(Color.WHITE);
-    clearButton.setBorder(BorderFactory.createEtchedBorder());
-    clearButton.setOpaque(true);
-    clearButton.setBorderPainted(true);
-    clearButton.setFocusPainted(false);
+        tagsPanel.add(panelForField, BorderLayout.NORTH)
 
-    clearButton.addMouseListener(sharedMouseListener)
+        tagsPanel.add(scrollPane, BorderLayout.CENTER)
+        tagsPanel.revalidate()
+        tagsPanel.repaint()
 
-
-
-
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-
-
-    commonTagsJListsConfigs(jList, listModel, tagsPanel)
-
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-    JScrollPane scrollPane = new JScrollPane(jList) {
-        protected void paintComponent(Graphics g) {
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    scrollPane.setBackground(new Color(0, 0, 0, 0))
-    jList.setOpaque(false)
-    scrollPane.setOpaque(false)
-    scrollPane.getViewport().setOpaque(false)
-
-    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
-    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
-    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
-    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
-
-    JPanel panelForField = new JPanel(new BorderLayout());
-
-    panelForField.add(searchField, BorderLayout.CENTER)
-    panelForField.add(clearButton, BorderLayout.EAST);
-
-    panelForField.setOpaque(false)
-    panelForField.setBackground( new Color(0, 0, 0, 0) )
-
-    tagsPanel.add(panelForField, BorderLayout.NORTH)
-
-    tagsPanel.add(scrollPane, BorderLayout.CENTER)
-    tagsPanel.revalidate()
-    tagsPanel.repaint()
+        tagsNeedUpdate = false
+//    }
 }
 
 
@@ -1586,12 +1604,12 @@ void hideInspectorPanelIfNeeded() {
         }
 
         return
-    }
+    }1
 }
 
-void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePanel) {
-    Color backgroundColor = NodeStyleController.getController().getBackgroundColor(node, StyleOption.FOR_UNSELECTED_NODE)
-    Color fontColor = NodeStyleController.getController().getColor(node, StyleOption.FOR_UNSELECTED_NODE)
+void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
+    Color backgroundColor = node.style.backgroundColor
+    Color fontColor = node.style.textColor
     String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
     String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
 
@@ -1612,25 +1630,25 @@ void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePa
         String prefix = "";
 
         if (currentMapView.currentRootParentView != null) {
-            if (node.getPathToRoot().find { it == currentMapView.mapSelection.selectionRoot } == null) {
+            if (nodeNotProxy.getPathToRoot().find { it == currentMapView.mapSelection.selectionRoot } == null) {
                 prefix += "⚠|";
             }
         }
 
-        if (pinnedItems.contains(node)) {
+        if (pinnedItems.contains(nodeNotProxy)) {
             prefix += "📌";
         }
 
         NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
 
-        if (storedNode == node) {
+        if (storedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
         }
 
-        String labelText = prefix + node.text;
+        String labelText = prefix + nodeNotProxy.text;
 
 
-        if (quickSearchResults.contains(node)) {
+        if (quickSearchResults.contains(nodeNotProxy)) {
             textWithHighlight = highlightSearchTerms(labelText, searchedTerms);
         } else {
             textWithHighlight = labelText
@@ -1649,11 +1667,11 @@ void configureLabelForNode(JComponent component, NodeModel node, JPanel sourcePa
     }
     else if (component instanceof JTextPane) {
         JTextPane textPane = (JTextPane) component;
-        if (quickSearchResults.contains(node)) {
-            textWithHighlight = highlightSearchTerms(node.text, searchedTerms);
+        if (quickSearchResults.contains(nodeNotProxy)) {
+            textWithHighlight = highlightSearchTerms(nodeNotProxy.text, searchedTerms);
         }
         else {
-            textWithHighlight = node.text
+            textWithHighlight = nodeNotProxy.text
         }
 
         String htmlContent = "<html><head>" +
