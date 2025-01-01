@@ -1,6 +1,8 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.21: Fixed bug when UP configs file wasn't created.
+
 version 1.20: Fixed bug when node style had no colors set.
 
 version 1.19: Fixed bug when node style had no colors set.
@@ -2246,10 +2248,16 @@ File getSettingsFile(){
     )
 }
 
+
 private void loadSettings() {
     File file = getSettingsFile()
 
     if (!file.exists()) {
+        try {
+            saveSettings()
+        } catch (Exception e) {
+            e.printStackTrace()
+        }
         return
     }
 
@@ -2274,8 +2282,11 @@ private void loadSettings() {
         }
 
     } catch (Exception e) {
+        e.printStackTrace()
     }
 }
+
+
 
 
 def deleteCurrentListenersFromPreviousExecutions() {
