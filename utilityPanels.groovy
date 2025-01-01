@@ -1,6 +1,9 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.23: Fixed bug in performance of tags identifier.
+ Fixed the method to get all tags in map.
+
 version 1.22: Fixed bug in colors in the list.
 
 version 1.21: Fixed bug when UP configs file wasn't created.
@@ -169,6 +172,10 @@ import org.freeplane.api.NodeChangeListener
 import org.freeplane.api.NodeChanged
 import org.freeplane.api.NodeChanged.ChangedElement
 
+
+
+
+
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 panelTextFontName = "Dialog"
@@ -195,6 +202,17 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
+
+
+
+
+
+
+
+
+
+
+
 @Field DefaultListModel<String> allTags = new DefaultListModel<String>()
 
 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
@@ -209,6 +227,7 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
 @Field List<Tags> selectedTagsInPanel = []
+@Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
 
 @Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
@@ -1046,6 +1065,7 @@ def updateTagsGui() {
                     }
                 }
                 jList.setModel(filteredModel)
+                tagsNeedUpdate = true
             }
         })
 
@@ -1058,6 +1078,7 @@ def updateTagsGui() {
             public void actionPerformed(ActionEvent e) {
                 selectedTagsInPanel.clear();
                 refreshHighlighterCacheTags()
+                tagsNeedUpdate = true
                 cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
                 updateAllGUIs();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
@@ -1434,13 +1455,15 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     /////////////// Panel: Nodes That Contain Any Tag In Tags Selection //////////////////////
 
-    DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
 
 
 //    Controller.getCurrentController().getSelection().selectionRoot.findAll().each {
-    node.mindMap.root.findAll().each {
-        if(selectedTagsInPanel.size() != 0 && iconController.getTags(it.delegate).containsAll(selectedTagsInPanel)) {
-            nodesThatContainAnyTagInTagsSelectionModel.addElement(it.delegate)
+    if(tagsNeedUpdate) {
+        nodesThatContainAnyTagInTagsSelectionModel.clear()
+        node.mindMap.root.findAll().each {
+            if (selectedTagsInPanel.size() != 0 && iconController.getTags(it.delegate).containsAll(selectedTagsInPanel)) {
+                nodesThatContainAnyTagInTagsSelectionModel.addElement(it.delegate)
+            }
         }
     }
 
@@ -2077,7 +2100,7 @@ void configureMouseExitListener(JList<NodeModel> list) {
 
 void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theListModel, JPanel thePanelPanel) {
 //    configureDragAndDrop(theJlist);
-    configureListFont(jList); //ok
+    configureListFont(jList);
 
 //    configureListSelection(theJlist);
 
@@ -2093,6 +2116,8 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                     tagToInsert.add(tagSelected)
                     iconController.insertTagsIntoSelectedNodes(tagToInsert)
                     selectedTagsInPanel.clear()
+
+                    tagsNeedUpdate = true
 
                     updateAllGUIs()
                     Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
@@ -2112,6 +2137,9 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                     JMenuItem menuItemRemove = new JMenuItem("Remove from selected nodes")
                     menuItemRemove.addActionListener({
                         iconController.removeSelectedTagsFromSelectedNodes(tagToRemove)
+
+                        tagsNeedUpdate = true
+
                         updateAllGUIs()
                         Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
                         Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
@@ -2123,6 +2151,9 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                             return
                         }
                         selectedTagsInPanel.add(tagSelected)
+
+                        tagsNeedUpdate = true
+
                         refreshHighlighterCacheTags()
 
                         cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
@@ -2133,6 +2164,8 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                     menuItemRemoveFromSelection.addActionListener({
                         selectedTagsInPanel.removeElement(tagSelected)
                         refreshHighlighterCacheTags()
+
+                        tagsNeedUpdate = true
 
                         cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
 
@@ -2410,14 +2443,11 @@ def loadTagsIntoModel(DefaultListModel<String> model, NodeModel node) {
     tags.each { model.addElement(it) }
 }
 
-def getAllTags(NodeModel nodez) {
+def getAllTags(NodeModel nodeNotProxy) {
     Set<String> tagss = new HashSet<>()
 
+        tagss.addAll(Controller.getCurrentController().getMap().getIconRegistry().getTagCategories().tagsAsListModel)
 
-    node.mindMap.root.findAll().each { nodes ->
-
-        tagss.addAll(iconController.getTags(nodes.delegate))
-    }
     return tagss.toList()
 }
 
