@@ -1,6 +1,17 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.24: improvements in the vertical distribution of panels in the inspector.
+ Panel nodes with the tags: now the search is limited to current view root.
+ Fixed listener in the Tags Selection panel.
+ Correct font color for tag in panels.
+ Context menu: option to clear tags selection.
+ Context menu: created a separator.
+ New panel in Inspector: Tags in Node
+ Labels in panels now have labels aesthetics.
+ Labels are placed side by side in panels.
+ Now, hovering over a tag in the tags panel shows, in the Inspector, the nodes that have that tag.
+
 version 1.23: Fixed bug in performance of tags identifier.
  Fixed the method to get all tags in map.
 
@@ -101,6 +112,8 @@ import javax.swing.KeyStroke
 import javax.swing.InputMap
 import javax.swing.ActionMap
 import javax.swing.AbstractAction
+import javax.swing.border.LineBorder;
+import javax.swing.border.Border;
 
 import java.util.List
 import java.util.regex.Pattern
@@ -171,6 +184,7 @@ import org.freeplane.features.icon.mindmapmode.MIconController;
 import org.freeplane.api.NodeChangeListener
 import org.freeplane.api.NodeChanged
 import org.freeplane.api.NodeChanged.ChangedElement
+import org.freeplane.core.ui.components.UITools;
 
 
 
@@ -227,7 +241,10 @@ deleteCurrentListenersFromPreviousExecutions()
 @Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
 @Field List<Tags> selectedTagsInPanel = []
+@Field List<Tag> hoveredTag = []
 @Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
+@Field DefaultListModel<NodeModel> nodesThatContainHoveredTagModel = new DefaultListModel<>()
+@Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
 
 @Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
@@ -328,31 +345,55 @@ hoverTimer.addActionListener(e -> {
         }
     }
 
-    if (lastMouseLocation && currentList != null) {
+     if (lastMouseLocation) {
+
+
         int index = currentList.locationToIndex(lastMouseLocation)
 
         Rectangle cellBounds = currentList.getCellBounds(index, index)
         if (cellBounds != null && cellBounds.contains(lastMouseLocation)) {
             if (index >= 0) {
-                NodeModel subNode = currentListModel.getElementAt(index)
+                Object hoveredItem = currentListModel.getElementAt(index)
+                if(hoveredItem instanceof NodeModel) {
+                    NodeModel subNode = currentListModel.getElementAt(index)
 
-                subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
+                    if (currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+                        cleanAndCreateInspectors(subNode, currentSourcePanel)
+                    } else {
+                        subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
 
-                visibleInspectors.add(subInspectorPanel)
-                locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                visibleInspectors.each{
-                    if(it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1){
-                        it.setVisible(false)}
+                        visibleInspectors.add(subInspectorPanel)
+                        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
+                        visibleInspectors.each {
+                            if (it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1) {
+                                it.setVisible(false
+                                )
+                            }
 
-                    if(it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse){
-                        it.setVisible(false)
+                            if (it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
+                                it.setVisible(false)
+                            }
+                        }
                     }
                 }
-            }
-        }
-        else {
-            if(inspectorUpdateSelection && visibleInspectors.size() == 1) {
-                visibleInspectors[0].setVisible(true)
+                else if(currentSourcePanel == tagsPanel) {
+                    Tag tagHovered = currentListModel.getElementAt(index)
+                    hoveredTagModel.clear()
+                    hoveredTagModel.addElement(tagHovered)
+
+                    List<Tag> tagsListForComparison = []
+                    tagsListForComparison.add(tagHovered)
+
+
+
+                    nodesThatContainHoveredTagModel.clear()
+                    c.viewRoot.findAll().each {
+                        if (selectedTagsInPanel.size() == 0 && iconController.getTags(it.delegate).containsAll(tagsListForComparison)) {
+                            nodesThatContainHoveredTagModel.addElement(it.delegate)
+                        }
+                    }
+                    cleanAndCreateInspectors(currentlySelectedNode, currentSourcePanel)
+                }
             }
         }
     }
@@ -397,6 +438,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
     @Override
     public void onSelect(NodeModel node) {
         currentlySelectedNode = node
+        hoveredTagModel.clear()
         if (history.contains(node)) {
             history.remove(node)
         }
@@ -1299,7 +1341,17 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
 
-    int maxHeight = (int) mapViewWindowForSizeReferences.height -additionalInspectorDistanceToTheBottomOfTheScreen
+
+
+    int maxHeight
+
+    if(selectedTagsInPanel.size() > 0 && visibleInspectors.size() == 0) {
+//        maxHeight = (int) (mapViewWindowForSizeReferences.height / 1.3) -additionalInspectorDistanceToTheBottomOfTheScreen
+        maxHeight = (int) mapViewWindowForSizeReferences.height -additionalInspectorDistanceToTheBottomOfTheScreen
+    }
+    else {
+        maxHeight = (int) mapViewWindowForSizeReferences.height -additionalInspectorDistanceToTheBottomOfTheScreen
+    }
 
     int finalHeight = Math.min(listPreferredSize.height, maxHeight)
     scrollPaneAncestorsLineList.setPreferredSize(new Dimension(200, finalHeight + paddingBeforeHorizontalScrollBar))
@@ -1408,20 +1460,75 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 
+    /////////////// Tags in Node Panel //////////////////////
+
+    DefaultListModel<Tags> tagsInNodeModel = new DefaultListModel<>()
+
+    iconController.getTags(nodeNotProxy).each {
+        tagsInNodeModel.addElement(it)
+    }
+
+
+    JList<NodeModel> tagsInNode = new JList<>(tagsInNodeModel)
+    tagsInNode.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+    tagsInNode.setVisibleRowCount(1);
+
+    commonTagsJListsConfigs(tagsInNode, tagsInNodeModel, inspectorPanel)
+
+    TitledBorder titledBorderTagsInNode = BorderFactory.createTitledBorder("Tags in Node")
+    titledBorderTagsInNode.setTitleJustification(TitledBorder.LEFT)
+    titledBorderTagsInNode.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
+    tagsInNode.setBorder(titledBorderTagsInNode)
+
+    JScrollPane scrollPaneTagsInNodeList = new JScrollPane(tagsInNode)
+//    JPanel scrollPaneTagsInNodeList = new JPanel(new BorderLayout());
+//    scrollPaneTagsInNodeList.add(tagsInNode, BorderLayout.PAGE_START);
+
+    tagsInNode.setSize(tagsInNode.getPreferredSize())
+    tagsInNode.revalidate()
+    tagsInNode.repaint();
+    Dimension listPreferredSize7 = tagsInNode.getPreferredSize()
+    int maxHeight7 = maxHeight
+    int finalHeight7= Math.min(listPreferredSize7.height, maxHeight7)
+    scrollPaneTagsInNodeList.setPreferredSize(new Dimension(200, finalHeight7 + paddingBeforeHorizontalScrollBar))
+
+
+    tagsInNode.addMouseListener(sharedMouseListener)
+    scrollPaneTagsInNodeList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPaneTagsInNodeList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPaneTagsInNodeList.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPaneTagsInNodeList.getHorizontalScrollBar())
+
+
+    ////////////////////////////////////////////////////
+
+
+
     /////////////// Tags Selection panel //////////////////////
 
 
     DefaultListModel<Tags> selectedTagsInPanelModel = new DefaultListModel<>()
 
+    JList<Tags> tagsSelectedList
 
-    selectedTagsInPanelModel.addAll(selectedTagsInPanel)
+    if(selectedTagsInPanel.size() == 0) {
+        tagsSelectedList = new JList<>(hoveredTagModel)
+        commonTagsJListsConfigs(tagsSelectedList, hoveredTagModel, inspectorPanel)
+    }
+
+    else {
+        selectedTagsInPanel.each {
+            selectedTagsInPanelModel.addElement(it)
+        }
+        tagsSelectedList = new JList<>(selectedTagsInPanelModel)
+        commonTagsJListsConfigs(tagsSelectedList, selectedTagsInPanelModel, inspectorPanel)
+    }
 
 
 
+    tagsSelectedList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+    tagsSelectedList.setVisibleRowCount(1);
 
-
-    JList<NodeModel> tagsSelectedList = new JList<>(selectedTagsInPanelModel)
-    commonTagsJListsConfigs(tagsSelectedList, selectedTagsInPanelModel, inspectorPanel)
 
     TitledBorder titledBorderTagsSelection = BorderFactory.createTitledBorder("Tags Selection")
     titledBorderTagsSelection.setTitleJustification(TitledBorder.LEFT)
@@ -1457,19 +1564,28 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 
-//    Controller.getCurrentController().getSelection().selectionRoot.findAll().each {
     if(tagsNeedUpdate) {
         nodesThatContainAnyTagInTagsSelectionModel.clear()
-        node.mindMap.root.findAll().each {
+        c.viewRoot.findAll().each {
             if (selectedTagsInPanel.size() != 0 && iconController.getTags(it.delegate).containsAll(selectedTagsInPanel)) {
                 nodesThatContainAnyTagInTagsSelectionModel.addElement(it.delegate)
             }
         }
     }
 
+    JList<NodeModel> nodesThatContainAnyTagInTagsSelection
 
-    JList<NodeModel> nodesThatContainAnyTagInTagsSelection = new JList<>(nodesThatContainAnyTagInTagsSelectionModel)
-    commonJListsConfigs(nodesThatContainAnyTagInTagsSelection, nodesThatContainAnyTagInTagsSelectionModel, inspectorPanel)
+    if(selectedTagsInPanel.size() == 0) {
+        nodesThatContainAnyTagInTagsSelection = new JList<>(nodesThatContainHoveredTagModel)
+        commonJListsConfigs(nodesThatContainAnyTagInTagsSelection, nodesThatContainHoveredTagModel, inspectorPanel)
+    }
+
+    else {
+        nodesThatContainAnyTagInTagsSelection = new JList<>(nodesThatContainAnyTagInTagsSelectionModel)
+        commonJListsConfigs(nodesThatContainAnyTagInTagsSelection, nodesThatContainAnyTagInTagsSelectionModel, inspectorPanel)
+
+    }
+
 
     TitledBorder titledBorderNodesThatContainAnyTagInTagsSelection = BorderFactory.createTitledBorder("Nodes with the Tags")
     titledBorderNodesThatContainAnyTagInTagsSelection.setTitleJustification(TitledBorder.LEFT)
@@ -1552,23 +1668,35 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
-    verticalStackPanel.setBackground( new Color(0, 0, 0, 0) )
+    verticalStackPanel.setBackground( Color.BLACK)
 
     verticalStackPanel.add(buttonPanel, BorderLayout.NORTH)
     verticalStackPanel.add(textScrollPane, BorderLayout.NORTH)
+
+
+
+
+    if(iconController.getTags(nodeNotProxy).size() > 0) {
+
+        verticalStackPanel.add(scrollPaneTagsInNodeList, BorderLayout.NORTH)
+    }
+
+
     verticalStackPanel.add(columnsPanel, BorderLayout.NORTH)
 
-    if(selectedTagsInPanel.size() > 0 && visibleInspectors.size() == 0) {
+    if((hoveredTagModel.size() > 0 || selectedTagsInPanel.size() > 0) && visibleInspectors.size() == 0) {
+        verticalStackPanel.add(Box.createVerticalStrut(10))
+
         verticalStackPanel.add(scrollPaneTagsSelectionList, BorderLayout.SOUTH)
         verticalStackPanel.add(scrollPaneNodesThatContainAnyTagInTagsSelection, BorderLayout.SOUTH)
     }
 
 
-    inspectorPanel.add(verticalStackPanel, BorderLayout.NORTH)
+    inspectorPanel.add(verticalStackPanel, BorderLayout.CENTER)
 
     verticalStackPanel.revalidate()
 
-    inspectorPanel.setSize(calculateInspectorWidth(ammountOfPannelsInInspector), (int) inspectorPanel.getPreferredSize().height)
+    inspectorPanel.setSize(calculateInspectorWidth(ammountOfPannelsInInspector), (int) Math.min(mapViewWindowForSizeReferences.height, inspectorPanel.getPreferredSize().height))
 
     inspectorPanel.revalidate();
     inspectorPanel.repaint();
@@ -2171,14 +2299,30 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                     })
 
+                    JMenuItem menuItemClearSelection = new JMenuItem("Clear selection of tags")
+                    menuItemClearSelection.addActionListener({
+                        selectedTagsInPanel.clear()
+                        refreshHighlighterCacheTags()
+
+                        tagsNeedUpdate = true
+
+                        cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
+
+                    })
+
                     menuItemRemove.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItemRemove)
+
+                    popupMenu.addSeparator()
 
                     menuItemAddToSelection.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItemAddToSelection)
 
                     menuItemRemoveFromSelection.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItemRemoveFromSelection)
+
+                    menuItemClearSelection.addMouseListener(sharedMouseListener)
+                    popupMenu.add(menuItemClearSelection)
 
                     popupMenu.show(e.getComponent(), e.getX(), e.getY())
                 }
@@ -2202,19 +2346,25 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
 //                configureLabelForNode(label, currentNode, tagsPanel)
                 Color backgroundColor = currentTag.getColor()
-//                Color fontColor = NodeStyleController.getController().getColor(node, StyleOption.FOR_UNSELECTED_NODE)
+                Color fontColor = UITools.getTextColorForBackground(backgroundColor)
                 String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
 //                String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
 
                 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
                 label.setBackground(backgroundColor)
-//                component.setForeground(fontColor)
+                label.setForeground(fontColor)
                 label.setFont(fontForItems)
+
+
+                label.setBorder(new RoundedCornerBorder(Color.BLACK, 2, 15));
+
+
             }
             if (isSelected) {
                 label.setBackground(list.getSelectionBackground())
                 label.setForeground(list.getSelectionForeground())
+
             }
             return label
         }
@@ -2229,9 +2379,9 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
             if (freezeInspectors || isMouseOverSearchBox) {return}
 
             hoverTimer.stop()
-            currentList = null
-            currentListModel = null
-            currentSourcePanel = tagsPanel
+            currentList = jList
+            currentListModel = theListModel
+            currentSourcePanel = thePanelPanel
             lastMouseLocation = e.getPoint()
             mouseOverList = true
             hoverTimer.restart()
@@ -2456,8 +2606,42 @@ def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
         it.setVisible(false)
     }
     visibleInspectors.clear()
-    parentPanel.revalidate()
-    parentPanel.repaint()
     JPanel subInspectorPanel = createInspectorPanel(nodeNotProxy, somePanel)
     visibleInspectors.add(subInspectorPanel)
+    parentPanel.revalidate()
+    parentPanel.repaint()
 }
+
+
+
+public class RoundedCornerBorder implements Border {
+    private Color color;
+    private int thickness;
+    private int radius;
+
+    public RoundedCornerBorder(Color color, int thickness, int radius) {
+        this.color = color;
+        this.thickness = thickness;
+        this.radius = radius;
+    }
+
+    @Override
+    public Insets getBorderInsets(Component c) {
+        return new Insets(this.thickness, this.thickness + 5, this.thickness, this.thickness + 5);
+    }
+
+    @Override
+    public boolean isBorderOpaque() {
+        return false;
+    }
+
+    @Override
+    public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setColor(color);
+        g2.setStroke(new BasicStroke(thickness));
+        g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+    }
+}
+
+
