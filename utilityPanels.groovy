@@ -1,6 +1,9 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.25: Panels on the master panel expand vertically on hover, to fit the whole height of the window.
+ Hidden panels in the Inspector leave a space, to show that it's hidden.
+
 version 1.24: improvements in the vertical distribution of panels in the inspector.
  Panel nodes with the tags: now the search is limited to current view root.
  Fixed listener in the Tags Selection panel.
@@ -250,7 +253,9 @@ savedSearchCriteria.add("")
 
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
+@Field List<JPanel> panelsInMasterPanels = []
 @Field JPanel recentSelectedNodesPanel
+
 @Field JPanel pinnedItemsPanel
 @Field JPanel tagsPanel
 @Field JPanel quickSearchPanel
@@ -317,10 +322,7 @@ hoverTimer.addActionListener(e -> {
     
 
     if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
-        bounds = masterPanel.getBounds()
-        bounds.width = calculateExpandedWidthForMasterPanel()
-        masterPanel.setBounds(bounds)
-        isMasterPanelExpanded = true
+        expandMasterPanel()
 
 
         visibleInspectors.each{
@@ -1003,6 +1005,11 @@ def createPanels(){
     masterPanel.add(quickSearchPanel)
 //    masterPanel.setComponentZOrder(quickSearchPanel, 0)
 
+    panelsInMasterPanels.add(recentSelectedNodesPanel)
+    panelsInMasterPanels.add(pinnedItemsPanel)
+    panelsInMasterPanels.add(tagsPanel)
+    panelsInMasterPanels.add(quickSearchPanel)
+
 
     masterPanel.revalidate()
     masterPanel.repaint()
@@ -1644,7 +1651,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
             super.paintComponent(g)
         }
     }
-    columnsPanel.setLayout(new GridLayout())
+//    columnsPanel.setLayout(new GridLayout())
+    columnsPanel.setLayout(new BoxLayout(columnsPanel, BoxLayout.X_AXIS));
 
     columnsPanel.setBackground( new Color(0, 0, 0, 0) )
 
@@ -1653,14 +1661,36 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     if(ancestorLineModel.getSize() > 0) {
         columnsPanel.add(scrollPaneAncestorsLineList);
     }
+    else{
+        JPanel line3 = new JPanel();
+        line3.setBackground(Color.GRAY);
+        line3.setPreferredSize(new Dimension(10, 3))
+
+        columnsPanel.add(line3);
+    }
 
     if(siblingsModel.getSize() > 1) {
         columnsPanel.add(scrollPanelSiblingsList);
         ammountOfPannelsInInspector++
     }
+    else{
+        JPanel line = new JPanel();
+        line.setBackground(Color.GRAY);
+        line.setPreferredSize(new Dimension(10, 3))
+        line.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 2))
+
+        columnsPanel.add(line);
+    }
     if(childrenModel.getSize() > 0) {
         columnsPanel.add(scrollPaneChildrenList);
         ammountOfPannelsInInspector++
+    }
+    else{
+        JPanel line2 = new JPanel();
+        line2.setBackground(Color.GRAY);
+        line2.setPreferredSize(new Dimension(10, 3))
+
+        columnsPanel.add(line2);
     }
 
 
@@ -1746,10 +1776,7 @@ void hideInspectorPanelIfNeeded() {
             visibleInspectors[0].setVisible(true)
         }
 
-        bounds = masterPanel.getBounds()
-        bounds.width = calculateRetractedWidthForMasterPanel()
-        masterPanel.setBounds(bounds)
-        isMasterPanelExpanded = false
+        retractMasterPanel()
 
         parentPanel.revalidate()
         parentPanel.repaint()
@@ -2201,12 +2228,8 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
 
 
             if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
-                bounds = masterPanel.getBounds()
-                bounds.width = calculateExpandedWidthForMasterPanel()
-                masterPanel.setBounds(bounds)
-                masterPanel.revalidate()
-                masterPanel.repaint()
-                isMasterPanelExpanded = true
+                expandMasterPanel()
+
                 if(visibleInspectors.size() != 0) {
                     setInspectorLocation(visibleInspectors[0], masterPanel)
                 }
@@ -2388,12 +2411,8 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
 
             if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
-                bounds = masterPanel.getBounds()
-                bounds.width = calculateExpandedWidthForMasterPanel()
-                masterPanel.setBounds(bounds)
-                masterPanel.revalidate()
-                masterPanel.repaint()
-                isMasterPanelExpanded = true
+                expandMasterPanel()
+
                 if(visibleInspectors.size() != 0) {
                     setInspectorLocation(visibleInspectors[0], masterPanel)
                 }
@@ -2644,4 +2663,28 @@ public class RoundedCornerBorder implements Border {
     }
 }
 
+def expandMasterPanel() {
+    bounds = masterPanel.getBounds()
+    bounds.width = calculateExpandedWidthForMasterPanel()
+    masterPanel.setBounds(bounds)
+    panelsInMasterPanels.each {
+        if(it != currentSourcePanel) {
+            it.setVisible(false)
+        }
+    }
+    masterPanel.revalidate()
+    masterPanel.repaint()
+    parentPanel.revalidate()
+    parentPanel.repaint()
+    isMasterPanelExpanded = true
+}
 
+def retractMasterPanel() {
+    bounds = masterPanel.getBounds()
+    bounds.width = calculateRetractedWidthForMasterPanel()
+    masterPanel.setBounds(bounds)
+    panelsInMasterPanels.each { it.setVisible(true) }
+    masterPanel.revalidate()
+    masterPanel.repaint()
+    isMasterPanelExpanded = false
+}
