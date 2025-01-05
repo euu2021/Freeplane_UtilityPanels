@@ -1,6 +1,8 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.26: first version of the new inspectors design.
+
 version 1.25: Panels on the master panel expand vertically on hover, to fit the whole height of the window.
  Hidden panels in the Inspector leave a space, to show that it's hidden.
 
@@ -279,6 +281,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 @Field String lastSearchText = ""
 
 @Field NodeModel currentlySelectedNode
+@Field NodeModel hoveredNode
 
 
 @Field MIconController iconController = (MIconController) Controller.currentModeController.getExtension(IconController.class)
@@ -358,24 +361,39 @@ hoverTimer.addActionListener(e -> {
                 Object hoveredItem = currentListModel.getElementAt(index)
                 if(hoveredItem instanceof NodeModel) {
                     NodeModel subNode = currentListModel.getElementAt(index)
+                    hoveredNode = subNode
 
                     if (currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
                         cleanAndCreateInspectors(subNode, currentSourcePanel)
                     } else {
+
+
+                        JTextPane textLabelInInspector = (JTextPane) currentSourcePanel.getClientProperty("textLabel")
+
+
+                        configureLabelForNode(textLabelInInspector, hoveredNode, currentSourcePanel)
+
+
+                        DefaultListModel<Tags> accessorTagsInNodeModel = (DefaultListModel<Tags>) currentSourcePanel.getClientProperty("tagsInNodeAccessor")
+                        accessorTagsInNodeModel.clear()
+                        iconController.getTags(hoveredNode).each {
+                            accessorTagsInNodeModel.addElement(it)
+                        }
+
+
+
                         subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
 
                         visibleInspectors.add(subInspectorPanel)
                         locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                        visibleInspectors.each {
-                            if (it.getLocation().x > locationOfTheInspectorOfTheCurrentPanelUnderMouse + 0.1) {
-                                it.setVisible(false
-                                )
-                            }
-
-                            if (it != subInspectorPanel && it.getLocation().x == locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
+                        visibleInspectors.clone().each {
+                            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
                                 it.setVisible(false)
+                                visibleInspectors.remove(it)
                             }
                         }
+                        parentPanel.revalidate()
+                        parentPanel.repaint()
                     }
                 }
                 else if(currentSourcePanel == tagsPanel) {
@@ -740,10 +758,10 @@ def createPanels(){
     recentSelectedNodesPanel.setOpaque(false)
     recentSelectedNodesPanel.setBackground( new Color(0, 0, 0, 0) )
 
-    int recentSelectedNodesPanelWidth = 80
-    int recentSelectedNodesPanelHeight = 170
+//    int recentSelectedNodesPanelWidth = 80
+//    int recentSelectedNodesPanelHeight = 170
 
-    recentSelectedNodesPanel.setBounds(0, 0, recentSelectedNodesPanelWidth, recentSelectedNodesPanelHeight)
+//    recentSelectedNodesPanel.setBounds(0, 0, recentSelectedNodesPanelWidth, recentSelectedNodesPanelHeight)
 
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Recent Nodes Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
@@ -764,8 +782,14 @@ def createPanels(){
     pinnedItemsPanel.setOpaque(false)
     pinnedItemsPanel.setBackground( new Color(0, 0, 0, 0) )
 
-    int pinnedPanelHeight = 130
-    pinnedItemsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, pinnedPanelHeight)
+
+//    pinnedItemsPanel.setMaximumSize(pinnedItemsPanel.getPreferredSize())
+
+//    int pinnedPanelHeight = 130
+//    pinnedItemsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, pinnedPanelHeight)
+
+
+
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Pinned Items Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -785,8 +809,8 @@ def createPanels(){
     tagsPanel.setOpaque(false)
     tagsPanel.setBackground( new Color(0, 0, 0, 0) )
 
-    int tagsPanelHeight = 130
-    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
+//    int tagsPanelHeight = 130
+//    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tags Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -807,8 +831,8 @@ def createPanels(){
     quickSearchPanel.setOpaque(false)
     quickSearchPanel.setBackground( new Color(0, 0, 0, 0) )
 
-    int quickSearchPanelHeight = 130
-    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
+//    int quickSearchPanelHeight = 130
+//    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
 
 
 
@@ -918,6 +942,8 @@ def createPanels(){
     panelForSearchBox.setOpaque(false)
     panelForSearchBox.setBackground( new Color(0, 0, 0, 0) )
 
+
+
     quickSearchPanel.add(panelForSearchBox, BorderLayout.NORTH);
 
     innerPanelInQuickSearchPanel = new JPanel(new BorderLayout());
@@ -987,28 +1013,20 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-    masterPanel.add(recentSelectedNodesPanel)
-//    masterPanel.setComponentZOrder(recentSelectedNodesPanel, 0)
 
-    masterPanel.add(Box.createVerticalStrut(20))
+    panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
 
-    masterPanel.add(pinnedItemsPanel)
-//    masterPanel.setComponentZOrder(pinnedItemsPanel, 0)
+    panelsInMasterPanels.eachWithIndex { panel, idx ->
+        masterPanel.add(panel)
 
-    masterPanel.add(Box.createVerticalStrut(20))
+        if (idx < panelsInMasterPanels.size() - 1) {
+            masterPanel.add(Box.createVerticalStrut(20))
+        }
+    }
 
-    masterPanel.add(tagsPanel)
-//    masterPanel.setComponentZOrder(tagsPanel, 0)
 
-    masterPanel.add(Box.createVerticalStrut(20))
 
-    masterPanel.add(quickSearchPanel)
-//    masterPanel.setComponentZOrder(quickSearchPanel, 0)
 
-    panelsInMasterPanels.add(recentSelectedNodesPanel)
-    panelsInMasterPanels.add(pinnedItemsPanel)
-    panelsInMasterPanels.add(tagsPanel)
-    panelsInMasterPanels.add(quickSearchPanel)
 
 
     masterPanel.revalidate()
@@ -1060,6 +1078,7 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
     scrollPane.setOpaque(false)
     scrollPane.getViewport().setOpaque(false)
 
+
     scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
     scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
     scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
@@ -1068,6 +1087,7 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
 
     jListPanel.add(scrollPane, BorderLayout.CENTER)
+
     jListPanel.revalidate()
     jListPanel.repaint()
 }
@@ -1192,6 +1212,7 @@ def updateTagsGui() {
 
 JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
+
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
         protected void paintComponent(Graphics g) {
@@ -1214,7 +1235,16 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JTextPane textLabel = new JTextPane();
     textLabel.setContentType("text/html")
 
-    configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
+    inspectorPanel.putClientProperty("textLabel", textLabel)
+
+//    if(hoveredNode != null) {
+//    configureLabelForNode(textLabel, hoveredNode, inspectorPanel)
+//
+//    }
+
+    if(visibleInspectors.size() == 0) {
+        configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
+    }
 
     JScrollPane textScrollPane = new JScrollPane(textLabel)
     textScrollPane.setPreferredSize(new Dimension(200, nodeTextPanelFixedHeight))
@@ -1471,9 +1501,20 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     DefaultListModel<Tags> tagsInNodeModel = new DefaultListModel<>()
 
-    iconController.getTags(nodeNotProxy).each {
-        tagsInNodeModel.addElement(it)
+    inspectorPanel.putClientProperty("tagsInNodeAccessor", tagsInNodeModel)
+
+
+
+    if(visibleInspectors.size() == 0) {
+        iconController.getTags(nodeNotProxy).each {
+            tagsInNodeModel.addElement(it)
+        }
     }
+
+
+//    iconController.getTags(nodeNotProxy).each {
+//        tagsInNodeModel.addElement(it)
+//    }
 
 
     JList<NodeModel> tagsInNode = new JList<>(tagsInNodeModel)
@@ -1485,7 +1526,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     TitledBorder titledBorderTagsInNode = BorderFactory.createTitledBorder("Tags in Node")
     titledBorderTagsInNode.setTitleJustification(TitledBorder.LEFT)
     titledBorderTagsInNode.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
-    tagsInNode.setBorder(titledBorderTagsInNode)
+//    tagsInNode.setBorder(titledBorderTagsInNode)
 
     JScrollPane scrollPaneTagsInNodeList = new JScrollPane(tagsInNode)
 //    JPanel scrollPaneTagsInNodeList = new JPanel(new BorderLayout());
@@ -1658,41 +1699,42 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     int ammountOfPannelsInInspector = 1
 
-    if(ancestorLineModel.getSize() > 0) {
+    if(ancestorLineModel.getSize() > 0 && visibleInspectors.size() == 0) {
         columnsPanel.add(scrollPaneAncestorsLineList);
     }
     else{
-        JPanel line3 = new JPanel();
-        line3.setBackground(Color.GRAY);
-        line3.setPreferredSize(new Dimension(10, 3))
-
-        columnsPanel.add(line3);
+//        JPanel line3 = new JPanel();
+//        line3.setBackground(Color.GRAY);
+//        line3.setPreferredSize(new Dimension(10, 3))
+//
+//        columnsPanel.add(line3);
     }
 
-    if(siblingsModel.getSize() > 1) {
+    if(siblingsModel.getSize() > 1 && visibleInspectors.size() == 0) {
         columnsPanel.add(scrollPanelSiblingsList);
         ammountOfPannelsInInspector++
     }
     else{
-        JPanel line = new JPanel();
-        line.setBackground(Color.GRAY);
-        line.setPreferredSize(new Dimension(10, 3))
-        line.setBorder(BorderFactory.createLineBorder(Color.ORANGE, 2))
-
-        columnsPanel.add(line);
+//        JPanel line = new JPanel();
+//        line.setBackground(Color.GRAY);
+//        line.setPreferredSize(new Dimension(10, 3))
+//        line.setBorder(BorderFactory.createLineBorder(Color.RED, 2))
+//
+//        columnsPanel.add(line);
     }
-    if(childrenModel.getSize() > 0) {
-        columnsPanel.add(scrollPaneChildrenList);
-        ammountOfPannelsInInspector++
-    }
-    else{
-        JPanel line2 = new JPanel();
-        line2.setBackground(Color.GRAY);
-        line2.setPreferredSize(new Dimension(10, 3))
-
-        columnsPanel.add(line2);
-    }
-
+//    if(childrenModel.getSize() > 0) {
+//        columnsPanel.add(scrollPaneChildrenList);
+//        ammountOfPannelsInInspector++
+//    }
+//    else{
+////        JPanel line2 = new JPanel();
+////        line2.setBackground(Color.GRAY);
+////        line2.setPreferredSize(new Dimension(10, 3))
+////
+////        columnsPanel.add(line2);
+//    }
+    columnsPanel.add(scrollPaneChildrenList)
+    ammountOfPannelsInInspector++
 
 
 
@@ -1706,10 +1748,13 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 
-    if(iconController.getTags(nodeNotProxy).size() > 0) {
 
-        verticalStackPanel.add(scrollPaneTagsInNodeList, BorderLayout.NORTH)
-    }
+    verticalStackPanel.add(scrollPaneTagsInNodeList, BorderLayout.NORTH)
+
+//    if(iconController.getTags(nodeNotProxy).size() > 0) {
+//
+//        verticalStackPanel.add(scrollPaneTagsInNodeList, BorderLayout.NORTH)
+//    }
 
 
     verticalStackPanel.add(columnsPanel, BorderLayout.NORTH)
@@ -1786,7 +1831,7 @@ void hideInspectorPanelIfNeeded() {
         }
 
         return
-    }1
+    }
 }
 
 void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
@@ -1831,6 +1876,11 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         if (storedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+        }
+
+
+        else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
+            label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 2))
         }
 
         String labelText = prefix + nodeNotProxy.text;
