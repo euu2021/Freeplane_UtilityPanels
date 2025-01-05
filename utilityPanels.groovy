@@ -1,6 +1,9 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.27: nodes that have children have a ○ symbol at the start.
+ New inspectors design: first panel was simplified. Ancestor panel is now part of the left panels.
+
 version 1.26: first version of the new inspectors design.
 
 version 1.25: Panels on the master panel expand vertically on hover, to fit the whole height of the window.
@@ -207,7 +210,7 @@ retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the
 expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
 widthFactorForInspector = 15 //the higher the factor, the smaller the inspector panel width
 
-@Field selectionDelay = 100 //miliseconds
+@Field selectionDelay = 150 //miliseconds
 
 reverseAncestorsList = true
 
@@ -239,6 +242,7 @@ fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 uniqueIdForScript = 999
 deleteCurrentListenersFromPreviousExecutions()
 
+@Field List<NodeModel> ancestorsOfCurrentNode = []
 @Field List<NodeModel> history = []
 @Field List<NodeModel> pinnedItems = []
 @Field List<NodeModel> quickSearchResults = []
@@ -256,8 +260,8 @@ savedSearchCriteria.add("")
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
 @Field List<JPanel> panelsInMasterPanels = []
+@Field JPanel ancestorsOfCurrentNodePanel
 @Field JPanel recentSelectedNodesPanel
-
 @Field JPanel pinnedItemsPanel
 @Field JPanel tagsPanel
 @Field JPanel quickSearchPanel
@@ -280,7 +284,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 @Field String searchText = ""
 @Field String lastSearchText = ""
 
-@Field NodeModel currentlySelectedNode
+@Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
 @Field NodeModel hoveredNode
 
 
@@ -324,7 +328,7 @@ hoverTimer.addActionListener(e -> {
     if (freezeInspectors || isMouseOverSearchBox) return
     
 
-    if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+    if(panelsInMasterPanels.contains(currentSourcePanel)) {
         expandMasterPanel()
 
 
@@ -363,7 +367,25 @@ hoverTimer.addActionListener(e -> {
                     NodeModel subNode = currentListModel.getElementAt(index)
                     hoveredNode = subNode
 
-                    if (currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+                    ancestorsOfCurrentNode.clear()
+                    if(reverseAncestorsList) {
+                        hoveredNode.getPathToRoot().reverse().each {
+                            ancestorsOfCurrentNode.add(it)
+                        }
+                    }
+                    else{
+                        hoveredNode.getPathToRoot().each {
+                            ancestorsOfCurrentNode.add(it)
+                        }
+                    }
+
+                    updateAllGUIs()
+
+
+
+
+
+                    if (panelsInMasterPanels.contains(currentSourcePanel)) {
                         cleanAndCreateInspectors(subNode, currentSourcePanel)
                     } else {
 
@@ -470,6 +492,20 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 
         saveSettings()
 
+
+        ancestorsOfCurrentNode.clear()
+        if(reverseAncestorsList) {
+            node.getPathToRoot().reverse().each {
+                ancestorsOfCurrentNode.add(it)
+            }
+        }
+        else{
+            node.getPathToRoot().each {
+                ancestorsOfCurrentNode.add(it)
+            }
+        }
+
+
         SwingUtilities.invokeLater { updateAllGUIs() }
 
         parentPanel.revalidate()
@@ -479,7 +515,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             return
         }
         if (inspectorUpdateSelection) {
-            cleanAndCreateInspectors(node, recentSelectedNodesPanel)
+            cleanAndCreateInspectors(node, ancestorsOfCurrentNodePanel)
         }
     }
 
@@ -500,10 +536,10 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         searchText = ""
         quickSearchResults.clear()
 
-        parentPanel.remove(recentSelectedNodesPanel)
-        parentPanel.remove(pinnedItemsPanel)
-        parentPanel.remove(tagsPanel)
-        parentPanel.remove(quickSearchPanel)
+        panelsInMasterPanels.each {
+            parentPanel.remove(it)
+        }
+
         saveSettings()
         masterPanel.setVisible(false)
         createPanels()
@@ -547,10 +583,9 @@ mindMap.addListener(myNodeChangeListener)
 viewportSizeChangeListener = new ComponentAdapter() {
     @Override
     public void componentResized(final ComponentEvent e) {
-        parentPanel.remove(recentSelectedNodesPanel)
-        parentPanel.remove(pinnedItemsPanel)
-        parentPanel.remove(tagsPanel)
-        parentPanel.remove(quickSearchPanel)
+        panelsInMasterPanels.each {
+            parentPanel.remove(it)
+        }
         saveSettings()
         masterPanel.setVisible(false)
         createPanels()
@@ -1013,8 +1048,26 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Ancestor Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
-    panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
+    ancestorsOfCurrentNodePanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g)
+        {
+            g.setColor( getBackground() )
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    ancestorsOfCurrentNodePanel.setOpaque(false)
+    ancestorsOfCurrentNodePanel.setBackground( new Color(0, 0, 0, 0) )
+
+
+    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Ancestor Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+
+
+
+    panelsInMasterPanels = [ancestorsOfCurrentNodePanel, recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
 
     panelsInMasterPanels.eachWithIndex { panel, idx ->
         masterPanel.add(panel)
@@ -1044,10 +1097,15 @@ def createPanels(){
 }
 
 def updateAllGUIs() {
+    updateAncestorsOfCurrentNodeGUI()
     updateRecentNodesGui()
     updatePinnedItemsGui()
     updateQuickSearchGui()
     updateTagsGui()
+}
+
+def updateAncestorsOfCurrentNodeGUI() {
+    updateSpecifiedGUIs(ancestorsOfCurrentNode, ancestorsOfCurrentNodePanel, ancestorsOfCurrentNodePanel)
 }
 
 def updateRecentNodesGui() {
@@ -1148,7 +1206,7 @@ def updateTagsGui() {
                 selectedTagsInPanel.clear();
                 refreshHighlighterCacheTags()
                 tagsNeedUpdate = true
-                cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
+                cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
                 updateAllGUIs();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
@@ -1359,10 +1417,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 
-    TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
-    titledBorderAncestors.setTitleJustification(TitledBorder.LEFT)
-    titledBorderAncestors.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
-    ancestorsLineList.setBorder(titledBorderAncestors)
+//    TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
+//    titledBorderAncestors.setTitleJustification(TitledBorder.LEFT)
+//    titledBorderAncestors.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
+//    ancestorsLineList.setBorder(titledBorderAncestors)
 
     JScrollPane scrollPaneAncestorsLineList = new JScrollPane(ancestorsLineList){
         protected void paintComponent(Graphics g)
@@ -1422,10 +1480,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JList<NodeModel> siblingsList = new JList<>(siblingsModel)
     commonJListsConfigs(siblingsList, siblingsModel, inspectorPanel)
 
-    TitledBorder titledBorderSiblings = BorderFactory.createTitledBorder("Siblings")
-    titledBorderSiblings.setTitleJustification(TitledBorder.LEFT)
-    titledBorderSiblings.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
-    siblingsList.setBorder(titledBorderSiblings)
+//    TitledBorder titledBorderSiblings = BorderFactory.createTitledBorder("Siblings")
+//    titledBorderSiblings.setTitleJustification(TitledBorder.LEFT)
+//    titledBorderSiblings.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
+//    siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
 
@@ -1470,10 +1528,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JList<NodeModel> childrenList = new JList<>(childrenModel)
     commonJListsConfigs(childrenList, childrenModel, inspectorPanel)
 
-    TitledBorder titledBorderChildren = BorderFactory.createTitledBorder("Children")
-    titledBorderChildren.setTitleJustification(TitledBorder.LEFT)
-    titledBorderChildren.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
-    childrenList.setBorder(titledBorderChildren)
+//    TitledBorder titledBorderChildren = BorderFactory.createTitledBorder("Children")
+//    titledBorderChildren.setTitleJustification(TitledBorder.LEFT)
+//    titledBorderChildren.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
+//    childrenList.setBorder(titledBorderChildren)
 
     JScrollPane scrollPaneChildrenList = new JScrollPane(childrenList)
 
@@ -1523,9 +1581,9 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     commonTagsJListsConfigs(tagsInNode, tagsInNodeModel, inspectorPanel)
 
-    TitledBorder titledBorderTagsInNode = BorderFactory.createTitledBorder("Tags in Node")
-    titledBorderTagsInNode.setTitleJustification(TitledBorder.LEFT)
-    titledBorderTagsInNode.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
+//    TitledBorder titledBorderTagsInNode = BorderFactory.createTitledBorder("Tags in Node")
+//    titledBorderTagsInNode.setTitleJustification(TitledBorder.LEFT)
+//    titledBorderTagsInNode.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 //    tagsInNode.setBorder(titledBorderTagsInNode)
 
     JScrollPane scrollPaneTagsInNodeList = new JScrollPane(tagsInNode)
@@ -1699,18 +1757,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     int ammountOfPannelsInInspector = 1
 
-    if(ancestorLineModel.getSize() > 0 && visibleInspectors.size() == 0) {
-        columnsPanel.add(scrollPaneAncestorsLineList);
-    }
-    else{
-//        JPanel line3 = new JPanel();
-//        line3.setBackground(Color.GRAY);
-//        line3.setPreferredSize(new Dimension(10, 3))
-//
-//        columnsPanel.add(line3);
-    }
 
-    if(siblingsModel.getSize() > 1 && visibleInspectors.size() == 0) {
+    if(visibleInspectors.size() == 0) {
         columnsPanel.add(scrollPanelSiblingsList);
         ammountOfPannelsInInspector++
     }
@@ -1733,8 +1781,12 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 ////
 ////        columnsPanel.add(line2);
 //    }
-    columnsPanel.add(scrollPaneChildrenList)
-    ammountOfPannelsInInspector++
+
+    if(visibleInspectors.size() != 0) {
+        columnsPanel.add(scrollPaneChildrenList)
+        ammountOfPannelsInInspector++
+
+    }
 
 
 
@@ -1864,12 +1916,16 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         if (currentMapView.currentRootParentView != null) {
             if (nodeNotProxy.getPathToRoot().find { it == currentMapView.mapSelection.selectionRoot } == null) {
-                prefix += "⚠|";
+                prefix += "⚠";
             }
         }
 
         if (pinnedItems.contains(nodeNotProxy)) {
             prefix += "📌";
+        }
+
+        if (!nodeNotProxy.isLeaf()) {
+            prefix += "○ ";
         }
 
         NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
@@ -2277,7 +2333,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
             hoverTimer.restart()
 
 
-            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+            if(panelsInMasterPanels.contains(currentSourcePanel)) {
                 expandMasterPanel()
 
                 if(visibleInspectors.size() != 0) {
@@ -2357,7 +2413,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         refreshHighlighterCacheTags()
 
-                        cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
 
                     })
 
@@ -2368,7 +2424,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         tagsNeedUpdate = true
 
-                        cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
 
                     })
 
@@ -2379,7 +2435,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         tagsNeedUpdate = true
 
-                        cleanAndCreateInspectors(currentlySelectedNode, recentSelectedNodesPanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
 
                     })
 
@@ -2460,7 +2516,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
             hoverTimer.restart()
 
 
-            if(currentSourcePanel == recentSelectedNodesPanel || currentSourcePanel == quickSearchPanel || currentSourcePanel == pinnedItemsPanel || currentSourcePanel == tagsPanel) {
+            if(panelsInMasterPanels.contains(currentSourcePanel)) {
                 expandMasterPanel()
 
                 if(visibleInspectors.size() != 0) {
@@ -2677,6 +2733,9 @@ def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
     visibleInspectors.clear()
     JPanel subInspectorPanel = createInspectorPanel(nodeNotProxy, somePanel)
     visibleInspectors.add(subInspectorPanel)
+
+    JPanel subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
+    visibleInspectors.add(subInspectorPanel2)
     parentPanel.revalidate()
     parentPanel.repaint()
 }
@@ -2717,10 +2776,18 @@ def expandMasterPanel() {
     bounds = masterPanel.getBounds()
     bounds.width = calculateExpandedWidthForMasterPanel()
     masterPanel.setBounds(bounds)
-    panelsInMasterPanels.each {
-        if(it != currentSourcePanel) {
-            it.setVisible(false)
+    if (currentSourcePanel != ancestorsOfCurrentNodePanel) {
+//        Dimension currentSize = ancestorsOfCurrentNodePanel.getPreferredSize();
+        Dimension currentSize = new Dimension((int) ancestorsOfCurrentNodePanel.getWidth(), (int) ancestorsOfCurrentNodePanel.getHeight())
+        panelsInMasterPanels.each {
+            if(it != currentSourcePanel && it != ancestorsOfCurrentNodePanel) {
+                it.setVisible(false)
+            }
         }
+        Dimension newSize = new Dimension((int) calculateExpandedWidthForMasterPanel(), (int) currentSize.height);
+//        ancestorsOfCurrentNodePanel.setPreferredSize(newSize);
+//        ancestorsOfCurrentNodePanel.setSize(10, 10);
+        ancestorsOfCurrentNodePanel.setMaximumSize(newSize)
     }
     masterPanel.revalidate()
     masterPanel.repaint()
