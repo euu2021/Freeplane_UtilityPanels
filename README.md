@@ -26,17 +26,11 @@ Pinned nodes are saved on FreePlane restarts
 
 ### Quick Search panel
 
-A quick search that uses the Jumper search engine, so it has transversal search, and other good stuff. See instructions below about how to integrate with Jumper.
-
-The Jumper settings are used in the Quick Search panel. In other words, the settings that the user chooses inside Jumper are used by the Quick Search panel.
 
 Results are highlighted everywhere: in the panels, in the inspectors, and in the map:
 
 ![image](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/00766e42-84a9-4acf-bdaf-4f85b7ac63c8)
 
-Results auto update when a new match is added in the map:
-
-![quicksearch](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/8f2ad54c-c116-4d46-802b-f02a7e693a0a)
 
 
 ## Inspector
