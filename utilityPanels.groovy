@@ -1,6 +1,9 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.28: Ctrl key freezes the panels.
+ New panel: Breadcrumbs, replacing the Ancestors panel.
+
 version 1.27: nodes that have children have a ○ symbol at the start.
  New inspectors design: first panel was simplified. Ancestor panel is now part of the left panels.
 
@@ -212,7 +215,7 @@ widthFactorForInspector = 15 //the higher the factor, the smaller the inspector 
 
 @Field selectionDelay = 150 //miliseconds
 
-reverseAncestorsList = true
+reverseAncestorsList = false
 
 paddingBeforeHorizontalScrollBar = 30
 
@@ -259,8 +262,8 @@ savedSearchCriteria.add("")
 
 @Field JScrollPane parentPanel
 @Field JPanel masterPanel
+@Field JPanel breadcrumbPanel
 @Field List<JPanel> panelsInMasterPanels = []
-@Field JPanel ancestorsOfCurrentNodePanel
 @Field JPanel recentSelectedNodesPanel
 @Field JPanel pinnedItemsPanel
 @Field JPanel tagsPanel
@@ -278,6 +281,9 @@ savedSearchCriteria.add("")
 @Field boolean isMasterPanelExpanded = false
 @Field boolean isMouseOverSearchBox = false
 @Field boolean tagsNeedUpdate = true
+
+@Field int lastMouseModifiers = 0
+
 
 mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.mapView.parent
 
@@ -325,7 +331,8 @@ sharedMouseListener = new MouseAdapter() {
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
-    if (freezeInspectors || isMouseOverSearchBox) return
+
+    if (shouldFreeze()) return
     
 
     if(panelsInMasterPanels.contains(currentSourcePanel)) {
@@ -337,7 +344,7 @@ hoverTimer.addActionListener(e -> {
                 it.setVisible(false)
             }
             else{
-                if(it != visibleInspectors[0]) {
+                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
                     it.setVisible(false)
                 }
             }
@@ -347,9 +354,12 @@ hoverTimer.addActionListener(e -> {
             visibleInspectors.clear()
         }
         else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] }
+            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
             if(visibleInspectors.size() != 0) {
                 setInspectorLocation(visibleInspectors[0], masterPanel)
+                if(visibleInspectors.size() > 1) {
+                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                }
             }
         }
     }
@@ -385,8 +395,8 @@ hoverTimer.addActionListener(e -> {
 
 
 
-                    if (panelsInMasterPanels.contains(currentSourcePanel)) {
-                        cleanAndCreateInspectors(subNode, currentSourcePanel)
+                    if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
+                        cleanAndCreateInspectors(subNode, panelsInMasterPanels[0])
                     } else {
 
 
@@ -515,7 +525,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             return
         }
         if (inspectorUpdateSelection) {
-            cleanAndCreateInspectors(node, ancestorsOfCurrentNodePanel)
+            cleanAndCreateInspectors(node, panelsInMasterPanels[0])
         }
     }
 
@@ -772,7 +782,8 @@ def createPanels(){
 
     masterPanel.setOpaque(false)
 
-    masterPanel.setBounds(0, 0, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
+
+//    masterPanel.setBounds(0, 100, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
 
     masterPanel.addMouseListener(sharedMouseListener)
 
@@ -1048,26 +1059,32 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Ancestor Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Breadcrumbs Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
-    ancestorsOfCurrentNodePanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g)
-        {
-            g.setColor( getBackground() )
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    ancestorsOfCurrentNodePanel.setOpaque(false)
-    ancestorsOfCurrentNodePanel.setBackground( new Color(0, 0, 0, 0) )
+
+
+
+    breadcrumbPanel = new JPanel()
+    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
+
+    breadcrumbPanel.setBackground(new Color(220,220,220))
+    breadcrumbPanel.setOpaque(true)
+
+    breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
+
+    parentPanel.add(breadcrumbPanel)
+    parentPanel.setComponentZOrder(breadcrumbPanel, 0)
 
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Ancestor Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
+    masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
 
 
-    panelsInMasterPanels = [ancestorsOfCurrentNodePanel, recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
+    panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
+
+
 
     panelsInMasterPanels.eachWithIndex { panel, idx ->
         masterPanel.add(panel)
@@ -1079,14 +1096,10 @@ def createPanels(){
 
 
 
-
-
-
     masterPanel.revalidate()
     masterPanel.repaint()
 
     masterPanel.setVisible(true)
-
 
 
     parentPanel.add(masterPanel)
@@ -1097,16 +1110,42 @@ def createPanels(){
 }
 
 def updateAllGUIs() {
-    updateAncestorsOfCurrentNodeGUI()
+    updateBreadcrumbPanel()
     updateRecentNodesGui()
     updatePinnedItemsGui()
     updateQuickSearchGui()
     updateTagsGui()
 }
 
-def updateAncestorsOfCurrentNodeGUI() {
-    updateSpecifiedGUIs(ancestorsOfCurrentNode, ancestorsOfCurrentNodePanel, ancestorsOfCurrentNodePanel)
+
+def updateBreadcrumbPanel() {
+    breadcrumbPanel.removeAll()
+    if (!ancestorsOfCurrentNode || ancestorsOfCurrentNode.isEmpty()) {
+        breadcrumbPanel.revalidate()
+        breadcrumbPanel.repaint()
+        return
+    }
+
+    DefaultListModel<NodeModel> listModel = new DefaultListModel<>()
+    ancestorsOfCurrentNode.each { listModel.addElement(it) }
+
+    JList<NodeModel> jList = new JList<>(listModel)
+    jList.setLayoutOrientation(JList.HORIZONTAL_WRAP)
+    jList.setVisibleRowCount(1)
+
+    jList.setFixedCellWidth(200)
+    jList.setFixedCellHeight(30)
+
+    commonJListsConfigs(jList, listModel, breadcrumbPanel)
+
+    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
+    breadcrumbPanel.add(jList)
+
+    breadcrumbPanel.revalidate()
+    breadcrumbPanel.repaint()
 }
+
+
 
 def updateRecentNodesGui() {
     updateSpecifiedGUIs(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
@@ -1206,7 +1245,7 @@ def updateTagsGui() {
                 selectedTagsInPanel.clear();
                 refreshHighlighterCacheTags()
                 tagsNeedUpdate = true
-                cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
+                cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
                 updateAllGUIs();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
@@ -1295,10 +1334,6 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     inspectorPanel.putClientProperty("textLabel", textLabel)
 
-//    if(hoveredNode != null) {
-//    configureLabelForNode(textLabel, hoveredNode, inspectorPanel)
-//
-//    }
 
     if(visibleInspectors.size() == 0) {
         configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
@@ -1845,7 +1880,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 void hideInspectorPanelIfNeeded() {
-    if (freezeInspectors || isMouseOverSearchBox) {return}
+    if (shouldFreeze()) {return}
     if (!mouseOverList) {
 
         visibleInspectors.each{
@@ -1853,7 +1888,7 @@ void hideInspectorPanelIfNeeded() {
                 it.setVisible(false)
             }
             else{
-                if(it != visibleInspectors[0]) {
+                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
                     it.setVisible(false)
                 }
             }
@@ -1863,14 +1898,20 @@ void hideInspectorPanelIfNeeded() {
             visibleInspectors.clear()
         }
         else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] }
+            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
             if(visibleInspectors.size() != 0) {
                 setInspectorLocation(visibleInspectors[0], masterPanel)
+                if(visibleInspectors.size() > 1) {
+                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                }
             }
         }
 
         if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
             visibleInspectors[0].setVisible(true)
+            if(visibleInspectors.size() > 1) {
+                visibleInspectors[1].setVisible(true)
+            }
         }
 
         retractMasterPanel()
@@ -1880,6 +1921,9 @@ void hideInspectorPanelIfNeeded() {
 
         if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
             setInspectorLocation(visibleInspectors[0], masterPanel)
+            if(visibleInspectors.size() > 1) {
+                setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+            }
         }
 
         return
@@ -2300,15 +2344,50 @@ void configureDragAndDrop(JList<NodeModel> list) {
     });
 }
 
+//void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
+//    listParameter.setCellRenderer(new DefaultListCellRenderer() {
+//        @Override
+//        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+//            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+//            if (value instanceof NodeModel) {
+//                NodeModel currentNode = (NodeModel) value
+//                configureLabelForNode(label, currentNode, sourcePanel)
+//            }
+//            if (isSelected) {
+//                label.setBackground(list.getSelectionBackground())
+//                label.setForeground(list.getSelectionForeground())
+//            }
+//            return label
+//        }
+//    })
+//}
+
 void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
     listParameter.setCellRenderer(new DefaultListCellRenderer() {
         @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+        public Component getListCellRendererComponent(JList<?> list,
+                                                      Object value,
+                                                      int index,
+                                                      boolean isSelected,
+                                                      boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list,
+                    value,
+                    index,
+                    isSelected,
+                    cellHasFocus)
+
+
             if (value instanceof NodeModel) {
                 NodeModel currentNode = (NodeModel) value
                 configureLabelForNode(label, currentNode, sourcePanel)
+
+                if (sourcePanel == breadcrumbPanel && index > 0) {
+                    String oldText = label.getText()
+                    label.setText(" > " + oldText)
+
+                }
             }
+
             if (isSelected) {
                 label.setBackground(list.getSelectionBackground())
                 label.setForeground(list.getSelectionForeground())
@@ -2318,11 +2397,15 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
     })
 }
 
+
+
 void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeModel> listModel, JPanel sourcePanel) {
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            if (freezeInspectors || isMouseOverSearchBox) {return}
+            lastMouseModifiers = e.getModifiersEx()
+
+            if (shouldFreeze()) {return}
 
             hoverTimer.stop()
             currentList = list
@@ -2338,6 +2421,9 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
 
                 if(visibleInspectors.size() != 0) {
                     setInspectorLocation(visibleInspectors[0], masterPanel)
+                    if(visibleInspectors.size() > 1) {
+                        setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                    }
                 }
             }
         }
@@ -2413,7 +2499,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         refreshHighlighterCacheTags()
 
-                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
 
                     })
 
@@ -2424,7 +2510,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         tagsNeedUpdate = true
 
-                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
 
                     })
 
@@ -2435,7 +2521,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                         tagsNeedUpdate = true
 
-                        cleanAndCreateInspectors(currentlySelectedNode, ancestorsOfCurrentNodePanel)
+                        cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
 
                     })
 
@@ -2505,7 +2591,9 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
     jList.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            if (freezeInspectors || isMouseOverSearchBox) {return}
+            lastMouseModifiers = e.getModifiersEx()
+
+            if (shouldFreeze()) {return}
 
             hoverTimer.stop()
             currentList = jList
@@ -2521,6 +2609,9 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
                 if(visibleInspectors.size() != 0) {
                     setInspectorLocation(visibleInspectors[0], masterPanel)
+                    if(visibleInspectors.size() > 1) {
+                        setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                    }
                 }
             }
         }
@@ -2653,7 +2744,7 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
     int x = sourcePanel.getLocation().x + sourcePanel.width
 
-    int y = 0
+    int y = masterPanel.getLocation().y
     inspectorPanel.setLocation(x, y)
 }
 
@@ -2776,19 +2867,12 @@ def expandMasterPanel() {
     bounds = masterPanel.getBounds()
     bounds.width = calculateExpandedWidthForMasterPanel()
     masterPanel.setBounds(bounds)
-    if (currentSourcePanel != ancestorsOfCurrentNodePanel) {
-//        Dimension currentSize = ancestorsOfCurrentNodePanel.getPreferredSize();
-        Dimension currentSize = new Dimension((int) ancestorsOfCurrentNodePanel.getWidth(), (int) ancestorsOfCurrentNodePanel.getHeight())
         panelsInMasterPanels.each {
-            if(it != currentSourcePanel && it != ancestorsOfCurrentNodePanel) {
+            if(it != currentSourcePanel) {
                 it.setVisible(false)
             }
         }
-        Dimension newSize = new Dimension((int) calculateExpandedWidthForMasterPanel(), (int) currentSize.height);
-//        ancestorsOfCurrentNodePanel.setPreferredSize(newSize);
-//        ancestorsOfCurrentNodePanel.setSize(10, 10);
-        ancestorsOfCurrentNodePanel.setMaximumSize(newSize)
-    }
+
     masterPanel.revalidate()
     masterPanel.repaint()
     parentPanel.revalidate()
@@ -2804,4 +2888,14 @@ def retractMasterPanel() {
     masterPanel.revalidate()
     masterPanel.repaint()
     isMasterPanelExpanded = false
+}
+
+
+
+def isCtrlPressed() {
+    return (lastMouseModifiers & InputEvent.CTRL_DOWN_MASK) != 0
+}
+
+def shouldFreeze() {
+    return freezeInspectors || isMouseOverSearchBox || isCtrlPressed()
 }
