@@ -1,4 +1,4 @@
-
+Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 
 # UtilityPanels for FreePlane
