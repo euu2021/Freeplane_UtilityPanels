@@ -1,6 +1,9 @@
 /////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.29: Option to show only the breadcrumbs panel.
+    Dropped compatibility with FP <= 1.12.8 
+
 version 1.28: Ctrl key freezes the panels.
  New panel: Breadcrumbs, replacing the Ancestors panel.
 
@@ -225,6 +228,8 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 @Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
 
+@Field boolean showOnlyBreadcrumbs = false
+
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
@@ -331,7 +336,7 @@ sharedMouseListener = new MouseAdapter() {
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
-
+    if (showOnlyBreadcrumbs) { return }
     if (shouldFreeze()) return
     
 
@@ -770,22 +775,13 @@ return
 
 // ------------------ methods definitions ------------------------
 
-def createPanels(){
+def createPanels() {
     parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
     Dimension parentSize = parentPanel.getSize()
 
 
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Master Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
-    masterPanel = new JPanel()
-    masterPanel.setLayout(new BoxLayout(masterPanel, BoxLayout.Y_AXIS))
-
-    masterPanel.setOpaque(false)
-
-
-//    masterPanel.setBounds(0, 100, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
-
-    masterPanel.addMouseListener(sharedMouseListener)
 
 
 
@@ -794,15 +790,14 @@ def createPanels(){
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Recent Nodes Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
     recentSelectedNodesPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g)
-        {
-            g.setColor( getBackground() )
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
     recentSelectedNodesPanel.setOpaque(false)
-    recentSelectedNodesPanel.setBackground( new Color(0, 0, 0, 0) )
+    recentSelectedNodesPanel.setBackground(new Color(0, 0, 0, 0))
 
 //    int recentSelectedNodesPanelWidth = 80
 //    int recentSelectedNodesPanelHeight = 170
@@ -813,20 +808,17 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Recent Nodes Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-
-
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Pinned Items Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
     pinnedItemsPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g)
-        {
-            g.setColor( getBackground() )
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
     pinnedItemsPanel.setOpaque(false)
-    pinnedItemsPanel.setBackground( new Color(0, 0, 0, 0) )
+    pinnedItemsPanel.setBackground(new Color(0, 0, 0, 0))
 
 
 //    pinnedItemsPanel.setMaximumSize(pinnedItemsPanel.getPreferredSize())
@@ -835,25 +827,20 @@ def createPanels(){
 //    pinnedItemsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, pinnedPanelHeight)
 
 
-
-
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Pinned Items Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
 
 
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tags Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
     tagsPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g)
-        {
-            g.setColor( getBackground() )
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
     tagsPanel.setOpaque(false)
-    tagsPanel.setBackground( new Color(0, 0, 0, 0) )
+    tagsPanel.setBackground(new Color(0, 0, 0, 0))
 
 //    int tagsPanelHeight = 130
 //    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
@@ -861,25 +848,21 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tags Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-
-
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Quick Search Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 
     quickSearchPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g)
-        {
-            g.setColor( getBackground() )
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
     quickSearchPanel.setOpaque(false)
-    quickSearchPanel.setBackground( new Color(0, 0, 0, 0) )
+    quickSearchPanel.setBackground(new Color(0, 0, 0, 0))
 
 //    int quickSearchPanelHeight = 130
 //    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
-
 
 
     JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]));
@@ -986,8 +969,7 @@ def createPanels(){
     panelForSearchBox.add(clearButton, BorderLayout.EAST);
 
     panelForSearchBox.setOpaque(false)
-    panelForSearchBox.setBackground( new Color(0, 0, 0, 0) )
-
+    panelForSearchBox.setBackground(new Color(0, 0, 0, 0))
 
 
     quickSearchPanel.add(panelForSearchBox, BorderLayout.NORTH);
@@ -995,7 +977,7 @@ def createPanels(){
     innerPanelInQuickSearchPanel = new JPanel(new BorderLayout());
 
     innerPanelInQuickSearchPanel.setOpaque(false)
-    innerPanelInQuickSearchPanel.setBackground( new Color(0, 0, 0, 0) )
+    innerPanelInQuickSearchPanel.setBackground(new Color(0, 0, 0, 0))
 
     quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER);
 
@@ -1055,19 +1037,16 @@ def createPanels(){
     addQuickSearchShortcut(searchField)
 
 
-
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Breadcrumbs Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 
-
-
     breadcrumbPanel = new JPanel()
     breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
 
-    breadcrumbPanel.setBackground(new Color(220,220,220))
+    breadcrumbPanel.setBackground(new Color(220, 220, 220))
     breadcrumbPanel.setOpaque(true)
 
     breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
@@ -1079,11 +1058,23 @@ def createPanels(){
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Ancestor Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
-    masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
+
+    if (!showOnlyBreadcrumbs) {
+
+        masterPanel = new JPanel()
+        masterPanel.setLayout(new BoxLayout(masterPanel, BoxLayout.Y_AXIS))
+
+        masterPanel.setOpaque(false)
+
+
+//    masterPanel.setBounds(0, 100, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
+
+        masterPanel.addMouseListener(sharedMouseListener)
+
+    masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height - 5)
 
 
     panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
-
 
 
     panelsInMasterPanels.eachWithIndex { panel, idx ->
@@ -1095,7 +1086,6 @@ def createPanels(){
     }
 
 
-
     masterPanel.revalidate()
     masterPanel.repaint()
 
@@ -1104,6 +1094,7 @@ def createPanels(){
 
     parentPanel.add(masterPanel)
     parentPanel.setComponentZOrder(masterPanel, 0)
+}
 
     parentPanel.revalidate()
     parentPanel.repaint()
@@ -1309,6 +1300,7 @@ def updateTagsGui() {
 
 JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
+    if (showOnlyBreadcrumbs) { return }
 
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
@@ -2076,6 +2068,7 @@ void configureListContextMenu(JList<NodeModel> list) {
     list.addMouseListener(new MouseAdapter() {
         @Override
         void mousePressed(MouseEvent e) {
+            if (showOnlyBreadcrumbs) { return }
             if (SwingUtilities.isRightMouseButton(e)) {
                 int index = list.locationToIndex(e.getPoint())
                 if (index >= 0) {
@@ -2121,157 +2114,168 @@ void configureDragAndDrop(JList<NodeModel> list) {
                 List<NodeModel> nodeToMove = []
                 nodeToMove.add(selectedNodeModel)
 
-                IMapSelection mapSelectionForTransfer = new IMapSelection() {
-                    @Override
-                    void centerNode(NodeModel nodeModel) {
+                    IMapSelection mapSelectionForTransfer = new IMapSelection() {
+                        @Override
+                        void centerNode(NodeModel nodeModel) {
 
+                        }
+
+                        @Override
+                        void centerNodeSlowly(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void moveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
+
+                        }
+
+                        @Override
+                        void slowlyMoveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
+
+                        }
+
+                        @Override
+                        NodeModel getSelected() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getSelectionRoot() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getSearchRoot() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getEffectiveSearchRoot() {
+                            return null
+                        }
+
+                        @Override
+                        Set<NodeModel> getSelection() {
+                            return null
+                        }
+
+                        @Override
+                        List<String> getOrderedSelectionIds() {
+                            return null
+                        }
+
+                        @Override
+                        List<NodeModel> getOrderedSelection() {
+                            return null
+                        }
+
+                        @Override
+                        List<NodeModel> getSortedSelection(boolean b) {
+                            return nodeToMove
+                        }
+
+                        @Override
+                        boolean isSelected(NodeModel nodeModel) {
+                            return false
+                        }
+
+                        @Override
+                        void preserveRootNodeLocationOnScreen() {
+
+                        }
+
+                        @Override
+                        void preserveSelectedNodeLocationOnScreen() {
+
+                        }
+
+                        @Override
+                        void preserveNodeLocationOnScreen(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void preserveNodeLocationOnScreen(NodeModel nodeModel, float v, float v1) {
+
+                        }
+
+                        @Override
+                        void scrollNodeTreeToVisible(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void makeTheSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void makeTheSearchRoot(final NodeModel node) {
+
+                        }
+
+                        @Override
+                        void scrollNodeToVisible(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectAsTheOnlyOneSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectBranch(NodeModel nodeModel, boolean b) {
+
+                        }
+
+                        @Override
+                        void selectContinuous(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectRoot() {
+
+                        }
+
+
+                        @Override
+                        int size() {
+                            return 0
+                        }
+
+                        @Override
+                        void toggleSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void replaceSelection(NodeModel[] nodeModels) {
+
+                        }
+
+                        @Override
+                        Filter getFilter() {
+                            return null
+                        }
+
+                        @Override
+                        void setFilter(Filter filter) {
+
+                        }
+
+                        @Override
+                        boolean isFolded(NodeModel nodeModel) {
+                            return false
+                        }
+
+                        @Override
+                        boolean isVisible(NodeModel nodeModel) {
+                            return false
+                        }
                     }
-
-                    @Override
-                    void centerNodeSlowly(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void moveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
-
-                    }
-
-                    @Override
-                    void slowlyMoveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
-
-                    }
-
-                    @Override
-                    NodeModel getSelected() {
-                        return null
-                    }
-
-                    @Override
-                    NodeModel getSelectionRoot() {
-                        return null
-                    }
-
-                    @Override
-                    Set<NodeModel> getSelection() {
-                        return null
-                    }
-
-                    @Override
-                    List<String> getOrderedSelectionIds() {
-                        return null
-                    }
-
-                    @Override
-                    List<NodeModel> getOrderedSelection() {
-                        return null
-                    }
-
-                    @Override
-                    List<NodeModel> getSortedSelection(boolean b) {
-                        return nodeToMove
-                    }
-
-                    @Override
-                    boolean isSelected(NodeModel nodeModel) {
-                        return false
-                    }
-
-                    @Override
-                    void preserveRootNodeLocationOnScreen() {
-
-                    }
-
-                    @Override
-                    void preserveSelectedNodeLocationOnScreen() {
-
-                    }
-
-                    @Override
-                    void preserveNodeLocationOnScreen(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void preserveNodeLocationOnScreen(NodeModel nodeModel, float v, float v1) {
-
-                    }
-
-                    @Override
-                    void scrollNodeTreeToVisible(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void makeTheSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void scrollNodeToVisible(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectAsTheOnlyOneSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectBranch(NodeModel nodeModel, boolean b) {
-
-                    }
-
-                    @Override
-                    void selectContinuous(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectRoot() {
-
-                    }
-
-                    @Override
-                    void setSiblingMaxLevel(int i) {
-
-                    }
-
-                    @Override
-                    int size() {
-                        return 0
-                    }
-
-                    @Override
-                    void toggleSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void replaceSelection(NodeModel[] nodeModels) {
-
-                    }
-
-                    @Override
-                    Filter getFilter() {
-                        return null
-                    }
-
-                    @Override
-                    void setFilter(Filter filter) {
-
-                    }
-
-                    @Override
-                    boolean isFolded(NodeModel nodeModel) {
-                        return false
-                    }
-
-                    @Override
-                    boolean isVisible(NodeModel nodeModel) {
-                        return false
-                    }
-                }
 
                 Transferable transferable = MapClipboardController.getController().copy(mapSelectionForTransfer)
                 ((MindMapNodesSelection) transferable).setDropAction("MOVE");
@@ -2403,6 +2407,10 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
+            if (showOnlyBreadcrumbs) {
+                return
+            }
+
             lastMouseModifiers = e.getModifiersEx()
 
             if (shouldFreeze()) {return}
@@ -2434,6 +2442,7 @@ void configureMouseExitListener(JList<NodeModel> list) {
     list.addMouseListener(new MouseAdapter() {
         @Override
         void mouseExited(MouseEvent e) {
+            if (showOnlyBreadcrumbs) { return }
             mouseOverList = false
             hideInspectorTimer.restart()
         }
@@ -2742,6 +2751,7 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 }
 
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
+    if (showOnlyBreadcrumbs) { return }
     int x = sourcePanel.getLocation().x + sourcePanel.width
 
     int y = masterPanel.getLocation().y
@@ -2818,6 +2828,8 @@ def getAllTags(NodeModel nodeNotProxy) {
 }
 
 def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
+    if (showOnlyBreadcrumbs) { return }
+
     visibleInspectors.each {
         it.setVisible(false)
     }
