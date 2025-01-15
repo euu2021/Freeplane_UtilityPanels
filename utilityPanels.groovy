@@ -1,8 +1,13 @@
-/////////// Latest FP version that works with the script: freeplane-1.12.8-pre03. Compatibility with later version will be added in the future.
 
 /*
+version 1.30: Breadcrumbs panel has now transparent background.
+ The ○ symbol doesn't show up in the Breadcrumbs panel.
+ Text in the Node text pane (inside the inspector) automatically adjusts size of the font, to fit the pane. Minimum font size can be set at user settings.
+ New option in right click menu of a list item: Open in new View.
+ Option to showAncestorsOnFirstInspector, on user settings.
+
 version 1.29: Option to show only the breadcrumbs panel.
-    Dropped compatibility with FP <= 1.12.8 
+    Dropped compatibility with FP <= 1.12.8
 
 version 1.28: Ctrl key freezes the panels.
  New panel: Breadcrumbs, replacing the Ancestors panel.
@@ -208,6 +213,7 @@ import org.freeplane.core.ui.components.UITools;
 
 panelTextFontName = "Dialog"
 panelTextFontSize = 15
+minFontSize = 8 //minimum size, to be used on dynamic sizing of fonts
 fontForListItens = Font.PLAIN
 
 nodeTextPanelFixedHeight = 100
@@ -229,6 +235,8 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 @Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
 
 @Field boolean showOnlyBreadcrumbs = false
+
+showAncestorsOnFirstInspector = false
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -1043,11 +1051,18 @@ def createPanels() {
     //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Breadcrumbs Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 
-    breadcrumbPanel = new JPanel()
+    breadcrumbPanel = new JPanel() {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
     breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
 
-    breadcrumbPanel.setBackground(new Color(220, 220, 220))
-    breadcrumbPanel.setOpaque(true)
+    breadcrumbPanel.setBackground(new Color(0, 0, 0, 0))
+//    breadcrumbPanel.setBackground(new Color(220, 220, 220))
+    breadcrumbPanel.setOpaque(false)
 
     breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
 
@@ -1326,13 +1341,15 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     inspectorPanel.putClientProperty("textLabel", textLabel)
 
+    JScrollPane textScrollPane = new JScrollPane(textLabel)
+    textScrollPane.setPreferredSize(new Dimension(200, nodeTextPanelFixedHeight))
+
+    inspectorPanel.putClientProperty("textScrollPane", textScrollPane)
 
     if(visibleInspectors.size() == 0) {
         configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
     }
 
-    JScrollPane textScrollPane = new JScrollPane(textLabel)
-    textScrollPane.setPreferredSize(new Dimension(200, nodeTextPanelFixedHeight))
 
     textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
     textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
@@ -1784,6 +1801,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     int ammountOfPannelsInInspector = 1
 
+    if(ancestorLineModel.getSize() > 0 && visibleInspectors.size() == 0 && showAncestorsOnFirstInspector) {
+        columnsPanel.add(scrollPaneAncestorsLineList);
+    }
+
 
     if(visibleInspectors.size() == 0) {
         columnsPanel.add(scrollPanelSiblingsList);
@@ -1863,6 +1884,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     inspectorPanel.setVisible(true)
     parentPanel.add(inspectorPanel)
     parentPanel.setComponentZOrder(inspectorPanel, 0)
+
+
     parentPanel.revalidate()
     parentPanel.repaint()
 
@@ -1960,7 +1983,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
             prefix += "📌";
         }
 
-        if (!nodeNotProxy.isLeaf()) {
+        if (!nodeNotProxy.isLeaf() && sourcePanel != breadcrumbPanel) {
             prefix += "○ ";
         }
 
@@ -2014,6 +2037,12 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
 
         textPane.setEditable(false);
+        SwingUtilities.invokeLater {
+            JScrollPane scrollPane = (JScrollPane) sourcePanel.getClientProperty("textScrollPane")
+
+            adjustFontSizeToFitText(component, scrollPane, nodeNotProxy, fontColor)
+
+        }
     }
 
     component.setOpaque(true)
@@ -2092,8 +2121,19 @@ void configureListContextMenu(JList<NodeModel> list) {
                             updateAllGUIs()
                         })
                     }
+
+                    JMenuItem menuItem2
+                    menuItem2 = new JMenuItem("Open in new View")
+                    menuItem2.addActionListener({
+                        menuUtils.executeMenuItems([ 'NewMapViewAction' ])
+                        SwingUtilities.invokeLater {
+                            Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(selectedItem)
+                        }
+                    })
+
                     menuItem.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItem)
+                    popupMenu.add(menuItem2)
                     popupMenu.show(e.getComponent(), e.getX(), e.getY())
                 }
             }
@@ -2348,23 +2388,6 @@ void configureDragAndDrop(JList<NodeModel> list) {
     });
 }
 
-//void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
-//    listParameter.setCellRenderer(new DefaultListCellRenderer() {
-//        @Override
-//        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-//            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-//            if (value instanceof NodeModel) {
-//                NodeModel currentNode = (NodeModel) value
-//                configureLabelForNode(label, currentNode, sourcePanel)
-//            }
-//            if (isSelected) {
-//                label.setBackground(list.getSelectionBackground())
-//                label.setForeground(list.getSelectionForeground())
-//            }
-//            return label
-//        }
-//    })
-//}
 
 void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
     listParameter.setCellRenderer(new DefaultListCellRenderer() {
@@ -2911,3 +2934,62 @@ def isCtrlPressed() {
 def shouldFreeze() {
     return freezeInspectors || isMouseOverSearchBox || isCtrlPressed()
 }
+
+
+void adjustFontSizeToFitText(
+        JTextPane textPane,
+        JScrollPane scrollPane,
+        NodeModel nodeNotProxy,
+        Color fontColor) {
+
+
+    Closure<String> generateHtml = { int fontSize, String text, String fontColorHex ->
+        return """
+            <html>
+              <head>
+                <style type='text/css'>
+                  body {
+                    font-family: ${panelTextFontName}, sans-serif; 
+                    font-size: ${fontSize}px;
+                    color: ${fontColorHex};
+                  }
+                </style>
+              </head>
+              <body>
+                ${text}
+              </body>
+            </html>
+        """
+    }
+
+    String fontColorHex = "#000000"
+    if (fontColor != null) {
+        fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
+    }
+
+    int fontSize = panelTextFontSize
+    String texto = nodeNotProxy.text
+
+
+    textPane.setEditable(false)
+    textPane.setMargin(new Insets(0,0,0,0))
+
+
+    while (fontSize >= minFontSize) {
+        textPane.setText(generateHtml(fontSize, texto, fontColorHex))
+
+        textPane.setSize(new Dimension(scrollPane.getViewport().getWidth(), Integer.MAX_VALUE))
+        Dimension preferred = textPane.getPreferredSize()
+
+        int availableHeight = scrollPane.getViewport().getHeight()
+
+        if (preferred.height <= availableHeight) {
+            break
+        }
+
+        fontSize--
+    }
+
+
+}
+
