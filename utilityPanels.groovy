@@ -1,5 +1,7 @@
 
 /*
+version 1.31: Bugfix: wrong positioning of inspetor when masterpanel is expanded.
+
 version 1.30: Breadcrumbs panel has now transparent background.
  The ○ symbol doesn't show up in the Breadcrumbs panel.
  Text in the Node text pane (inside the inspector) automatically adjusts size of the font, to fit the pane. Minimum font size can be set at user settings.
@@ -409,7 +411,7 @@ hoverTimer.addActionListener(e -> {
 
 
                     if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
-                        cleanAndCreateInspectors(subNode, panelsInMasterPanels[0])
+                        cleanAndCreateInspectors(subNode, masterPanel)
                     } else {
 
 
