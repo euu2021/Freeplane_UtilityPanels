@@ -1,6 +1,9 @@
 
 /*
-version 1.31: Bugfix: wrong positioning of inspetor when masterpanel is expanded.
+version 1.32: Elipsis on labels in the breadcrumbs panel.
+    RTL support. New user option: rtlOrientation.
+
+version 1.31: Bugfix: wrong positioning of inspector when masterpanel is expanded.
 
 version 1.30: Breadcrumbs panel has now transparent background.
  The ○ symbol doesn't show up in the Breadcrumbs panel.
@@ -136,10 +139,13 @@ import javax.swing.AbstractAction
 import javax.swing.border.LineBorder;
 import javax.swing.border.Border;
 
+
 import java.util.List
 import java.util.regex.Pattern
 
 import java.awt.*
+import java.awt.event.AdjustmentListener
+import java.awt.event.AdjustmentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
@@ -240,6 +246,8 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 showAncestorsOnFirstInspector = false
 
+@Field rtlOrientation = false
+
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
@@ -304,6 +312,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 @Field String searchText = ""
 @Field String lastSearchText = ""
+@Field private final String ELLIPSIS = "..."
 
 @Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
 @Field NodeModel hoveredNode
@@ -809,6 +818,12 @@ def createPanels() {
     recentSelectedNodesPanel.setOpaque(false)
     recentSelectedNodesPanel.setBackground(new Color(0, 0, 0, 0))
 
+    if (rtlOrientation) {
+        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
 //    int recentSelectedNodesPanelWidth = 80
 //    int recentSelectedNodesPanelHeight = 170
 
@@ -829,6 +844,12 @@ def createPanels() {
     }
     pinnedItemsPanel.setOpaque(false)
     pinnedItemsPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
 
 //    pinnedItemsPanel.setMaximumSize(pinnedItemsPanel.getPreferredSize())
@@ -852,6 +873,12 @@ def createPanels() {
     tagsPanel.setOpaque(false)
     tagsPanel.setBackground(new Color(0, 0, 0, 0))
 
+    if (rtlOrientation) {
+        tagsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        tagsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
 //    int tagsPanelHeight = 130
 //    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
 
@@ -870,6 +897,12 @@ def createPanels() {
     }
     quickSearchPanel.setOpaque(false)
     quickSearchPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        quickSearchPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        quickSearchPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
 //    int quickSearchPanelHeight = 130
 //    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
@@ -973,7 +1006,15 @@ def createPanels() {
     clearButton.setBorderPainted(true);
     clearButton.setFocusPainted(false);
 
-    JPanel panelForSearchBox = new JPanel(new BorderLayout());
+    JPanel panelForSearchBox = new JPanel(new BorderLayout()) {
+        {
+            if (rtlOrientation) {
+                setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+            } else {
+                setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+            }
+        }
+    }
 
     panelForSearchBox.add(searchField, BorderLayout.CENTER);
     panelForSearchBox.add(clearButton, BorderLayout.EAST);
@@ -1061,12 +1102,19 @@ def createPanels() {
         }
     }
     breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
-
+//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5))
     breadcrumbPanel.setBackground(new Color(0, 0, 0, 0))
 //    breadcrumbPanel.setBackground(new Color(220, 220, 220))
     breadcrumbPanel.setOpaque(false)
 
     breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
+
+
+    if (rtlOrientation) {
+        breadcrumbPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        breadcrumbPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
     parentPanel.add(breadcrumbPanel)
     parentPanel.setComponentZOrder(breadcrumbPanel, 0)
@@ -1083,6 +1131,12 @@ def createPanels() {
 
         masterPanel.setOpaque(false)
 
+        if (rtlOrientation) {
+            masterPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+        } else {
+            masterPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        }
+
 
 //    masterPanel.setBounds(0, 100, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
 
@@ -1095,6 +1149,12 @@ def createPanels() {
 
 
     panelsInMasterPanels.eachWithIndex { panel, idx ->
+        if (rtlOrientation) {
+            panel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+        } else {
+            panel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        }
+
         masterPanel.add(panel)
 
         if (idx < panelsInMasterPanels.size() - 1) {
@@ -1146,7 +1206,15 @@ def updateBreadcrumbPanel() {
 
     commonJListsConfigs(jList, listModel, breadcrumbPanel)
 
+    if (rtlOrientation) {
+        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
     breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
+//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5)) // RTL Support
+
     breadcrumbPanel.add(jList)
 
     breadcrumbPanel.revalidate()
@@ -1176,8 +1244,16 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
     JList<NodeModel> jList = new JList<>(listModel)
     commonJListsConfigs(jList, listModel, panelPanel)
 
+    if (rtlOrientation) {
+        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
 
     JScrollPane scrollPane = new JScrollPane(jList)
+        configureScrollPaneForRTL(scrollPane)
+
     scrollPane.setBackground(new Color(0, 0, 0, 0))
     jList.setOpaque(false)
     scrollPane.setOpaque(false)
@@ -1211,7 +1287,11 @@ def updateTagsGui() {
 
     JList<String> jList = new JList<>(listModelForAllTags)
 
-
+    if (rtlOrientation) {
+        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
         // search field
         JTextField searchField = new JTextField()
@@ -1286,6 +1366,8 @@ def updateTagsGui() {
                 super.paintComponent(g)
             }
         }
+
+        configureScrollPaneForRTL(scrollPane)
         scrollPane.setBackground(new Color(0, 0, 0, 0))
         jList.setOpaque(false)
         scrollPane.setOpaque(false)
@@ -1297,7 +1379,15 @@ def updateTagsGui() {
         addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
         addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
 
-        JPanel panelForField = new JPanel(new BorderLayout());
+    JPanel panelForField = new JPanel(new BorderLayout()) {
+        {
+            if (rtlOrientation) {
+                setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+            } else {
+                setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+            }
+        }
+    }
 
         panelForField.add(searchField, BorderLayout.CENTER)
         panelForField.add(clearButton, BorderLayout.EAST);
@@ -1334,6 +1424,12 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
     inspectorPanel.setBackground(Color.LIGHT_GRAY)
 
+    if (rtlOrientation) {
+        inspectorPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        inspectorPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
 
     ////////////// Node Text Panel ///////////////
 
@@ -1344,6 +1440,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     inspectorPanel.putClientProperty("textLabel", textLabel)
 
     JScrollPane textScrollPane = new JScrollPane(textLabel)
+
+    configureScrollPaneForRTL(textScrollPane)
+
+
     textScrollPane.setPreferredSize(new Dimension(200, nodeTextPanelFixedHeight))
 
     inspectorPanel.putClientProperty("textScrollPane", textScrollPane)
@@ -1374,8 +1474,9 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     /////////////////////////// Buttons panel //////////////////
 
-    JPanel buttonPanel = new JPanel();
-    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+//    JPanel buttonPanel = new JPanel();
+//    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+    JPanel buttonPanel = new JPanel(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 5, 5))
     buttonPanel.setBackground(Color.LIGHT_GRAY)
 
     JButton button1 = new JButton("Freeze")
@@ -1461,7 +1562,11 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JList<NodeModel> ancestorsLineList = new JList<>(ancestorLineModel)
     commonJListsConfigs(ancestorsLineList, ancestorLineModel, inspectorPanel)
 
-
+    if (rtlOrientation) {
+        ancestorsLineList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        ancestorsLineList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
 //    TitledBorder titledBorderAncestors = BorderFactory.createTitledBorder("Ancestors")
 //    titledBorderAncestors.setTitleJustification(TitledBorder.LEFT)
@@ -1476,8 +1581,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
             super.paintComponent(g)
         }
     }
-
-
+        configureScrollPaneForRTL(scrollPaneAncestorsLineList)
     ancestorsLineList.setSize(ancestorsLineList.getPreferredSize())
     ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
@@ -1532,8 +1636,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 //    siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
-
-
+        configureScrollPaneForRTL(scrollPanelSiblingsList)
     siblingsList.setSize(siblingsList.getPreferredSize())
     siblingsList.revalidate()
     Dimension listPreferredSize2 = siblingsList.getPreferredSize()
@@ -1581,7 +1684,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     JScrollPane scrollPaneChildrenList = new JScrollPane(childrenList)
 
-
+    configureScrollPaneForRTL(scrollPaneChildrenList)
     childrenList.setSize(childrenList.getPreferredSize())
     childrenList.revalidate()
     Dimension listPreferredSize3 = childrenList.getPreferredSize()
@@ -1636,6 +1739,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 //    JPanel scrollPaneTagsInNodeList = new JPanel(new BorderLayout());
 //    scrollPaneTagsInNodeList.add(tagsInNode, BorderLayout.PAGE_START);
 
+
+    configureScrollPaneForRTL(scrollPaneTagsInNodeList)
     tagsInNode.setSize(tagsInNode.getPreferredSize())
     tagsInNode.revalidate()
     tagsInNode.repaint();
@@ -1690,6 +1795,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JScrollPane scrollPaneTagsSelectionList = new JScrollPane(tagsSelectedList)
 
 
+    configureScrollPaneForRTL(scrollPaneTagsSelectionList)
     tagsSelectedList.setSize(tagsSelectedList.getPreferredSize())
     tagsSelectedList.revalidate()
     Dimension listPreferredSize4 = tagsSelectedList.getPreferredSize()
@@ -1747,6 +1853,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JScrollPane scrollPaneNodesThatContainAnyTagInTagsSelection = new JScrollPane(nodesThatContainAnyTagInTagsSelection)
 
 
+    configureScrollPaneForRTL(scrollPaneNodesThatContainAnyTagInTagsSelection)
     nodesThatContainAnyTagInTagsSelection.setSize(nodesThatContainAnyTagInTagsSelection.getPreferredSize())
     nodesThatContainAnyTagInTagsSelection.revalidate()
     Dimension listPreferredSize5 = nodesThatContainAnyTagInTagsSelection.getPreferredSize()
@@ -1842,6 +1949,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     JPanel verticalStackPanel = new JPanel()
     verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, BoxLayout.Y_AXIS))
+//    verticalStackPanel.setLayout(new BoxLayout(verticalStackPanel, rtlOrientation ? BoxLayout.X_AXIS : BoxLayout.Y_AXIS))
     verticalStackPanel.setBackground( Color.BLACK)
 
     verticalStackPanel.add(buttonPanel, BorderLayout.NORTH)
@@ -2077,6 +2185,12 @@ void commonJListsConfigs(JList<NodeModel> theJlist, DefaultListModel<NodeModel> 
     configureListCellRenderer(theJlist, thePanelPanel)
     configureMouseMotionListener(theJlist, theListModel, thePanelPanel)
     configureMouseExitListener(theJlist)
+
+    if (rtlOrientation) {
+        theJlist.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        theJlist.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 }
 
 void configureListFont(JList<NodeModel> list) {
@@ -2393,6 +2507,8 @@ void configureDragAndDrop(JList<NodeModel> list) {
 
 void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePanel) {
     listParameter.setCellRenderer(new DefaultListCellRenderer() {
+
+
         @Override
         public Component getListCellRendererComponent(JList<?> list,
                                                       Object value,
@@ -2413,6 +2529,23 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
                 if (sourcePanel == breadcrumbPanel && index > 0) {
                     String oldText = label.getText()
                     label.setText(" > " + oldText)
+
+
+                    String text = value.toString()
+                    FontMetrics fm = label.getFontMetrics(label.getFont())
+
+                    // Calcular a largura disponível para o texto
+                    int availableWidth = list.fixedCellWidth - label.insets.left - label.insets.right
+
+                    // Medir a largura do texto
+                    int textWidth = fm.stringWidth(text)
+
+                    if (textWidth > availableWidth) {
+                        String truncatedText = truncateText(label, text, fm, availableWidth)
+                        label.text = truncatedText
+                    } else {
+                        label.text = text
+                    }
 
                 }
             }
@@ -2581,7 +2714,11 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
 //    configureListContextMenu(theJlist);
 
-
+    if (rtlOrientation) {
+        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
 
 
 //    configureListCellRenderer(theJlist, thePanelPanel)
@@ -2607,6 +2744,12 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
 
                 label.setBorder(new RoundedCornerBorder(Color.BLACK, 2, 15));
+
+                if (rtlOrientation) {
+                    label.setHorizontalAlignment(SwingConstants.RIGHT)
+                } else {
+                    label.setHorizontalAlignment(SwingConstants.LEFT)
+                }
 
 
             }
@@ -2994,4 +3137,37 @@ void adjustFontSizeToFitText(
 
 
 }
+
+private String truncateText(JLabel label, String text, FontMetrics fm, int maxWidth) {
+    StringBuilder truncated = new StringBuilder()
+    int ellipsisWidth = fm.stringWidth(ELLIPSIS)
+    int currentWidth = 0
+
+    for (int i = 0; i < text.length(); i++) {
+        char c = text.charAt(i)
+        currentWidth += fm.charWidth(c)
+        if (currentWidth + ellipsisWidth > maxWidth) {
+            truncated.append(ELLIPSIS)
+            break
+        }
+        truncated.append(c)
+    }
+
+    return truncated.toString()
+}
+
+def configureScrollPaneForRTL(JScrollPane scrollPane) {
+    if (rtlOrientation) {
+        SwingUtilities.invokeLater {
+            scrollPane.getHorizontalScrollBar().setValue(scrollPane.getHorizontalScrollBar().getMaximum())
+        }
+    } else {
+        SwingUtilities.invokeLater {
+            scrollPane.getHorizontalScrollBar().setValue(0)
+        }
+    }
+}
+
+
+
 
