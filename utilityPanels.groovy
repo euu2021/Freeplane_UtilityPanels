@@ -13,10 +13,10 @@
 /***************************************************************************
 
 version 1.34: Cleaned unused imports.
- Uniform Border Color for Selected Nodes Across All Panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/39
+ Uniform Border Color for Selected Nodes Across All Panels. 
  Fixed breadcrumbs panel not showing up when a new view was created.
  Fixed jumping text field.
- Improved responsiveness on node selection. Disabled listeners of listModels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41
+ Improved responsiveness on node selection. Disabled listeners of listModels. 
 
 
  version 1.33: Fixed Drag and Drop to make it compatible with most recent Freeplane versions.
