@@ -1,10 +1,29 @@
 
-/*
-version 1.33: Fixed Drag and Drop to make it compatible with most recent Freeplane versions.
+
+
+
+
+//// LATEST FREEPLANE VERSION THAT WORKS WITH THE SCRIPT: freeplane-1.12.9-pre12
+
+
+
+
+
+
+/***************************************************************************
+
+version 1.34: Cleaned unused imports.
+ Uniform Border Color for Selected Nodes Across All Panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/39
+ Fixed breadcrumbs panel not showing up when a new view was created.
+ Fixed jumping text field.
+ Improved responsiveness on node selection. Disabled listeners of listModels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41
+
+
+ version 1.33: Fixed Drag and Drop to make it compatible with most recent Freeplane versions.
  Refactored the backend for ListModels, so they don't get recreated on every update.
  RTL Node Text Panel
 
-version 1.32: Elipsis on labels in the breadcrumbs panel.
+version 1.32: Ellipsis on labels in the breadcrumbs panel.
     RTL support. New user option: rtlOrientation.
 
 version 1.31: Bugfix: wrong positioning of inspector when masterpanel is expanded.
@@ -116,109 +135,75 @@ version: 1.7: Inspector max height is equal to the window height.
 version: 1.6: Inspector height adapts to the content.
 
 version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
- */
+
+ *****************************************************************/
 
 // @ExecutionModes({ON_SINGLE_NODE="/menu_bar/euu"})
 
-import groovy.transform.Field
 
-import groovy.json.JsonOutput
-import groovy.json.JsonGenerator
-import groovy.json.JsonSlurper
 import groovy.json.JsonBuilder
-
-import javax.swing.*
-import javax.swing.border.TitledBorder
-import javax.swing.event.ListSelectionListener
-import javax.swing.Timer
-import javax.swing.plaf.basic.BasicSplitPaneDivider;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.*;
-import java.awt.event.KeyEvent
-import javax.swing.KeyStroke
-import javax.swing.InputMap
-import javax.swing.ActionMap
-import javax.swing.AbstractAction
-import javax.swing.border.LineBorder;
-import javax.swing.border.Border;
-
-
-import java.util.List
-import java.util.regex.Pattern
-
-import java.awt.*
-import java.awt.event.AdjustmentListener
-import java.awt.event.AdjustmentEvent
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
-import java.awt.event.MouseListener
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.dnd.*
-import java.awt.dnd.DropTarget;
-import java.awt.dnd.DropTargetDropEvent;
-import java.awt.dnd.DropTargetListener;
-import java.awt.dnd.DragGestureEvent;
-import java.awt.dnd.DragGestureListener;
-import java.awt.dnd.DragSource;
-import java.awt.dnd.DragSourceListener;
-import java.awt.dnd.DnDConstants;
-import java.awt.dnd.DragSourceAdapter
-import java.awt.dnd.DropTargetAdapter
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.awt.Graphics2D;
-import java.awt.Color;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.InputEvent
-
-
-import java.beans.PropertyChangeEvent
-import java.beans.PropertyChangeListener
-
+import groovy.json.JsonSlurper
+import groovy.transform.Field
+import org.freeplane.api.NodeChangeListener
+import org.freeplane.api.NodeChanged
+import org.freeplane.core.ui.components.UITools
+import org.freeplane.features.filter.Filter
+import org.freeplane.features.highlight.HighlightController
+import org.freeplane.features.highlight.NodeHighlighter
+import org.freeplane.features.icon.IconController
+import org.freeplane.features.icon.Tag
+import org.freeplane.features.icon.Tags
+import org.freeplane.features.icon.mindmapmode.MIconController
+import org.freeplane.features.map.*
+import org.freeplane.features.map.clipboard.MapClipboardController
+import org.freeplane.features.map.clipboard.MindMapNodesSelection
+import org.freeplane.features.map.mindmapmode.MMapController
 import org.freeplane.features.mode.Controller
-import org.freeplane.features.map.NodeModel
-import org.freeplane.features.map.INodeSelectionListener
 import org.freeplane.features.nodestyle.NodeStyleController
 import org.freeplane.features.styles.LogicalStyleController.StyleOption
 import org.freeplane.features.ui.IMapViewChangeListener
-import org.freeplane.features.map.IMapChangeListener
-import org.freeplane.features.map.NodeDeletionEvent
-import org.freeplane.features.map.MapChangeEvent
-import org.freeplane.features.link.NodeLinkModel
-import org.freeplane.features.map.clipboard.MapClipboardController;
-import org.freeplane.features.map.mindmapmode.clipboard.MMapClipboardController;
-import org.freeplane.features.map.mindmapmode.MMapController;
-import org.freeplane.api.NodeChangeListener
-import org.freeplane.api.NodeChanged
-import org.freeplane.api.NodeChanged.ChangedElement
-import org.freeplane.features.highlight.HighlightController;
-import org.freeplane.features.highlight.NodeHighlighter;
-import org.freeplane.features.map.IMapSelection;
-import org.freeplane.features.map.clipboard.MindMapNodesSelection;
-import org.freeplane.view.swing.map.MapView;
-import org.freeplane.features.filter.Filter
-import org.freeplane.features.map.NodeModel
-import org.freeplane.view.swing.map.MapView;
-import org.freeplane.features.map.IMapSelection;
-import org.freeplane.features.mode.Controller;
-import org.freeplane.features.icon.IconController;
-import org.freeplane.features.icon.Tag;
-import org.freeplane.features.icon.Tags;
-import org.freeplane.features.icon.TagCategories;
-import org.freeplane.features.icon.mindmapmode.MIconController;
-import org.freeplane.api.NodeChangeListener
-import org.freeplane.api.NodeChanged
-import org.freeplane.api.NodeChanged.ChangedElement
+
+import javax.swing.*
+import javax.swing.border.Border
+import javax.swing.border.TitledBorder
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
+import javax.swing.event.ListSelectionListener
+import java.awt.*
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.dnd.*
+import java.awt.event.*
+import java.util.List
+import java.util.regex.Pattern
+
+import java.awt.MouseInfo
+import java.awt.Point;
+import java.awt.event.MouseEvent;
+import javax.swing.JComponent;
+import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.ui.components.UITools;
-
-
-
+import org.freeplane.core.util.Compat;
+import org.freeplane.features.link.ConnectorModel;
+import org.freeplane.features.link.ConnectorShape;
+import org.freeplane.features.link.Connectors;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.mindmapmode.MLinkController;
+import org.freeplane.features.map.FreeNode;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.NodeModel.Side;
+import org.freeplane.features.map.mindmapmode.MMapController;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.mode.mindmapmode.MModeController;
+import org.freeplane.features.styles.MapStyleModel;
+import org.freeplane.features.styles.MapViewLayout;
+import org.freeplane.view.swing.map.MapView;
+import org.freeplane.view.swing.map.NodeView;
+import org.freeplane.view.swing.map.link.ConnectorView;
+import org.freeplane.view.swing.map.link.InclinationRecommender;
+import org.freeplane.view.swing.ui.DefaultMapMouseListener;
 
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
@@ -284,6 +269,7 @@ deleteCurrentListenersFromPreviousExecutions()
 //@Field List<NodeModel> pinnedItems = []
 //@Field List<NodeModel> quickSearchResults = []
 @Field List<JPanel> visibleInspectors = []
+@Field List<JPanel> inPlaceInspectors = []
 @Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
 @Field List<Tags> selectedTagsInPanel = []
@@ -291,6 +277,7 @@ savedSearchCriteria.add("")
 @Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
 @Field DefaultListModel<NodeModel> nodesThatContainHoveredTagModel = new DefaultListModel<>()
 @Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
+@Field JList <NodeModel> ancestorsJList = new JList<>()
 
 @Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
@@ -323,7 +310,7 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 @Field String searchText = ""
 @Field String lastSearchText = ""
-@Field private final String ELLIPSIS = "..."
+@Field final String ELLIPSIS = "..."
 
 @Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
 @Field NodeModel hoveredNode
@@ -337,8 +324,8 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 
 @Field DocumentListener searchTextBoxListener
 
-@Field Timer liveSearchTimer = new Timer(200, null);
-liveSearchTimer.setRepeats(false);
+@Field Timer liveSearchTimer = new Timer(200, null)
+liveSearchTimer.setRepeats(false)
 
 @Field Timer hideInspectorTimer = new Timer(500, null)
 
@@ -426,10 +413,6 @@ hoverTimer.addActionListener(e -> {
 
 //                    updateAllGUIs()
 
-
-
-
-
                     if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
                         cleanAndCreateInspectors(subNode, masterPanel)
                     } else {
@@ -487,29 +470,29 @@ hoverTimer.addActionListener(e -> {
 })
 
 class NodeModelTransferable implements Transferable {
-    private static final DataFlavor NODE_MODEL_FLAVOR = new DataFlavor(NodeModel.class, "NodeModel");
-    private final NodeModel nodeModel;
+    private static final DataFlavor NODE_MODEL_FLAVOR = new DataFlavor(NodeModel.class, "NodeModel")
+    private final NodeModel nodeModel
 
     public NodeModelTransferable(NodeModel nodeModel) {
-        this.nodeModel = nodeModel;
+        this.nodeModel = nodeModel
     }
 
     @Override
     public DataFlavor[] getTransferDataFlavors() {
-        return new DataFlavor[]{NODE_MODEL_FLAVOR};
+        return new DataFlavor[]{NODE_MODEL_FLAVOR}
     }
 
     @Override
     public boolean isDataFlavorSupported(DataFlavor flavor) {
-        return NODE_MODEL_FLAVOR.equals(flavor);
+        return NODE_MODEL_FLAVOR.equals(flavor)
     }
 
     @Override
     public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
         if (!isDataFlavorSupported(flavor)) {
-            throw new UnsupportedFlavorException(flavor);
+            throw new UnsupportedFlavorException(flavor)
         }
-        return nodeModel;
+        return nodeModel
     }
 }
 
@@ -519,42 +502,39 @@ createPanels()
 INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
     @Override
     public void onDeselect(NodeModel node) {
-//        SwingUtilities.invokeLater { updateAllGUIs() }
+
     }
 
     @Override
     public void onSelect(NodeModel node) {
+        if (node == currentlySelectedNode) {
+            return
+        }
+
         currentlySelectedNode = node
         hoveredTagModel.clear()
+
+
         if (history.contains(node)) {
             history.removeElement(node)
         }
         history.insertElementAt(node, 0)
-
         if (history.getSize() > 200) {
-            history.removeElement(200)
+            history.removeElementAt(200)
         }
 
         saveSettings()
 
-
-        ancestorsOfCurrentNode.clear()
-        if(reverseAncestorsList) {
-            node.getPathToRoot().reverse().each {
-                ancestorsOfCurrentNode.addElement(it)
-            }
-        }
-        else{
-            node.getPathToRoot().each {
-                ancestorsOfCurrentNode.addElement(it)
-            }
+        def newAncestorsModel = new DefaultListModel<NodeModel>()
+        if (reverseAncestorsList) {
+            node.getPathToRoot().reverse().each { newAncestorsModel.addElement(it) }
+        } else {
+            node.getPathToRoot().each { newAncestorsModel.addElement(it) }
         }
 
+        ancestorsOfCurrentNode = newAncestorsModel
+        ancestorsJList.setModel(ancestorsOfCurrentNode)
 
-//        SwingUtilities.invokeLater { updateAllGUIs() }
-
-        parentPanel.revalidate()
-        parentPanel.repaint()
 
         if (freezeInspectors || isMouseOverSearchBox) {
             return
@@ -562,6 +542,40 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
         if (inspectorUpdateSelection) {
             cleanAndCreateInspectors(node, panelsInMasterPanels[0])
         }
+
+
+        ////////////////inplaceinspector////////////
+
+//        mapView = Controller.currentController.mapViewManager.mapView
+//
+//
+//        NodeView root = mapView.getRoot();
+//        final JComponent rootContent = root.getMainView();
+//        final Point contentPt = new Point();
+//        UITools.convertPointToAncestor(rootContent, contentPt, mapView);
+//        final float zoom = mapView.getZoom();
+////final Point eventPoint = e.getPoint();
+//        eventPoint = MouseInfo.getPointerInfo().getLocation()
+//        SwingUtilities.convertPointFromScreen(eventPoint, mapView)
+////        int x =(int) ((eventPoint.x - contentPt.x)/zoom);
+//        int x =(int) ((eventPoint.x - contentPt.x));
+//        final int y =(int) ((eventPoint.y - contentPt.y)/zoom);
+//
+//
+//
+//        inPlaceInspectors.each {
+//            it.setVisible(false)
+//        }
+//        inPlaceInspectors.clear()
+//        inPlaceInspector = createInspectorPanel(currentlySelectedNode, panelsInMasterPanels[0])
+//        inPlaceInspectors.add(inPlaceInspector)
+////        mousePosition = MouseInfo.getPointerInfo().getLocation()
+////        inPlaceInspector.setBounds((int) mousePosition.getX(),(int) mousePosition.getY(), 300, 300)
+//        inPlaceInspector.setBounds((int) x, 500, 300, 300)
+//        inPlaceInspector.setVisible(true)
+
+        ////////////////////////
+
     }
 
 }
@@ -569,8 +583,6 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 createdSelectionListener = mySelectionListener
 
 Controller.currentController.modeController.mapController.addNodeSelectionListener(mySelectionListener)
-
-//SwingUtilities.invokeLater { updateAllGUIs() }
 
 IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
     public void afterViewChange(final Component oldView, final Component newView) {
@@ -581,19 +593,22 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         searchText = ""
         quickSearchResults.clear()
 
-        panelsInMasterPanels.each {
-            parentPanel.remove(it)
-        }
+//        panelsInMasterPanels.each {
+//            parentPanel.remove(it)
+//        }
+//        breadcrumbPanel.parentPanel.remove(breadcrumbPanel)
 
         saveSettings()
         masterPanel.setVisible(false)
         breadcrumbPanel.setVisible(false)
         visibleInspectors.each {it.setVisible(false)}
+        SwingUtilities.invokeLater {
         createPanels()
         masterPanel.revalidate()
         masterPanel.repaint()
         breadcrumbPanel.revalidate()
         breadcrumbPanel.repaint()
+        }
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
@@ -633,9 +648,9 @@ mindMap.addListener(myNodeChangeListener)
 viewportSizeChangeListener = new ComponentAdapter() {
     @Override
     public void componentResized(final ComponentEvent e) {
-        panelsInMasterPanels.each {
-            parentPanel.remove(it)
-        }
+//        panelsInMasterPanels.each {
+//            parentPanel.remove(it)
+//        }
         saveSettings()
         masterPanel.setVisible(false)
         breadcrumbPanel.setVisible(false)
@@ -649,7 +664,7 @@ viewportSizeChangeListener = new ComponentAdapter() {
     }
 }
 
-mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener);
+mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener)
 
 
 Controller controllerForHighlighter = Controller.currentModeController.controller
@@ -659,23 +674,23 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
         if(searchText.equals("")) { return  }
         if (isPrinting) {
-            return false;
+            return false
         }
         return (quickSearchResults.contains(node))
     }
 
     @Override
     public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean isFound = quickSearchResults.contains(node);
+        boolean isFound = quickSearchResults.contains(node)
 
         if (isFound) {
-            g.setColor(new Color(0, 255, 0, 255));
+            g.setColor(new Color(0, 255, 0, 255))
             g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
         }
     }
 
-});
+})
 
 
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
@@ -684,20 +699,20 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
         if(searchText.equals("")) { return  }
         if (isPrinting) {
-            return false;
+            return false
         }
         return (isFoldedWithHighlightedDescendants(node))
     }
 
     @Override
     public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendants(node);
+        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendants(node)
 
 
         if (hasFoldedDescendants) {
-            g.setColor(new Color(1, 125, 32, 255));
+            g.setColor(new Color(1, 125, 32, 255))
             g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
         }
 
 
@@ -738,7 +753,7 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
         if(selectedTagsInPanel.size() == 0) { return  }
         if (isPrinting) {
-            return false;
+            return false
         }
         return (iconController.getTags(node).containsAll(selectedTagsInPanel))
     }
@@ -748,14 +763,14 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
         boolean hasSelectedTags = iconController.getTags(node).containsAll(selectedTagsInPanel)
 
         if (hasSelectedTags) {
-            g.setColor(new Color(0, 183, 255, 255));
+            g.setColor(new Color(0, 183, 255, 255))
             g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
         }
 
     }
 
-});
+})
 
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
@@ -763,19 +778,19 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
     public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
         if(selectedTagsInPanel.size() == 0) { return  }
         if (isPrinting) {
-            return false;
+            return false
         }
         return (isFoldedWithHighlightedDescendantsTags(node))
     }
 
     @Override
     public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendantsTags(node);
+        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendantsTags(node)
 
         if (hasFoldedDescendants) {
-            g.setColor(new Color(1, 0, 255, 255));
+            g.setColor(new Color(1, 0, 255, 255))
             g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0));
+                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
         }
     }
 
@@ -955,28 +970,28 @@ def createPanels() {
 
     // clear button
 
-    JButton tagsClearButton = new JButton("X");
+    JButton tagsClearButton = new JButton("X")
     tagsClearButton.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            selectedTagsInPanel.clear();
+            selectedTagsInPanel.clear()
             refreshHighlighterCacheTags()
 //            tagsNeedUpdate = true
             tagsJList.setModel(listModelForAllTags)
             cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
-//            updateAllGUIs();
-//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
-//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
+//            updateAllGUIs()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
-    });
+    })
 
-    tagsClearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1));
-    tagsClearButton.setForeground(Color.BLACK);
-    tagsClearButton.setBackground(Color.WHITE);
-    tagsClearButton.setBorder(BorderFactory.createEtchedBorder());
-    tagsClearButton.setOpaque(true);
-    tagsClearButton.setBorderPainted(true);
-    tagsClearButton.setFocusPainted(false);
+    tagsClearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1))
+    tagsClearButton.setForeground(Color.BLACK)
+    tagsClearButton.setBackground(Color.WHITE)
+    tagsClearButton.setBorder(BorderFactory.createEtchedBorder())
+    tagsClearButton.setOpaque(true)
+    tagsClearButton.setBorderPainted(true)
+    tagsClearButton.setFocusPainted(false)
 
     tagsClearButton.addMouseListener(sharedMouseListener)
 
@@ -1020,7 +1035,7 @@ def createPanels() {
     }
 
     panelForField.add(tagsSearchField, BorderLayout.CENTER)
-    panelForField.add(tagsClearButton, BorderLayout.EAST);
+    panelForField.add(tagsClearButton, BorderLayout.EAST)
 
     panelForField.setOpaque(false)
     panelForField.setBackground(new Color(0, 0, 0, 0))
@@ -1059,103 +1074,103 @@ def createPanels() {
 //    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
 
 
-    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]));
-    searchField.setEditable(true);
+    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
+    searchField.setEditable(true)
     searchField.setSelectedItem("")
 
-    searchEditor = (JTextField) searchField.getEditor().getEditorComponent();
+    searchEditor = (JTextField) searchField.getEditor().getEditorComponent()
 
     searchEditor.getDocument().addDocumentListener(new DocumentListener() {
         @Override
         public void insertUpdate(DocumentEvent e) {
-            scheduleLiveSearch();
+            scheduleLiveSearch()
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
-            scheduleLiveSearch();
+            scheduleLiveSearch()
         }
 
         @Override
         public void changedUpdate(DocumentEvent e) {
-            scheduleLiveSearch();
+            scheduleLiveSearch()
         }
 
         private void scheduleLiveSearch() {
-            liveSearchTimer.stop();
-            liveSearchTimer.start();
+            liveSearchTimer.stop()
+            liveSearchTimer.start()
         }
-    });
+    })
 
 
 
     liveSearchTimer.addActionListener(new ActionListener() {
         @Override
         void actionPerformed(ActionEvent e) {
-            searchText = searchEditor.getText().trim();
+            searchText = searchEditor.getText().trim()
 
             if (!searchText.equals(lastSearchText)) {
                 lastSearchText = searchText
                 refreshList(searchText)
             }
 
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
-//            updateAllGUIs();
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//            updateAllGUIs()
 
         }
 
         private void refreshList(String searchText) {
-            quickSearchResults.clear();
+            quickSearchResults.clear()
             refreshHighlighterCache()
             if (!searchText.isEmpty()) {
-                NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot;
-                searchNodesRecursively(rootNode, searchText, quickSearchResults);
+                NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot
+                searchNodesRecursively(rootNode, searchText, quickSearchResults)
 
                 if (!savedSearchCriteria.contains(searchText)) {
-                    savedSearchCriteria.add(0, searchText);
+                    savedSearchCriteria.add(0, searchText)
                 } else {
-                    savedSearchCriteria.remove(searchText);
-                    savedSearchCriteria.add(0, searchText);
+                    savedSearchCriteria.remove(searchText)
+                    savedSearchCriteria.add(0, searchText)
                 }
 
                 saveSettings()
 
-                int caretPosition = searchEditor.getCaretPosition();
+                int caretPosition = searchEditor.getCaretPosition()
 
-                searchField.removeAllItems();
+                searchField.removeAllItems()
                 for (String term : savedSearchCriteria) {
-                    searchField.addItem(term);
+                    searchField.addItem(term)
                 }
 
-                searchEditor.setText(searchText);
+                searchEditor.setText(searchText)
 
                 if (!searchField.isPopupVisible()) {
-                    searchEditor.setCaretPosition(Math.min(caretPosition, searchText.length()));
+                    searchEditor.setCaretPosition(Math.min(caretPosition, searchText.length()))
                 }
             }
         }
-    });
+    })
 
-    JButton clearButton = new JButton("X");
+    JButton clearButton = new JButton("X")
     clearButton.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            searchField.setSelectedItem("");
-            quickSearchResults.clear();
-//            updateAllGUIs();
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate();
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint();
+            searchField.setSelectedItem("")
+            quickSearchResults.clear()
+//            updateAllGUIs()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
-    });
+    })
 
-    clearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1));
-    clearButton.setForeground(Color.BLACK);
-    clearButton.setBackground(Color.WHITE);
-    clearButton.setBorder(BorderFactory.createEtchedBorder());
-    clearButton.setOpaque(true);
-    clearButton.setBorderPainted(true);
-    clearButton.setFocusPainted(false);
+    clearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1))
+    clearButton.setForeground(Color.BLACK)
+    clearButton.setBackground(Color.WHITE)
+    clearButton.setBorder(BorderFactory.createEtchedBorder())
+    clearButton.setOpaque(true)
+    clearButton.setBorderPainted(true)
+    clearButton.setFocusPainted(false)
 
     JPanel panelForSearchBox = new JPanel(new BorderLayout()) {
         {
@@ -1167,74 +1182,75 @@ def createPanels() {
         }
     }
 
-    panelForSearchBox.add(searchField, BorderLayout.CENTER);
-    panelForSearchBox.add(clearButton, BorderLayout.EAST);
+    panelForSearchBox.add(searchField, BorderLayout.CENTER)
+    panelForSearchBox.add(clearButton, BorderLayout.EAST)
+
 
     panelForSearchBox.setOpaque(false)
     panelForSearchBox.setBackground(new Color(0, 0, 0, 0))
 
 
-    quickSearchPanel.add(panelForSearchBox, BorderLayout.NORTH);
+    quickSearchPanel.add(panelForSearchBox, BorderLayout.NORTH)
 
-    innerPanelInQuickSearchPanel = new JPanel(new BorderLayout());
+    innerPanelInQuickSearchPanel = new JPanel(new BorderLayout())
 
     innerPanelInQuickSearchPanel.setOpaque(false)
     innerPanelInQuickSearchPanel.setBackground(new Color(0, 0, 0, 0))
 
-    quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER);
+    quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER)
 
 
     searchField.addMouseListener(new MouseAdapter() {
         @Override
         public void mouseEntered(MouseEvent e) {
-            isMouseOverSearchBox = true;
+            isMouseOverSearchBox = true
         }
 
         @Override
         public void mouseExited(MouseEvent e) {
-            isMouseOverSearchBox = false;
+            isMouseOverSearchBox = false
         }
-    });
+    })
 
 
 
     panelForSearchBox.addMouseListener(new MouseAdapter() {
         @Override
         public void mouseEntered(MouseEvent e) {
-            isMouseOverSearchBox = true;
+            isMouseOverSearchBox = true
         }
 
         @Override
         public void mouseExited(MouseEvent e) {
-            isMouseOverSearchBox = false;
+            isMouseOverSearchBox = false
         }
-    });
+    })
 
 
     searchEditor.addMouseListener(new MouseAdapter() {
         @Override
         public void mouseEntered(MouseEvent e) {
-            isMouseOverSearchBox = true;
+            isMouseOverSearchBox = true
         }
 
         @Override
         public void mouseExited(MouseEvent e) {
-            isMouseOverSearchBox = false;
+            isMouseOverSearchBox = false
         }
-    });
+    })
 
 
     clearButton.addMouseListener(new MouseAdapter() {
         @Override
         public void mouseEntered(MouseEvent e) {
-            isMouseOverSearchBox = true;
+            isMouseOverSearchBox = true
         }
 
         @Override
         public void mouseExited(MouseEvent e) {
-            isMouseOverSearchBox = false;
+            isMouseOverSearchBox = false
         }
-    });
+    })
 
     addQuickSearchShortcut(searchField)
 
@@ -1267,7 +1283,26 @@ def createPanels() {
         breadcrumbPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
+    ancestorsOfCurrentNode.clear()
+    if(reverseAncestorsList) {
+        currentlySelectedNode.getPathToRoot().reverse().each {
+            ancestorsOfCurrentNode.addElement(it)
+        }
+    }
+    else{
+        currentlySelectedNode.getPathToRoot().each {
+            ancestorsOfCurrentNode.addElement(it)
+        }
+    }
+
+//    20.times {
+//        ancestorsOfCurrentNode.addElement(currentlySelectedNode)
+//    }
+
     createBreadcrumbsJList()
+
+//    listeners2 = ancestorsOfCurrentNode.getListDataListeners()
+//    listeners2.each { ancestorsOfCurrentNode.removeListDataListener(it) }
 
     parentPanel.add(breadcrumbPanel)
     parentPanel.setComponentZOrder(breadcrumbPanel, 0)
@@ -1317,6 +1352,9 @@ def createPanels() {
 
 
         createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
+        listeners = history.getListDataListeners().toList()
+        listeners.each { history.removeListDataListener(it) }
+
         createJList(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
         createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
 
@@ -1351,9 +1389,9 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
         protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            g.setColor(getBackground());
-            g.fillRect(0, 0, getWidth(), getHeight());
+            super.paintComponent(g)
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
         }
     }
 
@@ -1373,13 +1411,13 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     ////////////// Node Text Panel ///////////////
 
 
-    JTextPane textLabel = new JTextPane();
+    JTextPane textLabel = new JTextPane()
     textLabel.setContentType("text/html")
 
     if (rtlOrientation) {
-        textLabel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT);
+        textLabel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
-        textLabel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
+        textLabel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
     inspectorPanel.putClientProperty("textLabel", textLabel)
@@ -1419,8 +1457,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     /////////////////////////// Buttons panel //////////////////
 
-//    JPanel buttonPanel = new JPanel();
-//    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
+//    JPanel buttonPanel = new JPanel()
+//    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS))
     JPanel buttonPanel = new JPanel(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 5, 5))
     buttonPanel.setBackground(Color.LIGHT_GRAY)
 
@@ -1599,7 +1637,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     int selectedIndex = siblingsModel.indexOf(nodeNotProxy)
     if (selectedIndex >= 0) {
         SwingUtilities.invokeLater {
-            siblingsList.ensureIndexIsVisible(selectedIndex);
+            siblingsList.ensureIndexIsVisible(selectedIndex)
         }
     }
 
@@ -1670,8 +1708,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
     JList<NodeModel> tagsInNode = new JList<>(tagsInNodeModel)
-    tagsInNode.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-    tagsInNode.setVisibleRowCount(1);
+    tagsInNode.setLayoutOrientation(JList.HORIZONTAL_WRAP)
+    tagsInNode.setVisibleRowCount(1)
 
     commonTagsJListsConfigs(tagsInNode, tagsInNodeModel, inspectorPanel)
 
@@ -1681,14 +1719,14 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 //    tagsInNode.setBorder(titledBorderTagsInNode)
 
     JScrollPane scrollPaneTagsInNodeList = new JScrollPane(tagsInNode)
-//    JPanel scrollPaneTagsInNodeList = new JPanel(new BorderLayout());
-//    scrollPaneTagsInNodeList.add(tagsInNode, BorderLayout.PAGE_START);
+//    JPanel scrollPaneTagsInNodeList = new JPanel(new BorderLayout())
+//    scrollPaneTagsInNodeList.add(tagsInNode, BorderLayout.PAGE_START)
 
 
     configureScrollPaneForRTL(scrollPaneTagsInNodeList)
     tagsInNode.setSize(tagsInNode.getPreferredSize())
     tagsInNode.revalidate()
-    tagsInNode.repaint();
+    tagsInNode.repaint()
     Dimension listPreferredSize7 = tagsInNode.getPreferredSize()
     int maxHeight7 = maxHeight
     int finalHeight7= Math.min(listPreferredSize7.height, maxHeight7)
@@ -1728,8 +1766,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
 
-    tagsSelectedList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
-    tagsSelectedList.setVisibleRowCount(1);
+    tagsSelectedList.setLayoutOrientation(JList.HORIZONTAL_WRAP)
+    tagsSelectedList.setVisibleRowCount(1)
 
 
     TitledBorder titledBorderTagsSelection = BorderFactory.createTitledBorder("Tags Selection")
@@ -1849,39 +1887,39 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
         }
     }
 //    columnsPanel.setLayout(new GridLayout())
-    columnsPanel.setLayout(new BoxLayout(columnsPanel, BoxLayout.X_AXIS));
+    columnsPanel.setLayout(new BoxLayout(columnsPanel, BoxLayout.X_AXIS))
 
     columnsPanel.setBackground( new Color(0, 0, 0, 0) )
 
     int ammountOfPannelsInInspector = 1
 
     if(ancestorsOfCurrentNode.getSize() > 0 && visibleInspectors.size() == 0 && showAncestorsOnFirstInspector) {
-        columnsPanel.add(scrollPaneAncestorsLineList);
+        columnsPanel.add(scrollPaneAncestorsLineList)
     }
 
 
     if(visibleInspectors.size() == 0) {
-        columnsPanel.add(scrollPanelSiblingsList);
+        columnsPanel.add(scrollPanelSiblingsList)
         ammountOfPannelsInInspector++
     }
     else{
-//        JPanel line = new JPanel();
-//        line.setBackground(Color.GRAY);
+//        JPanel line = new JPanel()
+//        line.setBackground(Color.GRAY)
 //        line.setPreferredSize(new Dimension(10, 3))
 //        line.setBorder(BorderFactory.createLineBorder(Color.RED, 2))
 //
-//        columnsPanel.add(line);
+//        columnsPanel.add(line)
     }
 //    if(childrenModel.getSize() > 0) {
-//        columnsPanel.add(scrollPaneChildrenList);
+//        columnsPanel.add(scrollPaneChildrenList)
 //        ammountOfPannelsInInspector++
 //    }
 //    else{
-////        JPanel line2 = new JPanel();
-////        line2.setBackground(Color.GRAY);
+////        JPanel line2 = new JPanel()
+////        line2.setBackground(Color.GRAY)
 ////        line2.setPreferredSize(new Dimension(10, 3))
 ////
-////        columnsPanel.add(line2);
+////        columnsPanel.add(line2)
 //    }
 
     if(visibleInspectors.size() != 0) {
@@ -1928,8 +1966,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     inspectorPanel.setSize(calculateInspectorWidth(ammountOfPannelsInInspector), (int) Math.min(mapViewWindowForSizeReferences.height, inspectorPanel.getPreferredSize().height))
 
-    inspectorPanel.revalidate();
-    inspectorPanel.repaint();
+    inspectorPanel.revalidate()
+    inspectorPanel.repaint()
 
 
     /////////////////////////////////////////
@@ -1941,8 +1979,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     parentPanel.setComponentZOrder(inspectorPanel, 0)
 
 
-    parentPanel.revalidate()
-    parentPanel.repaint()
+//    parentPanel.revalidate()
+//    parentPanel.repaint()
 
     return inspectorPanel
 }
@@ -1986,8 +2024,8 @@ void hideInspectorPanelIfNeeded() {
 
         retractMasterPanel()
 
-        parentPanel.revalidate()
-        parentPanel.repaint()
+//        parentPanel.revalidate()
+//        parentPanel.repaint()
 
         if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
             setInspectorLocation(visibleInspectors[0], masterPanel)
@@ -2026,38 +2064,38 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
     if (component instanceof JLabel) {
         JLabel label = (JLabel) component
 
-        String prefix = "";
+        String prefix = ""
 
         if (currentMapView.currentRootParentView != null) {
             if (nodeNotProxy.getPathToRoot().find { it == currentMapView.mapSelection.selectionRoot } == null) {
-                prefix += "⚠";
+                prefix += "⚠"
             }
         }
 
         if (pinnedItems.contains(nodeNotProxy)) {
-            prefix += "📌";
+            prefix += "📌"
         }
 
         if (!nodeNotProxy.isLeaf() && sourcePanel != breadcrumbPanel) {
-            prefix += "○ ";
+            prefix += "○ "
         }
 
         NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
 
-        if (storedNode == nodeNotProxy) {
-            label.setBorder(BorderFactory.createLineBorder(Color.RED, 4));
+        if (currentlySelectedNode == nodeNotProxy) {
+            label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
         }
-
 
         else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
             label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
         }
 
-        String labelText = prefix + nodeNotProxy.text;
+
+        String labelText = prefix + nodeNotProxy.text
 
 
         if (quickSearchResults.contains(nodeNotProxy)) {
-            textWithHighlight = highlightSearchTerms(labelText, searchedTerms);
+            textWithHighlight = highlightSearchTerms(labelText, searchedTerms)
         } else {
             textWithHighlight = labelText
         }
@@ -2074,9 +2112,9 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
     }
     else if (component instanceof JTextPane) {
-        JTextPane textPane = (JTextPane) component;
+        JTextPane textPane = (JTextPane) component
         if (quickSearchResults.contains(nodeNotProxy)) {
-            textWithHighlight = highlightSearchTerms(nodeNotProxy.text, searchedTerms);
+            textWithHighlight = highlightSearchTerms(nodeNotProxy.text, searchedTerms)
         }
         else {
             textWithHighlight = nodeNotProxy.text
@@ -2088,10 +2126,10 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
                 textWithHighlight +
                 "</body></html>";
 
-        textPane.setText(htmlContent);
+        textPane.setText(htmlContent)
 
 
-        textPane.setEditable(false);
+        textPane.setEditable(false)
         SwingUtilities.invokeLater {
             JScrollPane scrollPane = (JScrollPane) sourcePanel.getClientProperty("textScrollPane")
 
@@ -2106,16 +2144,16 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
 
 String highlightSearchTerms(String text, String searchTerms) {
-    String highlightedText = text;
-    String[] terms = searchTerms.split("\\s+");
+    String highlightedText = text
+    String[] terms = searchTerms.split("\\s+")
 
     for (String term : terms) {
-        if (term.isEmpty()) continue;
-        highlightedText = highlightedText.replaceAll("(?i)(${Pattern.quote(term)})", "<span style='background-color:#00ff00;'>${'$'}1</span>");
+        if (term.isEmpty()) continue
+        highlightedText = highlightedText.replaceAll("(?i)(${Pattern.quote(term)})", "<span style='background-color:#00ff00;'>${'$'}1</span>")
 
     }
 
-    return "<html>" + highlightedText + "</html>";
+    return "<html>" + highlightedText + "</html>"
 }
 
 
@@ -2123,10 +2161,10 @@ String highlightSearchTerms(String text, String searchTerms) {
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Lists configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
 void commonJListsConfigs(JList<NodeModel> theJlist, DefaultListModel<NodeModel> theListModel, JPanel thePanelPanel) {
-    configureDragAndDrop(theJlist);
-    configureListFont(theJlist);
-    configureListSelection(theJlist);
-    configureListContextMenu(theJlist);
+    configureDragAndDrop(theJlist)
+    configureListFont(theJlist)
+    configureListSelection(theJlist)
+    configureListContextMenu(theJlist)
     configureListCellRenderer(theJlist, thePanelPanel)
     configureMouseMotionListener(theJlist, theListModel, thePanelPanel)
     configureMouseExitListener(theJlist)
@@ -2204,13 +2242,13 @@ void configureListContextMenu(JList<NodeModel> list) {
 
 
 void configureDragAndDrop(JList<NodeModel> list) {
-    DragSource dragSource = DragSource.getDefaultDragSource();
+    DragSource dragSource = DragSource.getDefaultDragSource()
     dragSource.createDefaultDragGestureRecognizer(list, DnDConstants.ACTION_MOVE, new DragGestureListener() {
         @Override
         public void dragGestureRecognized(DragGestureEvent dge) {
             if (!list.isSelectionEmpty()) {
-                int index = list.getSelectedIndex();
-                NodeModel selectedNodeModel = list.getModel().getElementAt(index);
+                int index = list.getSelectedIndex()
+                NodeModel selectedNodeModel = list.getModel().getElementAt(index)
 
                 List<NodeModel> nodeToMove = []
                 nodeToMove.add(selectedNodeModel)
@@ -2379,74 +2417,74 @@ void configureDragAndDrop(JList<NodeModel> list) {
                     }
 
                 Transferable transferable = MapClipboardController.getController().copy(mapSelectionForTransfer)
-                ((MindMapNodesSelection) transferable).setDropAction(2);
+                ((MindMapNodesSelection) transferable).setDropAction(2)
 
-                dragSource.startDrag(dge, DragSource.DefaultMoveDrop, transferable, new DragSourceAdapter() {});
+                dragSource.startDrag(dge, DragSource.DefaultMoveDrop, transferable, new DragSourceAdapter() {})
             }
         }
-    });
+    })
 
     new DropTarget(list, DnDConstants.ACTION_COPY_OR_MOVE, new DropTargetAdapter() {
         @Override
         public void drop(DropTargetDropEvent dtde) {
             try {
-                Point dropLocation = dtde.getLocation();
-                int index = list.locationToIndex(dropLocation);
-                ListModel<NodeModel> model = list.getModel();
-                NodeModel targetNodeModel = null;
+                Point dropLocation = dtde.getLocation()
+                int index = list.locationToIndex(dropLocation)
+                ListModel<NodeModel> model = list.getModel()
+                NodeModel targetNodeModel = null
                 if (index >= 0 && index < model.getSize()) {
-                    targetNodeModel = model.getElementAt(index);
+                    targetNodeModel = model.getElementAt(index)
                 }
 
                 Transferable transferableNode = dtde.getTransferable()
-                DataFlavor freeplaneNodesFlavor = new DataFlavor("application/freeplane-nodes; class=java.util.Collection", "application/freeplane-nodes");
+                DataFlavor freeplaneNodesFlavor = new DataFlavor("application/freeplane-nodes; class=java.util.Collection", "application/freeplane-nodes")
                 if (transferableNode.isDataFlavorSupported(freeplaneNodesFlavor)) {
                     Object data = transferableNode.getTransferData(freeplaneNodesFlavor)
-                    Collection<NodeModel> nodeModels = null;
+                    Collection<NodeModel> nodeModels = null
                     if (data instanceof Collection<?>) {
-                        Collection<?> collection = (Collection<?>) data;
-                        boolean allNodes = collection.stream().allMatch(element -> element instanceof NodeModel);
+                        Collection<?> collection = (Collection<?>) data
+                        boolean allNodes = collection.stream().allMatch(element -> element instanceof NodeModel)
                         if (allNodes) {
-                            nodeModels = (Collection<NodeModel>) collection;
+                            nodeModels = (Collection<NodeModel>) collection
                         } else {
                         }
                     }
                     if (targetNodeModel != null && nodeModels != null) {
-                        List<NodeModel> nodesToMove = new ArrayList<>(nodeModels);
+                        List<NodeModel> nodesToMove = new ArrayList<>(nodeModels)
 
                         if (nodesToMove[0] == targetNodeModel) {
                             Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(targetNodeModel)
                             return
                         }
 
-                        final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
+                        final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController()
 
-                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel);
+                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel)
                     }
                     return
                 }
                 if (dtde.isDataFlavorSupported(NodeModelTransferable.NODE_MODEL_FLAVOR)) {
-                    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
-                    Transferable transferable = dtde.getTransferable();
+                    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE)
+                    Transferable transferable = dtde.getTransferable()
 
-                    NodeModel sourceNodeModel = (NodeModel) transferable.getTransferData(NodeModelTransferable.NODE_MODEL_FLAVOR);
+                    NodeModel sourceNodeModel = (NodeModel) transferable.getTransferData(NodeModelTransferable.NODE_MODEL_FLAVOR)
 
                     if (targetNodeModel != null) {
-                        List<NodeModel> nodesToMove = Arrays.asList(sourceNodeModel);
-                        final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
-                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel);
+                        List<NodeModel> nodesToMove = Arrays.asList(sourceNodeModel)
+                        final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController()
+                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel)
                     }
 
-                    dtde.dropComplete(true);
+                    dtde.dropComplete(true)
                 } else {
-                    dtde.rejectDrop();
+                    dtde.rejectDrop()
                 }
             } catch (Exception e) {
-                e.printStackTrace();
-                dtde.rejectDrop();
+                e.printStackTrace()
+                dtde.rejectDrop()
             }
         }
-    });
+    })
 }
 
 
@@ -2554,10 +2592,10 @@ void configureMouseExitListener(JList<NodeModel> list) {
 
 
 void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theListModel, JPanel thePanelPanel) {
-//    configureDragAndDrop(theJlist);
-    configureListFont(jList);
+//    configureDragAndDrop(theJlist)
+    configureListFont(jList)
 
-//    configureListSelection(theJlist);
+//    configureListSelection(theJlist)
 
     jList.addMouseListener(new MouseAdapter() {
         @Override
@@ -2657,7 +2695,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
         }
     })
 
-//    configureListContextMenu(theJlist);
+//    configureListContextMenu(theJlist)
 
     if (rtlOrientation) {
         jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
@@ -2678,8 +2716,8 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 //                configureLabelForNode(label, currentNode, tagsPanel)
                 Color backgroundColor = currentTag.getColor()
                 Color fontColor = UITools.getTextColorForBackground(backgroundColor)
-                String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue());
-//                String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue());
+                String hexColor = String.format("#%02x%02x%02x", backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue())
+//                String fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
 
                 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
@@ -2688,7 +2726,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                 label.setFont(fontForItems)
 
 
-                label.setBorder(new RoundedCornerBorder(Color.BLACK, 2, 15));
+                label.setBorder(new RoundedCornerBorder(Color.BLACK, 2, 15))
 
                 if (rtlOrientation) {
                     label.setHorizontalAlignment(SwingConstants.RIGHT)
@@ -2891,7 +2929,7 @@ def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
 }
 
 def searchNodesRecursively(NodeModel node, String searchText, DefaultListModel<NodeModel> results) {
-    String[] terms = searchText.toLowerCase().split("\\s+");
+    String[] terms = searchText.toLowerCase().split("\\s+")
 
     def termsMatchedInNode = terms.findAll { term ->
         node.text?.toLowerCase().contains(term)
@@ -2900,23 +2938,23 @@ def searchNodesRecursively(NodeModel node, String searchText, DefaultListModel<N
     def remainingTerms = terms - termsMatchedInNode
 
     if (!termsMatchedInNode.isEmpty() && remainingTerms.every { term -> containsTermInAncestors(node, term) }) {
-        results.addElement(node);
+        results.addElement(node)
     }
 
     node.children.each { child ->
-        searchNodesRecursively(child, searchText, results);
+        searchNodesRecursively(child, searchText, results)
     }
 }
 
 def containsTermInAncestors(NodeModel node, String term) {
-    node = node.parent;
+    node = node.parent
     while (node != null) {
         if (node.text?.toLowerCase().contains(term)) {
-            return true;
+            return true
         }
-        node = node.parent;
+        node = node.parent
     }
-    return false;
+    return false
 }
 
 
@@ -2971,39 +3009,39 @@ def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
 
     JPanel subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
     visibleInspectors.add(subInspectorPanel2)
-    parentPanel.revalidate()
-    parentPanel.repaint()
+//    parentPanel.revalidate()
+//    parentPanel.repaint()
 }
 
 
 
 public class RoundedCornerBorder implements Border {
-    private Color color;
-    private int thickness;
-    private int radius;
+    private Color color
+    private int thickness
+    private int radius
 
     public RoundedCornerBorder(Color color, int thickness, int radius) {
-        this.color = color;
-        this.thickness = thickness;
-        this.radius = radius;
+        this.color = color
+        this.thickness = thickness
+        this.radius = radius
     }
 
     @Override
     public Insets getBorderInsets(Component c) {
-        return new Insets(this.thickness, this.thickness + 5, this.thickness, this.thickness + 5);
+        return new Insets(this.thickness, this.thickness + 5, this.thickness, this.thickness + 5)
     }
 
     @Override
     public boolean isBorderOpaque() {
-        return false;
+        return false
     }
 
     @Override
     public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setColor(color);
-        g2.setStroke(new BasicStroke(thickness));
-        g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+        Graphics2D g2 = (Graphics2D) g
+        g2.setColor(color)
+        g2.setStroke(new BasicStroke(thickness))
+        g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius)
     }
 }
 
@@ -3162,8 +3200,8 @@ def createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPanel pan
 
     jListPanel.add(scrollPane, BorderLayout.CENTER)
 
-    jListPanel.revalidate()
-    jListPanel.repaint()
+//    jListPanel.revalidate()
+//    jListPanel.repaint()
 }
 
 def createBreadcrumbsJList() {
@@ -3177,28 +3215,29 @@ def createBreadcrumbsJList() {
 //    DefaultListModel<NodeModel> listModel = new DefaultListModel<>()
 //    ancestorsOfCurrentNode.each { listModel.addElement(it) }
 
-    JList<NodeModel> jList = new JList<>(ancestorsOfCurrentNode)
-    jList.setLayoutOrientation(JList.HORIZONTAL_WRAP)
-    jList.setVisibleRowCount(1)
+//    JList<NodeModel> jList = new JList<>(ancestorsOfCurrentNode)
+    ancestorsJList.setModel(ancestorsOfCurrentNode)
+    ancestorsJList.setLayoutOrientation(JList.HORIZONTAL_WRAP)
+    ancestorsJList.setVisibleRowCount(1)
 
-    jList.setFixedCellWidth(200)
-    jList.setFixedCellHeight(30)
+    ancestorsJList.setFixedCellWidth(200)
+    ancestorsJList.setFixedCellHeight(30)
 
-    commonJListsConfigs(jList, ancestorsOfCurrentNode, breadcrumbPanel)
+    commonJListsConfigs(ancestorsJList, ancestorsOfCurrentNode, breadcrumbPanel)
 
     if (rtlOrientation) {
-        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+        ancestorsJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
-        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        ancestorsJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
     breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
 //    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5)) // RTL Support
 
-    breadcrumbPanel.add(jList)
+    breadcrumbPanel.add(ancestorsJList)
 
-    breadcrumbPanel.revalidate()
-    breadcrumbPanel.repaint()
+//    breadcrumbPanel.revalidate()
+//    breadcrumbPanel.repaint()
 }
 
 
