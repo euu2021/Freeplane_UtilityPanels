@@ -1,23 +1,15 @@
 
-
-
-
-
-//// LATEST FREEPLANE VERSION THAT WORKS WITH THE SCRIPT: freeplane-1.12.9-pre12
-
-
-
-
-
-
 /***************************************************************************
 
-version 1.34: Cleaned unused imports.
- Uniform Border Color for Selected Nodes Across All Panels. 
+version 1.35: Improved responsiveness on node selection. Fixed unnecessary tag check of all nodes on each node selection.
+  Fixed Index Out Of Bounds Exception on hovering over breadcrumbs panel.
+  Updated to work with Freeplane 1.12.9 (stable). There was a change in the signature of the method isNodeHighlighted.
+
+ version 1.34: Cleaned unused imports.
+ Uniform Border Color for Selected Nodes Across All Panels.
  Fixed breadcrumbs panel not showing up when a new view was created.
  Fixed jumping text field.
- Improved responsiveness on node selection. Disabled listeners of listModels. 
-
+ Improved responsiveness on node selection. Disabled listeners of listModels.
 
  version 1.33: Fixed Drag and Drop to make it compatible with most recent Freeplane versions.
  Refactored the backend for ListModels, so they don't get recreated on every update.
@@ -233,7 +225,7 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 @Field boolean showOnlyBreadcrumbs = false
 
-showAncestorsOnFirstInspector = true
+showAncestorsOnFirstInspector = false
 
 @Field rtlOrientation = false
 
@@ -278,6 +270,7 @@ savedSearchCriteria.add("")
 @Field DefaultListModel<NodeModel> nodesThatContainHoveredTagModel = new DefaultListModel<>()
 @Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
 @Field JList <NodeModel> ancestorsJList = new JList<>()
+@Field JList <NodeModel> historyJList = new JList<>()
 
 @Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
@@ -393,7 +386,8 @@ hoverTimer.addActionListener(e -> {
 
         Rectangle cellBounds = currentList.getCellBounds(index, index)
         if (cellBounds != null && cellBounds.contains(lastMouseLocation)) {
-            if (index >= 0) {
+//            if (index >= 0 && index < currentListModel.getSize()) {
+            if (index >= 0 && index) {
                 Object hoveredItem = currentListModel.getElementAt(index)
                 if(hoveredItem instanceof NodeModel) {
                     NodeModel subNode = currentListModel.getElementAt(index)
@@ -511,29 +505,58 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
             return
         }
 
+//        recentSelectedNodesPanel.removeAll()
+//        breadcrumbPanel.removeAll()
+
         currentlySelectedNode = node
         hoveredTagModel.clear()
 
+        def newHistoryModel = new DefaultListModel<NodeModel>()
 
-        if (history.contains(node)) {
-            history.removeElement(node)
+        newHistoryModel = history
+
+        if (newHistoryModel.contains(node)) {
+            newHistoryModel.removeElement(node)
         }
-        history.insertElementAt(node, 0)
-        if (history.getSize() > 200) {
-            history.removeElementAt(200)
+        newHistoryModel.insertElementAt(node, 0)
+        if (newHistoryModel.getSize() > 200) {
+            newHistoryModel.removeElementAt(200)
         }
+
+        historyJList.setModel(newHistoryModel)
+        history = newHistoryModel
+//
+//        if (history.contains(node)) {
+//            history.removeElement(node)
+//        }
+//        history.insertElementAt(node, 0)
+//        if (history.getSize() > 200) {
+//            history.removeElementAt(200)
+//        }
 
         saveSettings()
 
-        def newAncestorsModel = new DefaultListModel<NodeModel>()
-        if (reverseAncestorsList) {
-            node.getPathToRoot().reverse().each { newAncestorsModel.addElement(it) }
-        } else {
-            node.getPathToRoot().each { newAncestorsModel.addElement(it) }
-        }
+//        def newAncestorsModel = new DefaultListModel<NodeModel>()
+//        if (reverseAncestorsList) {
+//            node.getPathToRoot().reverse().each { newAncestorsModel.addElement(it) }
+//        } else {
+//            node.getPathToRoot().each { newAncestorsModel.addElement(it) }
+//        }
+//
+//        ancestorsJList.setModel(newAncestorsModel)
+//        ancestorsOfCurrentNode = newAncestorsModel
 
-        ancestorsOfCurrentNode = newAncestorsModel
-        ancestorsJList.setModel(ancestorsOfCurrentNode)
+        ancestorsOfCurrentNode.clear()
+        if(reverseAncestorsList) {
+            node.getPathToRoot().reverse().each {
+                ancestorsOfCurrentNode.addElement(it)
+            }
+        }
+        else{
+            node.getPathToRoot().each {
+                ancestorsOfCurrentNode.addElement(it)
+            }
+        }
 
 
         if (freezeInspectors || isMouseOverSearchBox) {
@@ -635,7 +658,7 @@ Controller.currentController.modeController.getMapController().addUIMapChangeLis
 NodeChangeListener myNodeChangeListener= {NodeChanged event->
     if(event.changedElement == NodeChanged.ChangedElement.TAGS) {
         loadTagsIntoModel(listModelForAllTags, currentlySelectedNode)
-//        tagsNeedUpdate = true
+        tagsNeedUpdate = true
 //        updateAllGUIs()
 //        masterPanel.revalidate()
 //        masterPanel.repaint()
@@ -671,7 +694,7 @@ Controller controllerForHighlighter = Controller.currentModeController.controlle
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
-    public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
+    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
         if(searchText.equals("")) { return  }
         if (isPrinting) {
             return false
@@ -696,7 +719,7 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
-    public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
+    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
         if(searchText.equals("")) { return  }
         if (isPrinting) {
             return false
@@ -750,7 +773,7 @@ def refreshHighlighterCache() {
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
-    public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
+    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
         if(selectedTagsInPanel.size() == 0) { return  }
         if (isPrinting) {
             return false
@@ -775,7 +798,7 @@ controllerForHighlighter.getExtension(HighlightController.class).addNodeHighligh
 controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
 
     @Override
-    public boolean isNodeHighlighted(NodeModel node, boolean isPrinting) {
+    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
         if(selectedTagsInPanel.size() == 0) { return  }
         if (isPrinting) {
             return false
@@ -1351,9 +1374,9 @@ def createPanels() {
         }
 
 
-        createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
-        listeners = history.getListDataListeners().toList()
-        listeners.each { history.removeListDataListener(it) }
+        historyJList = createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
+//        listeners = history.getListDataListeners().toList()
+//        listeners.each { history.removeListDataListener(it) }
 
         createJList(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
         createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
@@ -1566,7 +1589,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     }
         configureScrollPaneForRTL(scrollPaneAncestorsLineList)
     ancestorsLineList.setSize(ancestorsLineList.getPreferredSize())
-    ancestorsLineList.revalidate()
+//    ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
 
 
@@ -1621,7 +1644,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
         configureScrollPaneForRTL(scrollPanelSiblingsList)
     siblingsList.setSize(siblingsList.getPreferredSize())
-    siblingsList.revalidate()
+//    siblingsList.revalidate()
     Dimension listPreferredSize2 = siblingsList.getPreferredSize()
     int maxHeight2 = maxHeight
     int finalHeight2 = Math.min(listPreferredSize2.height, maxHeight2)
@@ -1669,7 +1692,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     configureScrollPaneForRTL(scrollPaneChildrenList)
     childrenList.setSize(childrenList.getPreferredSize())
-    childrenList.revalidate()
+//    childrenList.revalidate()
     Dimension listPreferredSize3 = childrenList.getPreferredSize()
     int maxHeight3 = maxHeight
     int finalHeight3 = Math.min(listPreferredSize3.height, maxHeight3)
@@ -1725,8 +1748,8 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     configureScrollPaneForRTL(scrollPaneTagsInNodeList)
     tagsInNode.setSize(tagsInNode.getPreferredSize())
-    tagsInNode.revalidate()
-    tagsInNode.repaint()
+//    tagsInNode.revalidate()
+//    tagsInNode.repaint()
     Dimension listPreferredSize7 = tagsInNode.getPreferredSize()
     int maxHeight7 = maxHeight
     int finalHeight7= Math.min(listPreferredSize7.height, maxHeight7)
@@ -1780,7 +1803,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     configureScrollPaneForRTL(scrollPaneTagsSelectionList)
     tagsSelectedList.setSize(tagsSelectedList.getPreferredSize())
-    tagsSelectedList.revalidate()
+//    tagsSelectedList.revalidate()
     Dimension listPreferredSize4 = tagsSelectedList.getPreferredSize()
     int maxHeight4 = maxHeight
     int finalHeight4 = Math.min(listPreferredSize4.height, maxHeight4)
@@ -1812,6 +1835,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
                 nodesThatContainAnyTagInTagsSelectionModel.addElement(it.delegate)
             }
         }
+        tagsNeedUpdate = false
     }
 
     JList<NodeModel> nodesThatContainAnyTagInTagsSelection
@@ -1838,7 +1862,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     configureScrollPaneForRTL(scrollPaneNodesThatContainAnyTagInTagsSelection)
     nodesThatContainAnyTagInTagsSelection.setSize(nodesThatContainAnyTagInTagsSelection.getPreferredSize())
-    nodesThatContainAnyTagInTagsSelection.revalidate()
+//    nodesThatContainAnyTagInTagsSelection.revalidate()
     Dimension listPreferredSize5 = nodesThatContainAnyTagInTagsSelection.getPreferredSize()
     int maxHeight5 = maxHeight
     int finalHeight5 = Math.min(listPreferredSize5.height, maxHeight5)
@@ -1962,12 +1986,12 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     inspectorPanel.add(verticalStackPanel, BorderLayout.CENTER)
 
-    verticalStackPanel.revalidate()
+//    verticalStackPanel.revalidate()
 
     inspectorPanel.setSize(calculateInspectorWidth(ammountOfPannelsInInspector), (int) Math.min(mapViewWindowForSizeReferences.height, inspectorPanel.getPreferredSize().height))
 
-    inspectorPanel.revalidate()
-    inspectorPanel.repaint()
+//    inspectorPanel.revalidate()
+//    inspectorPanel.repaint()
 
 
     /////////////////////////////////////////
@@ -1978,6 +2002,18 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     parentPanel.add(inspectorPanel)
     parentPanel.setComponentZOrder(inspectorPanel, 0)
 
+    SwingUtilities.invokeLater({
+        ancestorsLineList.revalidate()
+        siblingsList.revalidate()
+        childrenList.revalidate()
+        tagsInNode.revalidate()
+        tagsInNode.repaint()
+        tagsSelectedList.revalidate()
+        nodesThatContainAnyTagInTagsSelection.revalidate()
+        verticalStackPanel.revalidate()
+        inspectorPanel.revalidate()
+        inspectorPanel.repaint()
+    })
 
 //    parentPanel.revalidate()
 //    parentPanel.repaint()
@@ -2610,7 +2646,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                     iconController.insertTagsIntoSelectedNodes(tagToInsert)
                     selectedTagsInPanel.clear()
 
-//                    tagsNeedUpdate = true
+                    tagsNeedUpdate = true
 //
 //                    updateAllGUIs()
                     Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
@@ -2631,7 +2667,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                     menuItemRemove.addActionListener({
                         iconController.removeSelectedTagsFromSelectedNodes(tagToRemove)
 
-//                        tagsNeedUpdate = true
+                        tagsNeedUpdate = true
 //
 //                        updateAllGUIs()
                         Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
@@ -2645,7 +2681,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                         }
                         selectedTagsInPanel.add(tagSelected)
 
-//                        tagsNeedUpdate = true
+                        tagsNeedUpdate = true
 
                         refreshHighlighterCacheTags()
 
@@ -2658,7 +2694,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                         selectedTagsInPanel.removeElement(tagSelected)
                         refreshHighlighterCacheTags()
 
-//                        tagsNeedUpdate = true
+                        tagsNeedUpdate = true
 
                         cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
 
@@ -2669,7 +2705,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
                         selectedTagsInPanel.clear()
                         refreshHighlighterCacheTags()
 
-//                        tagsNeedUpdate = true
+                        tagsNeedUpdate = true
 
                         cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
 
@@ -3171,7 +3207,7 @@ def configureScrollPaneForRTL(JScrollPane scrollPane) {
 }
 
 
-def createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPanel panelPanel) {
+def JList createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPanel panelPanel) {
     JList<NodeModel> jList = new JList<>(nodes)
     commonJListsConfigs(jList, nodes, panelPanel)
 
@@ -3199,6 +3235,8 @@ def createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPanel pan
 
 
     jListPanel.add(scrollPane, BorderLayout.CENTER)
+
+    return jList
 
 //    jListPanel.revalidate()
 //    jListPanel.repaint()
@@ -3246,4 +3284,41 @@ def populateTagsListModel(JList<String> tagsJList) {
     tagsJList.setModel(listModelForAllTags)
 
 
+}
+
+def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPanel) {
+    jListPanel.removeAll()
+
+    DefaultListModel<NodeModel> listModel = new DefaultListModel<>()
+    nodes.each { listModel.addElement(it) }
+    JList<NodeModel> jList = new JList<>(listModel)
+    commonJListsConfigs(jList, listModel, panelPanel)
+
+    if (rtlOrientation) {
+        jList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
+
+    JScrollPane scrollPane = new JScrollPane(jList)
+    configureScrollPaneForRTL(scrollPane)
+
+    scrollPane.setBackground(new Color(0, 0, 0, 0))
+    jList.setOpaque(false)
+    scrollPane.setOpaque(false)
+    scrollPane.getViewport().setOpaque(false)
+
+
+    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
+
+
+    jListPanel.add(scrollPane, BorderLayout.CENTER)
+
+    jListPanel.revalidate()
+    jListPanel.repaint()
 }
