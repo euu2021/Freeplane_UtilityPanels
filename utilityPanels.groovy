@@ -1,6 +1,9 @@
 
 /***************************************************************************
 
+version 1.36: Included automatic import of the SwingX library.
+  Bugfix first item of lists not being selected on hover. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41#issuecomment-2645055560
+
 version 1.35: Improved responsiveness on node selection. Fixed unnecessary tag check of all nodes on each node selection.
   Fixed Index Out Of Bounds Exception on hovering over breadcrumbs panel.
   Updated to work with Freeplane 1.12.9 (stable). There was a change in the signature of the method isNodeHighlighted.
@@ -131,6 +134,8 @@ version: 1.5: performance improvement when Update Selection is enabled. Inspecto
  *****************************************************************/
 
 // @ExecutionModes({ON_SINGLE_NODE="/menu_bar/euu"})
+
+@Grab(group='org.swinglabs.swingx', module='swingx-core', version='1.6.5-1')
 
 
 import groovy.json.JsonBuilder
@@ -386,8 +391,8 @@ hoverTimer.addActionListener(e -> {
 
         Rectangle cellBounds = currentList.getCellBounds(index, index)
         if (cellBounds != null && cellBounds.contains(lastMouseLocation)) {
-//            if (index >= 0 && index < currentListModel.getSize()) {
-            if (index >= 0 && index) {
+            if (index >= 0 && index < currentListModel.getSize()) {
+//            if (index >= 0 && index) {
                 Object hoveredItem = currentListModel.getElementAt(index)
                 if(hoveredItem instanceof NodeModel) {
                     NodeModel subNode = currentListModel.getElementAt(index)
