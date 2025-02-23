@@ -1,4 +1,3 @@
-
 /***************************************************************************
 
 version 1.36: Included automatic import of the SwingX library.
@@ -197,6 +196,7 @@ import org.freeplane.features.mode.mindmapmode.MModeController;
 import org.freeplane.features.styles.MapStyleModel;
 import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.view.swing.map.MapView;
+import org.freeplane.view.swing.map.MapViewScrollPane;
 import org.freeplane.view.swing.map.NodeView;
 import org.freeplane.view.swing.map.link.ConnectorView;
 import org.freeplane.view.swing.map.link.InclinationRecommender;
@@ -857,8 +857,49 @@ return
 
 // ------------------ methods definitions ------------------------
 
+
+private Rectangle getBreadcrumbReservedArea() {
+    if (!breadcrumbPanel.isVisible())
+        return MapViewScrollPane.EMPTY_RECTANGLE
+    return breadcrumbPanel.getBounds()
+}
+
+private Rectangle getMasterReservedArea() {
+    if (!masterPanel.isVisible())
+        return MapViewScrollPane.EMPTY_RECTANGLE
+    return masterPanel.getBounds()
+}
+
+// Add a new method to compute the hidden area for inspector panels.
+private Rectangle getInspectorReservedArea() {
+    Rectangle combinedBounds = null
+    // Combine visibleInspectors and inPlaceInspectors to cover all inspector panels.
+    (visibleInspectors + inPlaceInspectors).each { inspector ->
+        if (inspector != null && inspector.isVisible()) {
+            Rectangle inspectorBounds = inspector.getBounds()
+            
+            if (combinedBounds == null) {
+                combinedBounds = new Rectangle(0, inspectorBounds.@y, inspectorBounds.@x + inspectorBounds.@width, inspectorBounds.@height)
+            } else {
+                combinedBounds = combinedBounds.union(inspectorBounds)
+                // Ensure combinedBounds.x remains at 0.
+                if (combinedBounds.x != 0) {
+                    combinedBounds.width += combinedBounds.x
+                    combinedBounds.x = 0
+                }
+            }
+        }
+    }
+    return combinedBounds ?: MapViewScrollPane.EMPTY_RECTANGLE
+}
+
 def createPanels() {
     parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
+    
+    parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
+    parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
+    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
+    
     Dimension parentSize = parentPanel.getSize()
 
 
@@ -1302,7 +1343,7 @@ def createPanels() {
 //    breadcrumbPanel.setBackground(new Color(220, 220, 220))
     breadcrumbPanel.setOpaque(false)
 
-    breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
+    breadcrumbPanel.setBounds(  0, 0, parentPanel.width, 40)
 
 
     if (rtlOrientation) {
