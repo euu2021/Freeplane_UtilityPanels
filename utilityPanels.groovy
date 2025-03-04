@@ -1,4 +1,13 @@
+
 /***************************************************************************
+
+version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
+ Fixed label prefixes not showing on breadcrumbs panel.
+ Quicksearch: now, uses a SwingWorker, to avoid locking the interface while searching.
+ Quicksearch: results are limited to 500.
+ Quicksearch: savedSearchCriteria combobox is limited to 200 items.
+ Quicksearch: when cursor is in the quicksearch field, pressing ESC erases the search bar content.
+ Add viewport reserved area methods for utility panels. https://github.com/euu2021/Freeplane_UtilityPanels/pull/45
 
 version 1.36: Included automatic import of the SwingX library.
   Bugfix first item of lists not being selected on hover. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41#issuecomment-2645055560
@@ -165,6 +174,11 @@ import javax.swing.border.TitledBorder
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.event.ListSelectionListener
+import javax.swing.SwingWorker
+import javax.swing.SwingUtilities
+import java.util.List
+import java.util.ArrayList
+import java.util.concurrent.ExecutionException
 import java.awt.*
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
@@ -175,33 +189,35 @@ import java.util.List
 import java.util.regex.Pattern
 
 import java.awt.MouseInfo
-import java.awt.Point;
-import java.awt.event.MouseEvent;
-import javax.swing.JComponent;
-import org.freeplane.core.extension.IExtension;
-import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.Compat;
-import org.freeplane.features.link.ConnectorModel;
-import org.freeplane.features.link.ConnectorShape;
-import org.freeplane.features.link.Connectors;
-import org.freeplane.features.link.LinkController;
-import org.freeplane.features.link.mindmapmode.MLinkController;
-import org.freeplane.features.map.FreeNode;
-import org.freeplane.features.map.NodeModel;
-import org.freeplane.features.map.NodeModel.Side;
-import org.freeplane.features.map.mindmapmode.MMapController;
-import org.freeplane.features.mode.Controller;
-import org.freeplane.features.mode.ModeController;
-import org.freeplane.features.mode.mindmapmode.MModeController;
-import org.freeplane.features.styles.MapStyleModel;
-import org.freeplane.features.styles.MapViewLayout;
-import org.freeplane.view.swing.map.MapView;
-import org.freeplane.view.swing.map.MapViewScrollPane;
-import org.freeplane.view.swing.map.NodeView;
-import org.freeplane.view.swing.map.link.ConnectorView;
-import org.freeplane.view.swing.map.link.InclinationRecommender;
-import org.freeplane.view.swing.ui.DefaultMapMouseListener;
+import java.awt.Point
+import java.awt.event.MouseEvent
+import javax.swing.JComponent
+import org.freeplane.core.extension.IExtension
+import org.freeplane.core.ui.components.UITools
+import org.freeplane.core.util.Compat
+import org.freeplane.features.link.ConnectorModel
+import org.freeplane.features.link.ConnectorShape
+import org.freeplane.features.link.Connectors
+import org.freeplane.features.link.LinkController
+import org.freeplane.features.link.mindmapmode.MLinkController
+import org.freeplane.features.map.FreeNode
+import org.freeplane.features.map.NodeModel
+import org.freeplane.features.map.NodeModel.Side
+import org.freeplane.features.map.mindmapmode.MMapController
+import org.freeplane.features.mode.Controller
+import org.freeplane.features.mode.ModeController
+import org.freeplane.features.mode.mindmapmode.MModeController
+import org.freeplane.features.styles.MapStyleModel
+import org.freeplane.features.styles.MapViewLayout
+import org.freeplane.view.swing.map.MapView
+import org.freeplane.view.swing.map.MapViewScrollPane
+import org.freeplane.view.swing.map.NodeView
+import org.freeplane.view.swing.map.link.ConnectorView
+import org.freeplane.view.swing.map.link.InclinationRecommender
+import org.freeplane.view.swing.ui.DefaultMapMouseListener
 
+import java.lang.reflect.Field
+import org.freeplane.view.swing.map.MapViewController
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
@@ -216,7 +232,7 @@ retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the
 expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
 widthFactorForInspector = 15 //the higher the factor, the smaller the inspector panel width
 
-@Field selectionDelay = 150 //miliseconds
+@groovy.transform.Field selectionDelay = 150 //miliseconds
 
 reverseAncestorsList = false
 
@@ -226,13 +242,13 @@ additionalInspectorDistanceToTheBottomOfTheScreen = 175
 
 widthOfTheClearButtonOnQuickSearchPanel = 30
 
-@Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
+@groovy.transform.Field KeyStroke keyStrokeToQuickSearch = KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK)
 
-@Field boolean showOnlyBreadcrumbs = false
+@groovy.transform.Field boolean showOnlyBreadcrumbs = false
 
 showAncestorsOnFirstInspector = false
 
-@Field rtlOrientation = false
+@groovy.transform.Field rtlOrientation = false
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -247,92 +263,92 @@ showAncestorsOnFirstInspector = false
 
 
 
-@Field DefaultListModel<String> allTags = new DefaultListModel<String>()
+@groovy.transform.Field DefaultListModel<String> allTags = new DefaultListModel<String>()
 
 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
-uniqueIdForScript = 999
-deleteCurrentListenersFromPreviousExecutions()
+@groovy.transform.Field uniqueIdForScript = 999
+cleanPreviousScriptExecution()
 
-@Field DefaultListModel<NodeModel> ancestorsOfCurrentNode = new DefaultListModel<>()
-@Field DefaultListModel<NodeModel> history = new DefaultListModel<>()
-@Field DefaultListModel<NodeModel> pinnedItems = new DefaultListModel<>()
-@Field DefaultListModel<NodeModel> quickSearchResults = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<NodeModel> ancestorsOfCurrentNode = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<NodeModel> history = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<NodeModel> pinnedItems = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<NodeModel> quickSearchResults = new DefaultListModel<>()
 
-@Field DefaultListModel<Tags> selectedTagsInPanelModel = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<Tags> selectedTagsInPanelModel = new DefaultListModel<>()
 
-//@Field List<NodeModel> ancestorsOfCurrentNode = []
-//@Field List<NodeModel> history = []
-//@Field List<NodeModel> pinnedItems = []
-//@Field List<NodeModel> quickSearchResults = []
-@Field List<JPanel> visibleInspectors = []
-@Field List<JPanel> inPlaceInspectors = []
-@Field List<String> savedSearchCriteria = []
+//@groovy.transform.Field List<NodeModel> ancestorsOfCurrentNode = []
+//@groovy.transform.Field List<NodeModel> history = []
+//@groovy.transform.Field List<NodeModel> pinnedItems = []
+//@groovy.transform.Field List<NodeModel> quickSearchResults = []
+@groovy.transform.Field List<JPanel> visibleInspectors = []
+@groovy.transform.Field List<JPanel> inPlaceInspectors = []
+@groovy.transform.Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
-@Field List<Tags> selectedTagsInPanel = []
-@Field List<Tag> hoveredTag = []
-@Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
-@Field DefaultListModel<NodeModel> nodesThatContainHoveredTagModel = new DefaultListModel<>()
-@Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
-@Field JList <NodeModel> ancestorsJList = new JList<>()
-@Field JList <NodeModel> historyJList = new JList<>()
+@groovy.transform.Field List<Tags> selectedTagsInPanel = []
+@groovy.transform.Field List<Tag> hoveredTag = []
+@groovy.transform.Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<NodeModel> nodesThatContainHoveredTagModel = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
+@groovy.transform.Field JList <NodeModel> ancestorsJList = new JList<>()
+@groovy.transform.Field JList <NodeModel> historyJList = new JList<>()
 
-@Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
+@groovy.transform.Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
-@Field JScrollPane parentPanel
-@Field JPanel masterPanel
-@Field JPanel breadcrumbPanel
-@Field List<JPanel> panelsInMasterPanels = []
-@Field JPanel recentSelectedNodesPanel
-@Field JPanel pinnedItemsPanel
-@Field JPanel tagsPanel
-@Field JPanel quickSearchPanel
-@Field JPanel innerPanelInQuickSearchPanel
-@Field JPanel inspectorPanel
+@groovy.transform.Field JScrollPane parentPanel
+@groovy.transform.Field JPanel masterPanel
+@groovy.transform.Field JPanel breadcrumbPanel
+@groovy.transform.Field List<JPanel> panelsInMasterPanels = []
+@groovy.transform.Field JPanel recentSelectedNodesPanel
+@groovy.transform.Field JPanel pinnedItemsPanel
+@groovy.transform.Field JPanel tagsPanel
+@groovy.transform.Field JPanel quickSearchPanel
+@groovy.transform.Field JPanel innerPanelInQuickSearchPanel
+@groovy.transform.Field JPanel inspectorPanel
 
-@Field JPanel currentSourcePanel
+@groovy.transform.Field JPanel currentSourcePanel
 
-@Field JTextField searchEditor
+@groovy.transform.Field JTextField searchEditor
 
-@Field boolean mouseOverList = false
-@Field boolean freezeInspectors = false
-@Field boolean inspectorUpdateSelection = true
-@Field boolean isMasterPanelExpanded = false
-@Field boolean isMouseOverSearchBox = false
-@Field boolean tagsNeedUpdate = true
+@groovy.transform.Field boolean mouseOverList = false
+@groovy.transform.Field boolean freezeInspectors = false
+@groovy.transform.Field boolean inspectorUpdateSelection = true
+@groovy.transform.Field boolean isMasterPanelExpanded = false
+@groovy.transform.Field boolean isMouseOverSearchBox = false
+@groovy.transform.Field boolean tagsNeedUpdate = true
 
-@Field int lastMouseModifiers = 0
+@groovy.transform.Field int lastMouseModifiers = 0
 
 
 mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.mapView.parent
 
-@Field String searchText = ""
-@Field String lastSearchText = ""
-@Field final String ELLIPSIS = "..."
+@groovy.transform.Field String searchText = ""
+@groovy.transform.Field String lastSearchText = ""
+@groovy.transform.Field final String ELLIPSIS = "..."
 
-@Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
-@Field NodeModel hoveredNode
-
-
-@Field MIconController iconController = (MIconController) Controller.currentModeController.getExtension(IconController.class)
+@groovy.transform.Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
+@groovy.transform.Field NodeModel hoveredNode
 
 
-@Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
-@Field Set<NodeModel> cachedHighlightedNodesTags = new HashSet<>()
+@groovy.transform.Field MIconController iconController = (MIconController) Controller.currentModeController.getExtension(IconController.class)
 
-@Field DocumentListener searchTextBoxListener
 
-@Field Timer liveSearchTimer = new Timer(200, null)
+@groovy.transform.Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
+@groovy.transform.Field Set<NodeModel> cachedHighlightedNodesTags = new HashSet<>()
+
+@groovy.transform.Field DocumentListener searchTextBoxListener
+
+@groovy.transform.Field Timer liveSearchTimer = new Timer(200, null)
 liveSearchTimer.setRepeats(false)
 
-@Field Timer hideInspectorTimer = new Timer(500, null)
+@groovy.transform.Field Timer hideInspectorTimer = new Timer(500, null)
 
 hideInspectorTimer.setRepeats(false)
 hideInspectorTimer.addActionListener(e -> {
     hideInspectorPanelIfNeeded()
 })
 
-@Field MouseListener sharedMouseListener
+@groovy.transform.Field MouseListener sharedMouseListener
 
 sharedMouseListener = new MouseAdapter() {
     @Override
@@ -346,8 +362,8 @@ sharedMouseListener = new MouseAdapter() {
     }
 }
 
-@Field Timer hoverTimer = new Timer(selectionDelay, null)
-@Field Point lastMouseLocation = null
+@groovy.transform.Field Timer hoverTimer = new Timer(selectionDelay, null)
+@groovy.transform.Field Point lastMouseLocation = null
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
@@ -577,17 +593,17 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 //        mapView = Controller.currentController.mapViewManager.mapView
 //
 //
-//        NodeView root = mapView.getRoot();
-//        final JComponent rootContent = root.getMainView();
-//        final Point contentPt = new Point();
-//        UITools.convertPointToAncestor(rootContent, contentPt, mapView);
-//        final float zoom = mapView.getZoom();
-////final Point eventPoint = e.getPoint();
+//        NodeView root = mapView.getRoot()
+//        final JComponent rootContent = root.getMainView()
+//        final Point contentPt = new Point()
+//        UITools.convertPointToAncestor(rootContent, contentPt, mapView)
+//        final float zoom = mapView.getZoom()
+////final Point eventPoint = e.getPoint()
 //        eventPoint = MouseInfo.getPointerInfo().getLocation()
 //        SwingUtilities.convertPointFromScreen(eventPoint, mapView)
-////        int x =(int) ((eventPoint.x - contentPt.x)/zoom);
-//        int x =(int) ((eventPoint.x - contentPt.x));
-//        final int y =(int) ((eventPoint.y - contentPt.y)/zoom);
+////        int x =(int) ((eventPoint.x - contentPt.x)/zoom)
+//        int x =(int) ((eventPoint.x - contentPt.x))
+//        final int y =(int) ((eventPoint.y - contentPt.y)/zoom)
 //
 //
 //
@@ -660,7 +676,7 @@ IMapChangeListener myMapChangeListener = new IMapChangeListener() {
 Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
 
 
-NodeChangeListener myNodeChangeListener= {NodeChanged event->
+NodeChangeListener myNodeChangeListenerZZ= {NodeChanged event->
     if(event.changedElement == NodeChanged.ChangedElement.TAGS) {
         loadTagsIntoModel(listModelForAllTags, currentlySelectedNode)
         tagsNeedUpdate = true
@@ -670,7 +686,7 @@ NodeChangeListener myNodeChangeListener= {NodeChanged event->
     }
 } as NodeChangeListener
 
-mindMap.addListener(myNodeChangeListener)
+mindMap.addListener(myNodeChangeListenerZZ)
 
 
 viewportSizeChangeListener = new ComponentAdapter() {
@@ -857,7 +873,6 @@ return
 
 // ------------------ methods definitions ------------------------
 
-
 private Rectangle getBreadcrumbReservedArea() {
     if (!breadcrumbPanel.isVisible())
         return MapViewScrollPane.EMPTY_RECTANGLE
@@ -877,7 +892,7 @@ private Rectangle getInspectorReservedArea() {
     (visibleInspectors + inPlaceInspectors).each { inspector ->
         if (inspector != null && inspector.isVisible()) {
             Rectangle inspectorBounds = inspector.getBounds()
-            
+
             if (combinedBounds == null) {
                 combinedBounds = new Rectangle(0, inspectorBounds.@y, inspectorBounds.@x + inspectorBounds.@width, inspectorBounds.@height)
             } else {
@@ -895,11 +910,11 @@ private Rectangle getInspectorReservedArea() {
 
 def createPanels() {
     parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
-    
+
     parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
     parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
     parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
-    
+
     Dimension parentSize = parentPanel.getSize()
 
 
@@ -1149,6 +1164,18 @@ def createPanels() {
 
     searchEditor = (JTextField) searchField.getEditor().getEditorComponent()
 
+    searchEditor.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch")
+    searchEditor.getActionMap().put("clearSearch", new AbstractAction() {
+        @Override
+        void actionPerformed(ActionEvent e) {
+            searchField.setSelectedItem("")
+            quickSearchResults.clear()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+        }
+    })
+
+
     searchEditor.getDocument().addDocumentListener(new DocumentListener() {
         @Override
         public void insertUpdate(DocumentEvent e) {
@@ -1171,8 +1198,6 @@ def createPanels() {
         }
     })
 
-
-
     liveSearchTimer.addActionListener(new ActionListener() {
         @Override
         void actionPerformed(ActionEvent e) {
@@ -1183,18 +1208,46 @@ def createPanels() {
                 refreshList(searchText)
             }
 
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-//            updateAllGUIs()
-
+            Controller.currentController.getMapViewManager().getMapViewComponent().revalidate()
+            Controller.currentController.getMapViewManager().getMapViewComponent().repaint()
         }
 
         private void refreshList(String searchText) {
             quickSearchResults.clear()
             refreshHighlighterCache()
             if (!searchText.isEmpty()) {
-                NodeModel rootNode = Controller.getCurrentController().getSelection().selectionRoot
-                searchNodesRecursively(rootNode, searchText, quickSearchResults)
+                final NodeModel rootNode = Controller.currentController.getSelection().selectionRoot
+
+                SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+                    int resultCount = 0
+
+                    @Override
+                    protected Void doInBackground() throws Exception {
+                        searchNodesRecursively(rootNode, searchText)
+                        return null
+                    }
+
+                    private void searchNodesRecursively(NodeModel node, String searchText2) {
+                        if (resultCount >= 500) return
+
+                        if (node.text && node.text.toLowerCase().contains(searchText2.toLowerCase())) {
+                            if (resultCount < 500) {
+                                resultCount++
+                                SwingUtilities.invokeLater({ ->
+                                    quickSearchResults.addElement(node)
+                                })
+                            }
+                        }
+
+                        if (resultCount >= 500) return
+
+                        for (child in node.children) {
+                            if (resultCount >= 500) break
+                            searchNodesRecursively(child, searchText2)
+                        }
+                    }
+                }
+                worker.execute()
 
                 if (!savedSearchCriteria.contains(searchText)) {
                     savedSearchCriteria.add(0, searchText)
@@ -1203,12 +1256,16 @@ def createPanels() {
                     savedSearchCriteria.add(0, searchText)
                 }
 
+                while (savedSearchCriteria.size() > 200) {
+                    savedSearchCriteria.remove(savedSearchCriteria.size() - 1)
+                }
+
                 saveSettings()
 
                 int caretPosition = searchEditor.getCaretPosition()
 
                 searchField.removeAllItems()
-                for (String term : savedSearchCriteria) {
+                savedSearchCriteria.each { term ->
                     searchField.addItem(term)
                 }
 
@@ -1220,6 +1277,8 @@ def createPanels() {
             }
         }
     })
+
+
 
     JButton clearButton = new JButton("X")
     clearButton.addActionListener(new ActionListener() {
@@ -1343,7 +1402,7 @@ def createPanels() {
 //    breadcrumbPanel.setBackground(new Color(220, 220, 220))
     breadcrumbPanel.setOpaque(false)
 
-    breadcrumbPanel.setBounds(  0, 0, parentPanel.width, 40)
+    breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
 
 
     if (rtlOrientation) {
@@ -2172,9 +2231,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
             label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
         }
 
-
         String labelText = prefix + nodeNotProxy.text
-
 
         if (quickSearchResults.contains(nodeNotProxy)) {
             textWithHighlight = highlightSearchTerms(labelText, searchedTerms)
@@ -2187,11 +2244,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
         label.revalidate()
         label.repaint()
 
-
-
-
         return
-
     }
     else if (component instanceof JTextPane) {
         JTextPane textPane = (JTextPane) component
@@ -2210,7 +2263,6 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         textPane.setText(htmlContent)
 
-
         textPane.setEditable(false)
         SwingUtilities.invokeLater {
             JScrollPane scrollPane = (JScrollPane) sourcePanel.getClientProperty("textScrollPane")
@@ -2219,11 +2271,8 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         }
     }
-
     component.setOpaque(true)
-
 }
-
 
 String highlightSearchTerms(String text, String searchTerms) {
     String highlightedText = text
@@ -2234,7 +2283,6 @@ String highlightSearchTerms(String text, String searchTerms) {
         highlightedText = highlightedText.replaceAll("(?i)(${Pattern.quote(term)})", "<span style='background-color:#00ff00;'>${'$'}1</span>")
 
     }
-
     return "<html>" + highlightedText + "</html>"
 }
 
@@ -2508,7 +2556,23 @@ void configureDragAndDrop(JList<NodeModel> list) {
 
     new DropTarget(list, DnDConstants.ACTION_COPY_OR_MOVE, new DropTargetAdapter() {
         @Override
+        public void dragOver(DropTargetDragEvent dtde) {
+            Point dropLocation = dtde.getLocation()
+            int index = list.locationToIndex(dropLocation)
+            list.putClientProperty("dropTargetIndex", index)
+            list.repaint()
+        }
+
+        @Override
+        public void dragExit(DropTargetEvent dte) {
+            list.putClientProperty("dropTargetIndex", -1)
+            list.repaint()
+        }
+
+        @Override
         public void drop(DropTargetDropEvent dtde) {
+            list.putClientProperty("dropTargetIndex", -1)
+            list.repaint()
             try {
                 Point dropLocation = dtde.getLocation()
                 int index = list.locationToIndex(dropLocation)
@@ -2591,27 +2655,19 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
                 NodeModel currentNode = (NodeModel) value
                 configureLabelForNode(label, currentNode, sourcePanel)
 
-                if (sourcePanel == breadcrumbPanel && index > 0) {
-                    String oldText = label.getText()
-                    label.setText(" > " + oldText)
-
-
-                    String text = value.toString()
+                if (sourcePanel == breadcrumbPanel) {
+                    String currentText = label.getText()
                     FontMetrics fm = label.getFontMetrics(label.getFont())
 
-                    // Calcular a largura disponível para o texto
-                    int availableWidth = list.fixedCellWidth - label.insets.left - label.insets.right
-
-                    // Medir a largura do texto
-                    int textWidth = fm.stringWidth(text)
+                    int availableWidth = list.fixedCellWidth - label.getInsets().left - label.getInsets().right
+                    int textWidth = fm.stringWidth(currentText)
 
                     if (textWidth > availableWidth) {
-                        String truncatedText = truncateText(label, text, fm, availableWidth)
-                        label.text = truncatedText
+                        String truncatedText = truncateText(label, currentText, fm, availableWidth)
+                        label.setText(truncatedText)
                     } else {
-                        label.text = text
+                        label.setText(currentText)
                     }
-
                 }
             }
 
@@ -2619,12 +2675,15 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
                 label.setBackground(list.getSelectionBackground())
                 label.setForeground(list.getSelectionForeground())
             }
+            Object dropIndexObj = list.getClientProperty("dropTargetIndex")
+            if (dropIndexObj instanceof Integer && ((Integer) dropIndexObj) == index) {
+                label.setBackground(Color.YELLOW)
+                label.setOpaque(true)
+            }
             return label
         }
     })
 }
-
-
 
 void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeModel> listModel, JPanel sourcePanel) {
     list.addMouseMotionListener(new MouseAdapter() {
@@ -2950,41 +3009,6 @@ private void loadSettings() {
     }
 }
 
-
-
-
-def deleteCurrentListenersFromPreviousExecutions() {
-    def listenersToRemove = []
-
-    Controller.currentController.modeController.mapController.nodeSelectionListeners.each { listener ->
-        try {
-            if (listener.uniqueIdForScript == 999) {
-                listenersToRemove << listener
-            }
-        } catch (Exception ex) {
-        }
-    }
-
-    listenersToRemove.each { listenerToRemove ->
-        Controller.currentController.modeController.mapController.removeNodeSelectionListener(listenerToRemove)
-    }
-
-    def listenersToRemove2 = []
-
-    Controller.currentController.modeController.mapController.mapChangeListeners.each { listener ->
-        try {
-            if (listener.uniqueIdForScript == 999) {
-                listenersToRemove2 << listener
-            }
-        } catch (Exception ex) {
-        }
-    }
-
-    listenersToRemove2.each { listenerToRemove ->
-        Controller.currentController.modeController.mapController.removeMapChangeListener(listenerToRemove)
-    }
-}
-
 def int calculateRetractedWidthForMasterPanel() {
     width = mapViewWindowForSizeReferences.width / retractedWidthFactorForMasterPanel
     return width
@@ -3010,23 +3034,6 @@ def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
     inspectorPanel.setLocation(x, y)
 }
 
-def searchNodesRecursively(NodeModel node, String searchText, DefaultListModel<NodeModel> results) {
-    String[] terms = searchText.toLowerCase().split("\\s+")
-
-    def termsMatchedInNode = terms.findAll { term ->
-        node.text?.toLowerCase().contains(term)
-    }
-
-    def remainingTerms = terms - termsMatchedInNode
-
-    if (!termsMatchedInNode.isEmpty() && remainingTerms.every { term -> containsTermInAncestors(node, term) }) {
-        results.addElement(node)
-    }
-
-    node.children.each { child ->
-        searchNodesRecursively(child, searchText, results)
-    }
-}
 
 def containsTermInAncestors(NodeModel node, String term) {
     node = node.parent
@@ -3367,4 +3374,71 @@ def updateSpecifiedGUIs(List<NodeModel> nodes, JPanel jListPanel, JPanel panelPa
 
     jListPanel.revalidate()
     jListPanel.repaint()
+}
+
+def cleanPreviousScriptExecution() {
+    listenersToRemove = []
+    Controller.currentController.modeController.mapController.nodeSelectionListeners.each { listener ->
+        try {
+            if (listener.uniqueIdForScript == uniqueIdForScript) {
+                listenersToRemove << listener
+            }
+        } catch (Exception ex) {
+        }
+    }
+    listenersToRemove.each { listenerToRemove ->
+        Controller.currentController.modeController.mapController.removeNodeSelectionListener(listenerToRemove)
+        println("removed previous nodeSelection listener")
+    }
+
+    listenersToRemove2 = []
+
+    Controller.currentController.modeController.mapController.mapChangeListeners.each { listener ->
+        try {
+            if (listener.uniqueIdForScript == uniqueIdForScript) {
+                listenersToRemove2 << listener
+            }
+        } catch (Exception ex) {
+        }
+    }
+
+    listenersToRemove2.each { listenerToRemove ->
+        Controller.currentController.modeController.mapController.removeMapChangeListener(listenerToRemove)
+        println("removed previous mapChange listener")
+    }
+
+    listenersToRemove3 = []
+
+    Field field = MapViewController.class.getDeclaredField("mapViewChangeListeners")
+    field.setAccessible(true)
+
+    field.get(Controller.currentController.mapViewManager).viewListeners.each { listener ->
+        try {
+            if (listener.uniqueIdForScript == uniqueIdForScript) {
+                listenersToRemove3 << listener
+            }
+        } catch (Exception ex) {
+        }
+    }
+
+    listenersToRemove3.each { listenerToRemove ->
+        Controller.currentController.mapViewManager.removeMapViewChangeListener(listenerToRemove)
+        println("removed previous mapview listener")
+    }
+
+    listenersToRemove4 = []
+
+    mindMap.listeners.each { listener ->
+        try {
+            if (listener.uniqueIdForScript == uniqueIdForScript) {
+                listenersToRemove4 << listener
+            }
+        } catch (Exception ex) {
+        }
+    }
+
+    listenersToRemove4.each { listenerToRemove ->
+        mindMap.removeListener(listenerToRemove)
+        println("removed previous nodeChange listener")
+    }
 }
