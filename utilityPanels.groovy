@@ -1,6 +1,8 @@
 
 /***************************************************************************
 
+version 1.38: Hotkey toggle panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
+
 version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
  Fixed label prefixes not showing on breadcrumbs panel.
  Quicksearch: now, uses a SwingWorker, to avoid locking the interface while searching.
@@ -250,6 +252,8 @@ showAncestorsOnFirstInspector = false
 
 @groovy.transform.Field rtlOrientation = false
 
+@groovy.transform.Field KeyStroke keyStrokeToShowPanels = KeyStroke.getKeyStroke(KeyEvent.VK_U, KeyEvent.CTRL_DOWN_MASK)
+
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
@@ -308,6 +312,8 @@ savedSearchCriteria.add("")
 
 @groovy.transform.Field JPanel currentSourcePanel
 
+@groovy.transform.Field JComboBox<String> searchField
+
 @groovy.transform.Field JTextField searchEditor
 
 @groovy.transform.Field boolean mouseOverList = false
@@ -316,6 +322,7 @@ savedSearchCriteria.add("")
 @groovy.transform.Field boolean isMasterPanelExpanded = false
 @groovy.transform.Field boolean isMouseOverSearchBox = false
 @groovy.transform.Field boolean tagsNeedUpdate = true
+@groovy.transform.Field boolean showPanels = true
 
 @groovy.transform.Field int lastMouseModifiers = 0
 
@@ -445,8 +452,6 @@ hoverTimer.addActionListener(e -> {
                             accessorTagsInNodeModel.addElement(it)
                         }
 
-
-
                         subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
 
                         visibleInspectors.add(subInspectorPanel)
@@ -457,6 +462,7 @@ hoverTimer.addActionListener(e -> {
                                 visibleInspectors.remove(it)
                             }
                         }
+
                         parentPanel.revalidate()
                         parentPanel.repaint()
                     }
@@ -522,6 +528,7 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
 
     @Override
     public void onSelect(NodeModel node) {
+
         if (node == currentlySelectedNode) {
             return
         }
@@ -647,11 +654,16 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         breadcrumbPanel.setVisible(false)
         visibleInspectors.each {it.setVisible(false)}
         SwingUtilities.invokeLater {
-        createPanels()
-        masterPanel.revalidate()
-        masterPanel.repaint()
-        breadcrumbPanel.revalidate()
-        breadcrumbPanel.repaint()
+            createPanels()
+            masterPanel.revalidate()
+            masterPanel.repaint()
+            breadcrumbPanel.revalidate()
+            breadcrumbPanel.repaint()
+            if(!showPanels) {
+                masterPanel.setVisible(false)
+                breadcrumbPanel.setVisible(false)
+                visibleInspectors.each {it.setVisible(false)}
+            }
         }
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
@@ -704,6 +716,11 @@ viewportSizeChangeListener = new ComponentAdapter() {
         masterPanel.repaint()
         breadcrumbPanel.revalidate()
         breadcrumbPanel.repaint()
+        if(!showPanels) {
+            masterPanel.setVisible(false)
+            breadcrumbPanel.setVisible(false)
+            visibleInspectors.each {it.setVisible(false)}
+        }
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
@@ -910,6 +927,20 @@ private Rectangle getInspectorReservedArea() {
 
 def createPanels() {
     parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
+
+    parentPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStrokeToShowPanels, "togglePanels")
+    parentPanel.getActionMap().put("togglePanels", new AbstractAction() {
+        @Override
+        void actionPerformed(ActionEvent e) {
+//            showPanels = !showPanels
+//            masterPanel.setVisible(showPanels)
+//            breadcrumbPanel.setVisible(showPanels)
+//            visibleInspectors.each { it.setVisible(showPanels) }
+//            parentPanel.revalidate()
+//            parentPanel.repaint()
+            togglePanelsVisibility()
+        }
+    })
 
     parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
     parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
@@ -1158,7 +1189,9 @@ def createPanels() {
 //    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
 
 
-    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
+//    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
+    searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
+
     searchField.setEditable(true)
     searchField.setSelectedItem("")
 
@@ -1168,10 +1201,11 @@ def createPanels() {
     searchEditor.getActionMap().put("clearSearch", new AbstractAction() {
         @Override
         void actionPerformed(ActionEvent e) {
-            searchField.setSelectedItem("")
-            quickSearchResults.clear()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//            searchField.setSelectedItem("")
+//            quickSearchResults.clear()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+            clearQuickSearch()
         }
     })
 
@@ -1511,7 +1545,6 @@ def updateAllGUIs() {
 
 
 JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
-
     if (showOnlyBreadcrumbs) { return }
 
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
@@ -3050,13 +3083,21 @@ def containsTermInAncestors(NodeModel node, String term) {
 
 
 def addQuickSearchShortcut(JComboBox searchField) {
-    InputMap inputMap = searchField.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-    ActionMap actionMap = searchField.getActionMap()
+    InputMap inputMap = parentPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+    ActionMap actionMap = parentPanel.getActionMap()
 
     inputMap.put(keyStrokeToQuickSearch, "focusQuickSearch")
     actionMap.put("focusQuickSearch", new AbstractAction() {
         @Override
         void actionPerformed(ActionEvent e) {
+            if (!showPanels) {
+                showPanels = true
+                masterPanel.setVisible(true)
+                breadcrumbPanel.setVisible(true)
+                visibleInspectors.each { it.setVisible(true) }
+                parentPanel.revalidate()
+                parentPanel.repaint()
+            }
             searchField.requestFocusInWindow()
         }
     })
@@ -3441,4 +3482,29 @@ def cleanPreviousScriptExecution() {
         mindMap.removeListener(listenerToRemove)
         println("removed previous nodeChange listener")
     }
+}
+
+def clearQuickSearch() {
+    searchField.setSelectedItem("")
+    quickSearchResults.clear()
+    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+}
+
+def togglePanelsVisibility() {
+    boolean visible = masterPanel.isVisible()
+    if (visible) {
+        masterPanel.setVisible(false)
+        breadcrumbPanel.setVisible(false)
+        visibleInspectors.each { it.setVisible(false) }
+        clearQuickSearch()
+        showPanels = false
+    } else {
+        showPanels = true
+        masterPanel.setVisible(true)
+        breadcrumbPanel.setVisible(true)
+        visibleInspectors.each { it.setVisible(true) }
+    }
+    parentPanel.revalidate()
+    parentPanel.repaint()
 }
