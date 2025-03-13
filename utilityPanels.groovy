@@ -1,7 +1,7 @@
 
 /***************************************************************************
 
-version 1.38: Hotkey toggle panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
+version 1.38: Hotkey toggles panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
 
 version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
  Fixed label prefixes not showing on breadcrumbs panel.
