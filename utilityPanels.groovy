@@ -1,7 +1,16 @@
 
 /***************************************************************************
 
-version 1.38: Hotkey toggles panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
+version 1.39: option to also hide the inspectors, even if "Update Selection" is activated. This option is active, by default. https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2724134882
+ Bugfix: DnD not working when dragging from the map.
+ Quicksearch was accidentally simplified on a previous version. Now, it has transversal search, again.
+ Redesign of the buttons at the top of the inspector panel. https://github.com/euu2021/Freeplane_UtilityPanels/issues/31
+ Bugfix: inspectors disappeared on map view change, even if Freeze was activated.
+ Freeze inspectors: now, inspectors to the right of the frozen inspector are hidden. https://github.com/euu2021/Freeplane_UtilityPanels/issues/47#issue-2905561263
+ Settings UI: on list item right-click contextual menu there is now a Settings option. The settings are saved in the json.
+ Solved the performance degradation problem. The problem was that, on each mapview change, the createPanels() was called, but previous panels weren't properly cleared. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41
+
+version 1.38: Hotkey toggle panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
 
 version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
  Fixed label prefixes not showing on breadcrumbs panel.
@@ -147,7 +156,7 @@ version: 1.5: performance improvement when Update Selection is enabled. Inspecto
 
 @Grab(group='org.swinglabs.swingx', module='swingx-core', version='1.6.5-1')
 
-
+import groovy.lang.Lazy
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.transform.Field
@@ -189,6 +198,8 @@ import java.awt.dnd.*
 import java.awt.event.*
 import java.util.List
 import java.util.regex.Pattern
+import javax.swing.SwingUtilities
+import java.awt.Window
 
 import java.awt.MouseInfo
 import java.awt.Point
@@ -209,6 +220,7 @@ import org.freeplane.features.map.mindmapmode.MMapController
 import org.freeplane.features.mode.Controller
 import org.freeplane.features.mode.ModeController
 import org.freeplane.features.mode.mindmapmode.MModeController
+import org.freeplane.features.map.mindmapmode.InsertionRelation
 import org.freeplane.features.styles.MapStyleModel
 import org.freeplane.features.styles.MapViewLayout
 import org.freeplane.view.swing.map.MapView
@@ -222,19 +234,20 @@ import java.lang.reflect.Field
 import org.freeplane.view.swing.map.MapViewController
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+// remember to include new settings at the methods showSettingsDialog(), saveSettings() and loadSettings()
 
 panelTextFontName = "Dialog"
 panelTextFontSize = 15
-minFontSize = 8 //minimum size, to be used on dynamic sizing of fonts
+minFontSize = 8
 fontForListItens = Font.PLAIN
 
 nodeTextPanelFixedHeight = 100
 
-retractedWidthFactorForMasterPanel = 20 //the higher the factor, the smaller the panels width
-expandedWidthFactorForMasterPanel = 4 //the higher the factor, the wider the panels width
-widthFactorForInspector = 15 //the higher the factor, the smaller the inspector panel width
+retractedWidthFactorForMasterPanel = 20
+expandedWidthFactorForMasterPanel = 4
+widthFactorForInspector = 15
 
-@groovy.transform.Field selectionDelay = 150 //miliseconds
+@groovy.transform.Field selectionDelay = 150
 
 reverseAncestorsList = false
 
@@ -253,6 +266,8 @@ showAncestorsOnFirstInspector = false
 @groovy.transform.Field rtlOrientation = false
 
 @groovy.transform.Field KeyStroke keyStrokeToShowPanels = KeyStroke.getKeyStroke(KeyEvent.VK_U, KeyEvent.CTRL_DOWN_MASK)
+
+@groovy.transform.Field hideInspectorsEvenIfUpdateSelection = true
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
@@ -369,12 +384,38 @@ sharedMouseListener = new MouseAdapter() {
     }
 }
 
+//@groovy.transform.Field fileToGet = getSettingsFile()
+//@groovy.transform.Field settingsToGet = new JsonSlurper().parseText(fileToGet.text)
+//def settingsToGet = new JsonSlurper().parseText(fileToGet.text)
+
+//
+//File fileToGet = getSettingsFile()
+//String content = fileToGet.text
+//def settingsToGet = new JsonSlurper().parseText(content)
+//
+//if (fileToGet.exists()) {
+//    try {
+//        if (settingsToGet.userSettings && settingsToGet.userSettings.selectionDelay != null) {
+//            aaa = settingsToGet.userSettings.selectionDelay as int
+//        }
+//    } catch(Exception e) {
+//        e.printStackTrace()
+//    }
+//}
+
+//@groovy.transform.Field aaa = getDefaultSelectionDelay()
+//@groovy.transform.Field aaa = 150
+//@groovy.transform.Field Timer hoverTimer = new Timer(150, null)
+//@groovy.transform.Field Timer hoverTimer = new Timer(aaa, null)
+
+//@groovy.transform.Field selectionDelay = 150 //miliseconds
 @groovy.transform.Field Timer hoverTimer = new Timer(selectionDelay, null)
+//@groovy.transform.Field Timer hoverTimer = new Timer(getDefaultSelectionDelay(), null)
 @groovy.transform.Field Point lastMouseLocation = null
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
-    if (showOnlyBreadcrumbs) { return }
+    if (shouldShowInspectors()) { return }
     if (shouldFreeze()) return
     
 
@@ -650,21 +691,27 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
 //        breadcrumbPanel.parentPanel.remove(breadcrumbPanel)
 
         saveSettings()
-        masterPanel.setVisible(false)
-        breadcrumbPanel.setVisible(false)
-        visibleInspectors.each {it.setVisible(false)}
-        SwingUtilities.invokeLater {
-            createPanels()
-            masterPanel.revalidate()
-            masterPanel.repaint()
-            breadcrumbPanel.revalidate()
-            breadcrumbPanel.repaint()
-            if(!showPanels) {
-                masterPanel.setVisible(false)
-                breadcrumbPanel.setVisible(false)
-                visibleInspectors.each {it.setVisible(false)}
-            }
-        }
+
+//        masterPanel.setVisible(false)
+//        breadcrumbPanel.setVisible(false)
+//        visibleInspectors.each {it.setVisible(false)}
+//        SwingUtilities.invokeLater {
+//            createPanels()
+//            visibleInspectors.each { it.setVisible(true) }
+//            masterPanel.revalidate()
+//            masterPanel.repaint()
+//            breadcrumbPanel.revalidate()
+//            breadcrumbPanel.repaint()
+//            parentPanel.revalidate()
+//            parentPanel.repaint()
+//            if(!showPanels) {
+//                masterPanel.setVisible(false)
+//                breadcrumbPanel.setVisible(false)
+//                visibleInspectors.each {it.setVisible(false)}
+//            }
+//        }
+
+        reloadPanels()
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
@@ -707,20 +754,28 @@ viewportSizeChangeListener = new ComponentAdapter() {
 //        panelsInMasterPanels.each {
 //            parentPanel.remove(it)
 //        }
+
         saveSettings()
-        masterPanel.setVisible(false)
-        breadcrumbPanel.setVisible(false)
-        visibleInspectors.each {it.setVisible(false)}
-        createPanels()
-        masterPanel.revalidate()
-        masterPanel.repaint()
-        breadcrumbPanel.revalidate()
-        breadcrumbPanel.repaint()
-        if(!showPanels) {
-            masterPanel.setVisible(false)
-            breadcrumbPanel.setVisible(false)
-            visibleInspectors.each {it.setVisible(false)}
-        }
+
+//        masterPanel.setVisible(false)
+//        breadcrumbPanel.setVisible(false)
+//        visibleInspectors.each {it.setVisible(false)}
+//        createPanels()
+//        visibleInspectors.each { it.setVisible(true) }
+//        masterPanel.revalidate()
+//        masterPanel.repaint()
+//        breadcrumbPanel.revalidate()
+//        breadcrumbPanel.repaint()
+//        parentPanel.revalidate()
+//        parentPanel.repaint()
+//        if(!showPanels) {
+//            masterPanel.setVisible(false)
+//            breadcrumbPanel.setVisible(false)
+//            visibleInspectors.each {it.setVisible(false)}
+//        }
+
+        reloadPanels()
+
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
@@ -897,7 +952,7 @@ private Rectangle getBreadcrumbReservedArea() {
 }
 
 private Rectangle getMasterReservedArea() {
-    if (!masterPanel.isVisible())
+    if (masterPanel == null || !masterPanel.isVisible())
         return MapViewScrollPane.EMPTY_RECTANGLE
     return masterPanel.getBounds()
 }
@@ -932,12 +987,6 @@ def createPanels() {
     parentPanel.getActionMap().put("togglePanels", new AbstractAction() {
         @Override
         void actionPerformed(ActionEvent e) {
-//            showPanels = !showPanels
-//            masterPanel.setVisible(showPanels)
-//            breadcrumbPanel.setVisible(showPanels)
-//            visibleInspectors.each { it.setVisible(showPanels) }
-//            parentPanel.revalidate()
-//            parentPanel.repaint()
             togglePanelsVisibility()
         }
     })
@@ -1261,25 +1310,67 @@ def createPanels() {
                         return null
                     }
 
-                    private void searchNodesRecursively(NodeModel node, String searchText2) {
-                        if (resultCount >= 500) return
+//                    private void searchNodesRecursively(NodeModel node, String searchText2) {
+//                        if (resultCount >= 500) return
+//
+//                        if (node.text && node.text.toLowerCase().contains(searchText2.toLowerCase())) {
+//                            if (resultCount < 500) {
+//                                resultCount++
+//                                SwingUtilities.invokeLater({ ->
+//                                    quickSearchResults.addElement(node)
+//                                })
+//                            }
+//                        }
+//
+//                        if (resultCount >= 500) return
+//
+//                        for (child in node.children) {
+//                            if (resultCount >= 500) break
+//                            searchNodesRecursively(child, searchText2)
+//                        }
+//                    }
 
-                        if (node.text && node.text.toLowerCase().contains(searchText2.toLowerCase())) {
-                            if (resultCount < 500) {
-                                resultCount++
-                                SwingUtilities.invokeLater({ ->
-                                    quickSearchResults.addElement(node)
-                                })
+                    private void searchNodesRecursively(NodeModel node, String searchText2) {
+                        if (resultCount >= 500) return;
+
+                        String nodeText = (node.text ?: "").toLowerCase();
+                        String[] terms = searchText2.toLowerCase().split("\\s+");
+
+                        boolean nodeMatches = true;
+                        for (String term : terms) {
+                            boolean termFound = nodeText.contains(term);
+                            if (!termFound) {
+                                NodeModel ancestor = node.parent;
+                                while (ancestor != null && !termFound) {
+                                    String ancestorText = (ancestor.text ?: "").toLowerCase();
+                                    if (ancestorText.contains(term)) {
+                                        termFound = true;
+                                    }
+                                    ancestor = ancestor.parent;
+                                }
+                            }
+                            if (!termFound) {
+                                nodeMatches = false;
+                                break;
                             }
                         }
 
-                        if (resultCount >= 500) return
+                        if (nodeMatches) {
+                            if (resultCount < 500) {
+                                resultCount++;
+                                SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node) });
+                            }
+                        }
+
+                        if (resultCount >= 500) return;
 
                         for (child in node.children) {
-                            if (resultCount >= 500) break
-                            searchNodesRecursively(child, searchText2)
+                            if (resultCount >= 500) break;
+                            searchNodesRecursively(child, searchText2);
                         }
                     }
+
+
                 }
                 worker.execute()
 
@@ -1545,7 +1636,7 @@ def updateAllGUIs() {
 
 
 JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
-    if (showOnlyBreadcrumbs) { return }
+    if (shouldShowInspectors()) { return }
 
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
@@ -1559,6 +1650,10 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
     inspectorPanel.putClientProperty("referenceNode", nodeNotProxy)
 
     inspectorPanel.setLayout(new BorderLayout())
+//    if (currentlySelectedNode == nodeNotProxy) {
+//        inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 5))
+//    }
+//    else {inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))}
     inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
     inspectorPanel.setBackground(Color.LIGHT_GRAY)
 
@@ -1596,7 +1691,6 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
         configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
     }
 
-
     textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
     textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
 
@@ -1618,68 +1712,55 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
     /////////////////////////// Buttons panel //////////////////
 
-//    JPanel buttonPanel = new JPanel()
-//    buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS))
     JPanel buttonPanel = new JPanel(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 5, 5))
     buttonPanel.setBackground(Color.LIGHT_GRAY)
 
-    JButton button1 = new JButton("Freeze")
-    button1.addActionListener(e -> {
-        freezeInspectors = !freezeInspectors
+    JButton hamburgerButton = new JButton("☰")
+    hamburgerButton.setOpaque(true)
+    hamburgerButton.setBorderPainted(false)
+    hamburgerButton.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
+    JPopupMenu menu = new JPopupMenu()
+
+    JCheckBoxMenuItem freezeItem = new JCheckBoxMenuItem("Freeze", freezeInspectors)
+    freezeItem.addActionListener(e -> {
+        freezeInspectors = freezeItem.getState()
         if (freezeInspectors) {
-            button1.setBackground(Color.CYAN)
-            button1.setForeground(Color.BLACK)
+            inspectorPanel.setBorder(BorderFactory.createLineBorder(new Color(0,255,255), 5))
+            int frozenIndex = visibleInspectors.indexOf(inspectorPanel)
+            for (int i = visibleInspectors.size() - 1; i > frozenIndex; i--) {
+                JPanel panelToRemove = visibleInspectors.get(i)
+                panelToRemove.setVisible(false)
+                visibleInspectors.remove(i)
+                }
         } else {
-            button1.setBackground(Color.WHITE)
-            button1.setForeground(Color.BLACK)
+            inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
         }
     })
-    button1.setOpaque(true)
-    button1.setBorderPainted(false)
-    button1.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
-    if (freezeInspectors) {
-        button1.setBackground(Color.CYAN)
-        button1.setForeground(Color.BLACK)
-    } else {
-        button1.setBackground(Color.WHITE)
-        button1.setForeground(Color.BLACK)
-    }
-
-    JButton button2 = new JButton("Update Selection")
-    button2.addActionListener(e -> {
-        inspectorUpdateSelection = !inspectorUpdateSelection
-
-        if (inspectorUpdateSelection) {
-            button2.setBackground(Color.GRAY)
-            button2.setForeground(Color.BLACK)
-        } else {
-            button2.setBackground(Color.WHITE)
-            button2.setForeground(Color.BLACK)
-        }
+    JCheckBoxMenuItem updateItem = new JCheckBoxMenuItem("Update Selection", inspectorUpdateSelection)
+    updateItem.addActionListener(e -> {
+        inspectorUpdateSelection = updateItem.getState()
     })
-    button2.setOpaque(true)
-    button2.setBorderPainted(false)
-    button2.setFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
 
-    if (inspectorUpdateSelection) {
-        button2.setBackground(Color.GRAY)
-        button2.setForeground(Color.BLACK)
-    } else {
-        button2.setBackground(Color.WHITE)
-        button2.setForeground(Color.BLACK)
+
+
+    menu.add(freezeItem)
+    if (visibleInspectors.size() == 0) {
+        menu.add(updateItem)
     }
 
+    hamburgerButton.addActionListener(e -> {
+        menu.show(hamburgerButton, 0, hamburgerButton.getHeight())
+    })
 
-    buttonPanel.add(button1)
-    if(visibleInspectors.size() == 0) {
-        buttonPanel.add(button2)
-    }
+    buttonPanel.add(hamburgerButton)
 
     buttonPanel.addMouseListener(sharedMouseListener)
-    button1.addMouseListener(sharedMouseListener)
-    button2.addMouseListener(sharedMouseListener)
+    hamburgerButton.addMouseListener(sharedMouseListener)
+    freezeItem.addMouseListener(sharedMouseListener)
+    updateItem.addMouseListener(sharedMouseListener)
+
 
     /////////////////////////////////////////////////////////
 
@@ -2359,7 +2440,7 @@ void configureListContextMenu(JList<NodeModel> list) {
     list.addMouseListener(new MouseAdapter() {
         @Override
         void mousePressed(MouseEvent e) {
-            if (showOnlyBreadcrumbs) { return }
+//            if (shouldShowInspectors()) { return }
             if (SwingUtilities.isRightMouseButton(e)) {
                 int index = list.locationToIndex(e.getPoint())
                 if (index >= 0) {
@@ -2373,21 +2454,18 @@ void configureListContextMenu(JList<NodeModel> list) {
                         menuItem.addActionListener({
                             pinnedItems.removeElement(selectedItem)
                             saveSettings()
-//                            updateAllGUIs()
                         })
                     } else {
                         menuItem = new JMenuItem("Pin")
                         menuItem.addActionListener({
                             pinnedItems.addElement(selectedItem)
                             saveSettings()
-//                            updateAllGUIs()
                         })
                     }
 
-                    JMenuItem menuItem2
-                    menuItem2 = new JMenuItem("Open in new View")
+                    JMenuItem menuItem2 = new JMenuItem("Open in new View")
                     menuItem2.addActionListener({
-                        menuUtils.executeMenuItems([ 'NewMapViewAction' ])
+                        menuUtils.executeMenuItems(['NewMapViewAction'])
                         SwingUtilities.invokeLater {
                             Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(selectedItem)
                         }
@@ -2396,12 +2474,22 @@ void configureListContextMenu(JList<NodeModel> list) {
                     menuItem.addMouseListener(sharedMouseListener)
                     popupMenu.add(menuItem)
                     popupMenu.add(menuItem2)
+
+                    popupMenu.addSeparator()
+                    JMenuItem settingsItem = new JMenuItem("Settings")
+                    settingsItem.addActionListener({ evt ->
+                        showSettingsDialog()
+                    })
+                    settingsItem.addMouseListener(sharedMouseListener)
+                    popupMenu.add(settingsItem)
+
                     popupMenu.show(e.getComponent(), e.getX(), e.getY())
                 }
             }
         }
     })
 }
+
 
 
 void configureDragAndDrop(JList<NodeModel> list) {
@@ -2638,7 +2726,7 @@ void configureDragAndDrop(JList<NodeModel> list) {
 
                         final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController()
 
-                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel)
+                        mapController.moveNodes(nodesToMove, targetNodeModel, InsertionRelation.AS_CHILD)
                     }
                     return
                 }
@@ -2651,7 +2739,7 @@ void configureDragAndDrop(JList<NodeModel> list) {
                     if (targetNodeModel != null) {
                         List<NodeModel> nodesToMove = Arrays.asList(sourceNodeModel)
                         final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController()
-                        mapController.moveNodesAsChildren(nodesToMove, targetNodeModel)
+                        mapController.moveNodes(nodesToMove, targetNodeModel, InsertionRelation.AS_CHILD)
                     }
 
                     dtde.dropComplete(true)
@@ -2722,7 +2810,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            if (showOnlyBreadcrumbs) {
+            if (shouldShowInspectors()) {
                 return
             }
 
@@ -2757,7 +2845,7 @@ void configureMouseExitListener(JList<NodeModel> list) {
     list.addMouseListener(new MouseAdapter() {
         @Override
         void mouseExited(MouseEvent e) {
-            if (showOnlyBreadcrumbs) { return }
+            if (shouldShowInspectors()) { return }
             mouseOverList = false
             hideInspectorTimer.restart()
         }
@@ -2956,8 +3044,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
 
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Lists configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
-
-private void saveSettings() {
+def saveSettings() {
     File file = getSettingsFile()
 
     List<String> pinnedItemsIds = pinnedItems.collect { it.id }
@@ -2965,19 +3052,39 @@ private void saveSettings() {
         history.getElementAt(index).id
     }
 
-
     String jsonString = new JsonBuilder([
             pinnedItems: pinnedItemsIds,
             recentSearches: savedSearchCriteria,
-            recentNodes: recentNodesIds
+            recentNodes: recentNodesIds,
+            userSettings: [
+                    panelTextFontName: panelTextFontName,
+                    panelTextFontSize: panelTextFontSize,
+                    minFontSize: minFontSize,
+                    fontForListItens: fontForListItens,
+                    nodeTextPanelFixedHeight: nodeTextPanelFixedHeight,
+                    retractedWidthFactorForMasterPanel: retractedWidthFactorForMasterPanel,
+                    expandedWidthFactorForMasterPanel: expandedWidthFactorForMasterPanel,
+                    widthFactorForInspector: widthFactorForInspector,
+//                    selectionDelay: selectionDelay,
+                    reverseAncestorsList: reverseAncestorsList,
+                    paddingBeforeHorizontalScrollBar: paddingBeforeHorizontalScrollBar,
+                    additionalInspectorDistanceToTheBottomOfTheScreen: additionalInspectorDistanceToTheBottomOfTheScreen,
+                    widthOfTheClearButtonOnQuickSearchPanel: widthOfTheClearButtonOnQuickSearchPanel,
+                    keyStrokeToQuickSearch: keyStrokeToQuickSearch.toString(),
+                    showOnlyBreadcrumbs: showOnlyBreadcrumbs,
+                    showAncestorsOnFirstInspector: showAncestorsOnFirstInspector,
+                    rtlOrientation: rtlOrientation,
+                    keyStrokeToShowPanels: keyStrokeToShowPanels.toString(),
+                    hideInspectorsEvenIfUpdateSelection: hideInspectorsEvenIfUpdateSelection
+            ]
     ]).toPrettyString()
 
     try {
         file.text = jsonString
     } catch (Exception e) {
+        e.printStackTrace()
     }
 }
-
 
 
 File getSettingsFile(){
@@ -3005,16 +3112,10 @@ private void loadSettings() {
         String content = file.text
         def settings = new JsonSlurper().parseText(content)
 
-//        pinnedItems = settings.pinnedItems.collect { id ->
-//            Controller.currentController.map.getNodeForID(id)
-//        }.findAll { it != null }
-
         pinnedItems.clear()
-
         def nodesToAdd2 = settings.pinnedItems.collect { id ->
             Controller.currentController.map.getNodeForID(id)
         }.findAll { it != null }
-
         nodesToAdd2.each { node ->
             pinnedItems.addElement(node)
         }
@@ -3024,23 +3125,42 @@ private void loadSettings() {
             savedSearchCriteria.addAll(settings.recentSearches)
         }
 
-
-
         history.clear()
-
         def nodesToAdd = settings.recentNodes.collect { id ->
             Controller.currentController.map.getNodeForID(id)
         }.findAll { it != null }
-
         nodesToAdd.each { node ->
             history.addElement(node)
         }
 
+        if (settings.userSettings) {
+            panelTextFontName = settings.userSettings.panelTextFontName ?: panelTextFontName
+            panelTextFontSize = settings.userSettings.panelTextFontSize ?: panelTextFontSize
+            minFontSize = settings.userSettings.minFontSize ?: minFontSize
+            fontForListItens = settings.userSettings.fontForListItens ?: fontForListItens
+            nodeTextPanelFixedHeight = settings.userSettings.nodeTextPanelFixedHeight ?: nodeTextPanelFixedHeight
+            retractedWidthFactorForMasterPanel = settings.userSettings.retractedWidthFactorForMasterPanel ?: retractedWidthFactorForMasterPanel
+            expandedWidthFactorForMasterPanel = settings.userSettings.expandedWidthFactorForMasterPanel ?: expandedWidthFactorForMasterPanel
+            widthFactorForInspector = settings.userSettings.widthFactorForInspector ?: widthFactorForInspector
+//            selectionDelay = settings.userSettings.selectionDelay ?: selectionDelay
+            reverseAncestorsList = settings.userSettings.reverseAncestorsList ?: reverseAncestorsList
+            paddingBeforeHorizontalScrollBar = settings.userSettings.paddingBeforeHorizontalScrollBar ?: paddingBeforeHorizontalScrollBar
+            additionalInspectorDistanceToTheBottomOfTheScreen = settings.userSettings.additionalInspectorDistanceToTheBottomOfTheScreen ?: additionalInspectorDistanceToTheBottomOfTheScreen
+            widthOfTheClearButtonOnQuickSearchPanel = settings.userSettings.widthOfTheClearButtonOnQuickSearchPanel ?: widthOfTheClearButtonOnQuickSearchPanel
+            keyStrokeToQuickSearch = KeyStroke.getKeyStroke(settings.userSettings.keyStrokeToQuickSearch as String)
+            showOnlyBreadcrumbs = settings.userSettings.showOnlyBreadcrumbs ?: showOnlyBreadcrumbs
+            showAncestorsOnFirstInspector = settings.userSettings.showAncestorsOnFirstInspector ?: showAncestorsOnFirstInspector
+            rtlOrientation = settings.userSettings.rtlOrientation ?: rtlOrientation
+            keyStrokeToShowPanels = KeyStroke.getKeyStroke(settings.userSettings.keyStrokeToShowPanels as String)
+            hideInspectorsEvenIfUpdateSelection = settings.userSettings.hideInspectorsEvenIfUpdateSelection ?: hideInspectorsEvenIfUpdateSelection
+        }
 
     } catch (Exception e) {
         e.printStackTrace()
     }
 }
+
+
 
 def int calculateRetractedWidthForMasterPanel() {
     width = mapViewWindowForSizeReferences.width / retractedWidthFactorForMasterPanel
@@ -3060,7 +3180,7 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 }
 
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
-    if (showOnlyBreadcrumbs) { return }
+    if (shouldShowInspectors()) { return }
     int x = sourcePanel.getLocation().x + sourcePanel.width
 
     int y = masterPanel.getLocation().y
@@ -3128,7 +3248,7 @@ def getAllTags(NodeModel nodeNotProxy) {
 }
 
 def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
-    if (showOnlyBreadcrumbs) { return }
+    if (shouldShowInspectors()) { return }
 
     visibleInspectors.each {
         it.setVisible(false)
@@ -3139,6 +3259,9 @@ def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
 
     JPanel subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
     visibleInspectors.add(subInspectorPanel2)
+//    if (visibleInspectors.size() == 2) {
+//        subInspectorPanel2.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
+//    }
 //    parentPanel.revalidate()
 //    parentPanel.repaint()
 }
@@ -3508,3 +3631,195 @@ def togglePanelsVisibility() {
     parentPanel.revalidate()
     parentPanel.repaint()
 }
+
+def shouldShowInspectors() {
+    return (showOnlyBreadcrumbs || (!showPanels && hideInspectorsEvenIfUpdateSelection))
+}
+
+def showSettingsDialog() {
+    Window owner = SwingUtilities.getWindowAncestor(Controller.currentController.getMapViewManager().getMapViewComponent())
+    JDialog settingsDialog = new JDialog(owner, "Settings", true)
+    settingsDialog.setLayout(new BorderLayout())
+
+    JPanel settingsPanel = new JPanel(new GridLayout(0, 2, 5, 5))
+
+    // Panel Text Font Name (String)
+    settingsPanel.add(new JLabel("Panel Text Font Name:"))
+    JTextField fontNameField = new JTextField(panelTextFontName)
+    fontNameField.setToolTipText("Enter the panel text font name (e.g., 'Dialog')")
+    settingsPanel.add(fontNameField)
+
+    // Panel Text Font Size (Integer)
+    settingsPanel.add(new JLabel("Panel Text Font Size:"))
+    JTextField fontSizeField = new JTextField(panelTextFontSize.toString())
+    settingsPanel.add(fontSizeField)
+
+    // Minimum Font Size (Integer)
+    settingsPanel.add(new JLabel("Minimum Font Size:"))
+    JTextField minFontField = new JTextField(minFontSize.toString())
+    minFontField.setToolTipText("Minimum size to be used on dynamic sizing of fonts.")
+    settingsPanel.add(minFontField)
+
+    // Font for List Items (Font Style) - combo box for PLAIN, BOLD, ITALIC, BOLD+ITALIC
+    settingsPanel.add(new JLabel("Font Style for List Items:"))
+    String[] fontStyles = ["PLAIN", "BOLD", "ITALIC", "BOLD+ITALIC"]
+    JComboBox<String> fontStyleCombo = new JComboBox<>(fontStyles)
+    fontStyleCombo.setSelectedIndex(fontForListItens)
+    settingsPanel.add(fontStyleCombo)
+
+    // Node Text Panel Fixed Height (Integer)
+    settingsPanel.add(new JLabel("Node Text Panel Fixed Height:"))
+    JTextField nodeTextPanelHeightField = new JTextField(nodeTextPanelFixedHeight.toString())
+    settingsPanel.add(nodeTextPanelHeightField)
+
+    // Retracted Width Factor for Master Panel (Integer)
+    settingsPanel.add(new JLabel("Retracted Width Factor for Master Panel (see tooltip):"))
+    JTextField retractedFactorField = new JTextField(retractedWidthFactorForMasterPanel.toString())
+    retractedFactorField.setToolTipText("The higher the factor, the smaller the panels width.")
+    settingsPanel.add(retractedFactorField)
+
+    // Expanded Width Factor for Master Panel (Integer)
+    settingsPanel.add(new JLabel("Expanded Width Factor for Master Panel (see tooltip):"))
+    JTextField expandedFactorField = new JTextField(expandedWidthFactorForMasterPanel.toString())
+    expandedFactorField.setToolTipText("The higher the factor, the wider the panels width.")
+    settingsPanel.add(expandedFactorField)
+
+    // Width Factor for Inspector Panel (Integer)
+    settingsPanel.add(new JLabel("Width Factor for Inspector Panel (see tooltip):"))
+    JTextField inspectorWidthFactorField = new JTextField(widthFactorForInspector.toString())
+    inspectorWidthFactorField.setToolTipText("The higher the factor, the smaller the inspector panel width.")
+    settingsPanel.add(inspectorWidthFactorField)
+
+    // Selection Delay (ms) (Integer)
+//    settingsPanel.add(new JLabel("Selection Delay (ms):"))
+//    JTextField selectionDelayField = new JTextField(selectionDelay.toString())
+//    selectionDelayField.setToolTipText("In milliseconds.")
+//    settingsPanel.add(selectionDelayField)
+
+    // Reverse Ancestors List (Boolean)
+    settingsPanel.add(new JLabel("Reverse Ancestors List:"))
+    JCheckBox reverseAncestorsCheck = new JCheckBox("", reverseAncestorsList)
+    settingsPanel.add(reverseAncestorsCheck)
+
+    // Padding Before Horizontal Scroll Bar (Integer)
+    settingsPanel.add(new JLabel("Padding Before Horizontal Scroll Bar:"))
+    JTextField paddingField = new JTextField(paddingBeforeHorizontalScrollBar.toString())
+    settingsPanel.add(paddingField)
+
+    // Additional Inspector Distance to the Bottom (Integer)
+    settingsPanel.add(new JLabel("Additional Inspector Distance to Bottom:"))
+    JTextField additionalDistanceField = new JTextField(additionalInspectorDistanceToTheBottomOfTheScreen.toString())
+    settingsPanel.add(additionalDistanceField)
+
+    // Width of the Clear Button on Quick Search Panel (Integer)
+    settingsPanel.add(new JLabel("Width of Clear Button on Quick Search Panel:"))
+    JTextField clearButtonWidthField = new JTextField(widthOfTheClearButtonOnQuickSearchPanel.toString())
+    settingsPanel.add(clearButtonWidthField)
+
+    // Quick Search Hotkey (KeyStroke)
+    settingsPanel.add(new JLabel("Quick Search Hotkey:"))
+    JTextField quickSearchHotkeyField = new JTextField(keyStrokeToQuickSearch.toString())
+    settingsPanel.add(quickSearchHotkeyField)
+
+    // Show Only Breadcrumbs (Boolean)
+    settingsPanel.add(new JLabel("Show Only Breadcrumbs:"))
+    JCheckBox showOnlyBreadcrumbsCheck = new JCheckBox("", showOnlyBreadcrumbs)
+    settingsPanel.add(showOnlyBreadcrumbsCheck)
+
+    // Show Ancestors on First Inspector (Boolean)
+    settingsPanel.add(new JLabel("Show Ancestors on First Inspector:"))
+    JCheckBox showAncestorsCheck = new JCheckBox("", showAncestorsOnFirstInspector)
+    settingsPanel.add(showAncestorsCheck)
+
+    // Right-to-Left Orientation (Boolean)
+    settingsPanel.add(new JLabel("Right-to-Left Orientation:"))
+    JCheckBox rtlOrientationCheck = new JCheckBox("", rtlOrientation)
+    settingsPanel.add(rtlOrientationCheck)
+
+    // Hotkey to Show Panels (KeyStroke)
+    settingsPanel.add(new JLabel("Hotkey to Show Panels:"))
+    JTextField showPanelsHotkeyField = new JTextField(keyStrokeToShowPanels.toString())
+    settingsPanel.add(showPanelsHotkeyField)
+
+    // Hide Inspectors Even If Update Selection (Boolean)
+    settingsPanel.add(new JLabel("Hide Inspectors Even If Update Selection:"))
+    JCheckBox hideInspectorsCheck = new JCheckBox("", hideInspectorsEvenIfUpdateSelection)
+    settingsPanel.add(hideInspectorsCheck)
+
+    settingsDialog.add(new JScrollPane(settingsPanel), BorderLayout.CENTER)
+
+    JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT))
+    JButton okButton = new JButton("OK")
+    okButton.addActionListener({ e ->
+        panelTextFontName = fontNameField.getText()
+        try { panelTextFontSize = Integer.parseInt(fontSizeField.getText()) } catch(Exception ex) {}
+        try { minFontSize = Integer.parseInt(minFontField.getText()) } catch(Exception ex) {}
+        fontForListItens = fontStyleCombo.getSelectedIndex()
+        try { nodeTextPanelFixedHeight = Integer.parseInt(nodeTextPanelHeightField.getText()) } catch(Exception ex) {}
+        try { retractedWidthFactorForMasterPanel = Integer.parseInt(retractedFactorField.getText()) } catch(Exception ex) {}
+        try { expandedWidthFactorForMasterPanel = Integer.parseInt(expandedFactorField.getText()) } catch(Exception ex) {}
+        try { widthFactorForInspector = Integer.parseInt(inspectorWidthFactorField.getText()) } catch(Exception ex) {}
+//        try { selectionDelay = Integer.parseInt(selectionDelayField.getText()) } catch(Exception ex) {}
+        reverseAncestorsList = reverseAncestorsCheck.isSelected()
+        try { paddingBeforeHorizontalScrollBar = Integer.parseInt(paddingField.getText()) } catch(Exception ex) {}
+        try { additionalInspectorDistanceToTheBottomOfTheScreen = Integer.parseInt(additionalDistanceField.getText()) } catch(Exception ex) {}
+        try { widthOfTheClearButtonOnQuickSearchPanel = Integer.parseInt(clearButtonWidthField.getText()) } catch(Exception ex) {}
+        try {
+            keyStrokeToQuickSearch = KeyStroke.getKeyStroke(quickSearchHotkeyField.getText())
+//            reloadPanels()
+        } catch(Exception ex) {}
+        showOnlyBreadcrumbs = showOnlyBreadcrumbsCheck.isSelected()
+        showAncestorsOnFirstInspector = showAncestorsCheck.isSelected()
+        rtlOrientation = rtlOrientationCheck.isSelected()
+        try {
+            keyStrokeToShowPanels = KeyStroke.getKeyStroke(showPanelsHotkeyField.getText())
+//            reloadPanels()
+        } catch(Exception ex) {}
+        hideInspectorsEvenIfUpdateSelection = hideInspectorsCheck.isSelected()
+
+        saveSettings()
+        reloadPanels()
+        settingsDialog.dispose()
+    } as ActionListener)
+
+    JButton cancelButton = new JButton("Cancel")
+    cancelButton.addActionListener({ e -> settingsDialog.dispose() } as ActionListener)
+
+    buttonsPanel.add(okButton)
+    buttonsPanel.add(cancelButton)
+    settingsDialog.add(buttonsPanel, BorderLayout.SOUTH)
+
+    settingsDialog.pack()
+    settingsDialog.setLocationRelativeTo(owner)
+    settingsDialog.setVisible(true)
+}
+
+def reloadPanels() {
+    if (masterPanel != null && masterPanel.isVisible()) {
+        parentPanel.remove(masterPanel)
+        masterPanel = null
+    }
+    if(breadcrumbPanel != null) {
+        parentPanel.remove(breadcrumbPanel)
+        breadcrumbPanel = null
+    }
+
+//    breadcrumbPanel.setVisible(false)
+    visibleInspectors.each {it.setVisible(false)}
+//    SwingUtilities.invokeLater {
+    createPanels()
+    if (!showOnlyBreadcrumbs) visibleInspectors.each { it.setVisible(true) }
+//        masterPanel.revalidate()
+//        masterPanel.repaint()
+//        breadcrumbPanel.revalidate()
+//        breadcrumbPanel.repaint()
+//        parentPanel.revalidate()
+//        parentPanel.repaint()
+    if(!showPanels) {
+        masterPanel.setVisible(false)
+        breadcrumbPanel.setVisible(false)
+        visibleInspectors.each {it.setVisible(false)}
+    }
+//    }
+}
+
