@@ -3,69 +3,134 @@
 # UtilityPanels for FreePlane
 UtilityPanels is a script that creates integrated panels in the Freeplane interface.
 
-![explorer_SLM5empCmN](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/6b102950-96c3-4ac6-93de-09d66a2ff058)
+![java_ID1CJC5S2N](https://github.com/user-attachments/assets/e56b1af7-15e7-4080-8c63-ec02d8f3a65d)
 
 
-# Features
 
-## Panels
+# Main Features
 
-### Recent nodes panel
+## Recent nodes panel
 
 - A list with recently selected nodes.
   
-![javaw_302ZRQ6PV4](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ab9062e7-b0e3-4f36-b85d-1395ee6fdb6b)
+![java_Mthv2Gb2bT](https://github.com/user-attachments/assets/7f250dfc-7b71-4745-a95c-c283930544f7)
 
 
-### Pinned nodes panel
+## Pinned nodes panel
 
 Pinned nodes are saved on FreePlane restarts
   
 ![chrome_aAZD6TPbjq](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/c35baba5-7a97-49d4-b938-acd88ce61cae)
 
-### Quick Search panel
+## Tags panel
 
+<img width="524" alt="2025-03-21_14-58" src="https://github.com/user-attachments/assets/eb2fbac3-0705-4c7f-a927-8c28083c9a1c" />
+
+## Quick Search panel, with transversal search
 
 Results are highlighted everywhere: in the panels, in the inspectors, and in the map:
 
 ![image](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/00766e42-84a9-4acf-bdaf-4f85b7ac63c8)
 
+## Breadcrumbs bar
 
+A bar above the map:
+
+![java_8h8bXxzVTx](https://github.com/user-attachments/assets/e6b47c1e-2802-4cd0-a598-d083977f20e4)
 
 ## Inspector
 
 - Inspector tooltip:
 
-![javaw_JGBwl2m7hB](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/97cac151-1934-45b1-80f4-364a84a2d5f4)
+![java_QqJ9lfYHoY](https://github.com/user-attachments/assets/609886fe-cb7c-4a7a-8f01-51cac31b294a)
+
 
 - Infinite inception navigation in the Inspector tooltip:
 
-![inception infinite](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/49e4e946-6ddc-432d-90ce-2f7276d43ced)
+![java_Fau6l6yDOX](https://github.com/user-attachments/assets/bc309037-7e2c-4d05-9da9-0e80f35c3b42)
 
 
-- Freeze Inspectors
+# Other features
+<details>
 
-The inspectors have a freeze option, so the user can easily do drag and drop operations, or navigate the map while the inspectors stay on screen.
-
-![image](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/fc562dfd-f313-4eaf-8cde-ccd253947324)
-
-
-## Other Features
-
-- Drag and Drop operations
+## Drag and Drop operations
 It's possible to do drag and drop (move nodes) between itens in the panel, nodes in the map, and vice versa.
 
 ![dragff3 borda2](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/e284b3d5-5662-4826-8a49-d37b323578d7)
 
-- Clicking the panel item navigates to the node.
+## Clicking the panel item navigates to the node.
 
 ![javaw_UtEw62hVSn](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ed551399-268f-47bd-a8b8-81703f954db4)
 
+## Tags Panel features
+Single click adds the node to selected nodes.
+
+Right click gives the option to remove from selected nodes.
+
+Hoverving over the tags on the panel show the nodes with the tag: 
+
+<img width="417" alt="2025-03-21_17-46" src="https://github.com/user-attachments/assets/43d509f2-9fa5-48b6-8630-5bed4db68ab1" />
+
+Combine tags for the search
+<img width="319" alt="2025-03-21_17-47" src="https://github.com/user-attachments/assets/7e3391b6-b9fe-4748-92c5-5fd1617ef253" />
 
 
+## Settings
+Right click on a list item:
 
+<img width="194" alt="2025-03-21_17-48" src="https://github.com/user-attachments/assets/b797c9c9-cd09-44c3-a1b4-84fec2b3a5e7" />
+
+
+<img width="534" alt="2025-03-21_17-49" src="https://github.com/user-attachments/assets/584a7e73-80f0-4c77-8883-18c9b7decb75" />
+
+
+## Update Selection
+It makes the first inspect be about the selected node. The first inspector has this option in the 3 lines menu:
+<img width="173" alt="2025-03-21_17-50" src="https://github.com/user-attachments/assets/68c01502-0597-4155-89ae-09304e487131" />
+  
+## Hotkeys
+Currently:
+- Ctrl + F: focus the QuickSearch panel search box
+- Ctrl + U: toggles hide and show panels
+
+Can be changed in settings window.
+
+## Transversal Search in QuickSearch panel
+
+Transversal search is a technique that finds relevant nodes not only based on the text they contain, but also by looking at the content of their parent nodes. For example, if you search for the terms "a", "b", and "c", a node with the text "a" might be considered a match if one of its ancestors contains "b" and another contains "c". This means that even if the node itself doesn't include all the search terms, the surrounding context provided by its ancestry is taken into account, yielding more meaningful and flexible search results.
+
+![image](https://github.com/user-attachments/assets/205ecca4-95bf-4a0b-90a0-304013f9f1b5)
+
+
+When performing a search with multiple terms (for example, "a", "b", and "c"), the algorithm processes each node in the mind map as follows:
+
+1. **Initial Check:** 
+   The algorithm first checks if the node's text contains at least one of the search terms. If the node does not contain any of the terms, it is immediately disregarded.
+
+2. **Secondary Verification:** 
+   If the node contains at least one search term directly, the algorithm then verifies that every search term that is missing in the node’s text is found in one of its ancestor nodes. In other words, for each term not directly present in the node, the algorithm looks up the node’s parent chain to see if the term appears there.
+
+3. **Match Condition:** 
+   The node is considered a match (i.e., a positive result) only if every search term is present either directly in the node or in one of its ancestors.
+
+This approach allows the search function to combine context from a node and its hierarchical position. As a result, a node might be considered relevant if it has partial information, while the remaining search terms are provided by its ancestral context.
+
+
+## Hide panels
+
+Toggle hide/show panels with Ctrl + U hotkey.
+
+## Freeze Inspectors
+
+The inspectors have a freeze option, so the user can easily do drag and drop operations, or navigate the map while the inspectors stay on screen.
+
+<img width="393" alt="2025-03-21_14-55" src="https://github.com/user-attachments/assets/2cb3bd71-cbb1-4d3b-b1b5-40b9a0c2d673" />
+
+
+</details>
 
 ## Other interesting aspects:
+<details>
 
 - The panel follows the active tab
 
@@ -83,46 +148,34 @@ It's possible to do drag and drop (move nodes) between itens in the panel, nodes
 
 ![javaw_2jN2VSzuVX](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/b794fe6b-8fa7-4b25-99f6-d2a2e7b19073)
 
+- Panels autoexpand on mouse hover:
+  
+![java_yDJOmoi0pM](https://github.com/user-attachments/assets/62a33efc-0d9d-483f-ad6f-f4f7945f951b)
+
+- Panels autosizing according to the size of the Freeplane window:
+
+![SKdsOzKgIy](https://github.com/user-attachments/assets/aeecc029-bb00-4ebf-a614-c6902049c800)
+
+Proportions can be changed in settings window.
+
+- Text autosizing in inspector (notice that the size is smaller when the text is longer, in order to try to fit the maximum ammount of text)
+
+![java_ggp6aUZLfC](https://github.com/user-attachments/assets/2e09bd1f-053e-4599-b984-6c82f809febc)
+
+Minimum and maximum sizes be changed in settings window.
+
+- Right to left (RTL) text orientation
+
+Can be activated in settings window.
+
+- Auto position (to avoid overlap with the selected node):
+
+![java_KQbwI5AUzb](https://github.com/user-attachments/assets/4a9e8e4d-8549-49d1-95c2-c33f6e9c6dcc)
 
 
-
-## Current limitations that will be improved:
-- I don't use multiple maps, so I don't know  how the script behaves in that situation. I know that there are limitations. For example, the navigation doesn't work across multiple maps. 
-- Drag and drop operations are limited to the Move operations. In the future, I will add the others, like the option to create connectors.
-- The auto update of the Quick Search panel doesn't react to all changes in the map (for example, deleting a node).
+</details>
 
 
-## How to make the Quick Search panel work
-
-It needs integration with Jumper. I created a fork of Jumper that allows this integration. 
-
-I will make it easier in the future, but now it's necessary to 
-- uninstall the Jumper add-on and delete the folder that it leaves inside the user folder/addons. Don't worry, you will be able to use Jumper normally.
-- download the [branch called dev in my fork](https://github.com/euu2021/Freeplane-Jumper/tree/dev) (go into Code/Download ZIP)
-- unzip it into a folder
-- in Freeplane, go into `Preferences…->Plugins->Scripting->Script classpath: Additional directories containing classes and/or JARs` and set here the path of the folder above
-
-Now, to make the usual Kumper start, you need to run this script: `lilive.jumper.Jumper.start()`
-
-If Jumper, or the Quick Search panel are not showing any results, then [see this](https://github.com/freeplane/freeplane/discussions/1770).
-
-# Todo
-
-Features
-- Drafts Panel. A panel to store nodes that the user wants to keep as a draft, instead of including in the map.
-- Post it panel. A type of panel that is a simple text panel where the user can keep some text. It then will have buttons to quickly tranform the text into a node to be inserted as a child of the select node, or be transformed into a draft node and included in the Draft panel.
-- Querry search panel. A type of panel where the user can create a search criteria, and it will show all nodes that match that criteria, and keep updating that list.
-- Backlinks list: see https://github.com/freeplane/freeplane/discussions/485#discussioncomment-9988635
-- Breadcrumbs panel: see https://github.com/freeplane/freeplane/issues/2145
-- Tags panel: see https://github.com/freeplane/freeplane/discussions/1996#discussioncomment-10455859
-- Add a frozen sliding panel to the top history panel. See: https://github.com/euu2021/Freeplane_UtilityPanels/issues/5
-
-Implementation
-- easy positioning of the panels, with anchoring
-- more items in the list; and scrollbars on hover
-- buttons on the panel to do things like minimize, close, resize, move etc
-- avoid symbols that can have rendering problems. See issue https://github.com/freeplane/freeplane/discussions/1752#discussioncomment-8933090.
-- improve the inspector layout: see https://github.com/euu2021/Freeplane_UtilityPanels/issues/4
 
 # Disclaimer
 
