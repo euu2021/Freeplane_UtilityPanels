@@ -140,9 +140,17 @@ The inspectors have a freeze option, so the user can easily do drag and drop ope
 
  ![chrome_Fs2nVtzqKp](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/a642a622-71f4-41c7-bb65-fff36764d095)
 
- - the nodes get marked with a ⚠️ sign when clicking on them will lead to a Jump Out in the current map view:
+ - the nodes get marked with a ⚠️ sign in the panels when clicking on them will lead to a Jump Out in the current map view:
 
 ![javaw_t0YcE237zu](https://github.com/euu2021/Freeplane_UtilityPanels/assets/77707706/ac451cbb-ac9a-4034-a45f-b462922a8d5f)
+
+- the nodes get marked with a ○ sign in the panels when it has children:
+
+ ![image](https://github.com/user-attachments/assets/a4378a6d-4857-446b-9b8b-26970afa4f6a)
+
+- the selected node get marked with a red border in the panels:
+ 
+![image](https://github.com/user-attachments/assets/935f57cd-5537-44b8-8771-3bd6e13e123d)
 
 - The panels are transparent:
 
