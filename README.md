@@ -180,6 +180,11 @@ Can be activated in settings window.
 
 ![java_KQbwI5AUzb](https://github.com/user-attachments/assets/4a9e8e4d-8549-49d1-95c2-c33f6e9c6dcc)
 
+- Inside right click contextual menu: Option to open new view with node selected
+
+
+![image](https://github.com/user-attachments/assets/0ae712b8-f96d-44ee-af48-ec8a79c3f239)
+
 
 </details>
 
