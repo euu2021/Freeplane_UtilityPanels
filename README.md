@@ -51,7 +51,6 @@ A bar above the map:
 
 
 # Other features
-<details>
 
 ## Drag and Drop operations
 It's possible to do drag and drop (move nodes) between itens in the panel, nodes in the map, and vice versa.
@@ -127,10 +126,9 @@ The inspectors have a freeze option, so the user can easily do drag and drop ope
 <img width="393" alt="2025-03-21_14-55" src="https://github.com/user-attachments/assets/2cb3bd71-cbb1-4d3b-b1b5-40b9a0c2d673" />
 
 
-</details>
 
-## Other interesting aspects:
-<details>
+
+# Other interesting aspects:
 
 - The panel follows the active tab
 
@@ -186,7 +184,6 @@ Can be activated in settings window.
 ![image](https://github.com/user-attachments/assets/0ae712b8-f96d-44ee-af48-ec8a79c3f239)
 
 
-</details>
 
 
 
