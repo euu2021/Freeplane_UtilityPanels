@@ -97,7 +97,7 @@ Currently:
 Can be changed in settings window.
 
 ## Transversal Search in QuickSearch panel
-
+(inspired by the [Jumper Add-On](https://github.com/lilive/Freeplane-Jumper))
 Transversal search is a technique that finds relevant nodes not only based on the text they contain, but also by looking at the content of their parent nodes. For example, if you search for the terms "a", "b", and "c", a node with the text "a" might be considered a match if one of its ancestors contains "b" and another contains "c". This means that even if the node itself doesn't include all the search terms, the surrounding context provided by its ancestry is taken into account, yielding more meaningful and flexible search results.
 
 ![image](https://github.com/user-attachments/assets/205ecca4-95bf-4a0b-90a0-304013f9f1b5)
