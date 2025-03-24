@@ -88,6 +88,8 @@ It makes the first inspect be about the selected node. The first inspector has t
 <img width="173" alt="2025-03-21_17-50" src="https://github.com/user-attachments/assets/68c01502-0597-4155-89ae-09304e487131" />
   
 ## Hotkeys
+If Freeplane is already using the hotkey for other function (it happens with the Ctrl+F, for example), it's necessary, first, to clear the Freeplane hotkey assignment.
+
 Currently:
 - Ctrl + F: focus the QuickSearch panel search box
 - Ctrl + U: toggles hide and show panels
