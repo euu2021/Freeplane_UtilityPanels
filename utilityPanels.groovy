@@ -1,6 +1,14 @@
 
 /***************************************************************************
 
+version 1.41: Now, at the script startup, it checks if the script is already running. If it is, then the user is warned and the startup stops.
+ Smart Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52
+ If a node is not appearing on screen, it get a Blue borden on the lists.
+
+version 1.40: Bugfix: Transversal search was finding all descendants.
+ Bugfix: on node delete the descendants were not removed from the recent nodes and pinned nodes lists.
+ Bugfix: quicksearch panel was blinking if map overview was hidden. Fixed by adding repaints and revalidates.
+
 version 1.39: option to also hide the inspectors, even if "Update Selection" is activated. This option is active, by default. https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2724134882
  Bugfix: DnD not working when dragging from the map.
  Quicksearch was accidentally simplified on a previous version. Now, it has transversal search, again.
@@ -229,9 +237,52 @@ import org.freeplane.view.swing.map.NodeView
 import org.freeplane.view.swing.map.link.ConnectorView
 import org.freeplane.view.swing.map.link.InclinationRecommender
 import org.freeplane.view.swing.ui.DefaultMapMouseListener
+import org.freeplane.plugin.script.proxy.ProxyUtils
+import org.freeplane.plugin.script.proxy.ProxyFactory
+import org.freeplane.plugin.script.proxy.ScriptUtils
 
 import java.lang.reflect.Field
 import org.freeplane.view.swing.map.MapViewController
+import static javax.swing.JOptionPane.showMessageDialog
+
+import org.freeplane.features.map.INodeView;
+import org.freeplane.view.swing.map.NodeView
+import org.freeplane.view.swing.map.MapView
+import org.freeplane.features.map.mindmapmode.MMapController
+import org.freeplane.features.mode.Controller
+import org.freeplane.features.mode.Controller
+import org.freeplane.view.swing.map.NodeView
+import javax.swing.JViewport
+import java.awt.Rectangle
+import org.freeplane.plugin.script.proxy.ProxyUtils
+import org.freeplane.plugin.script.proxy.ProxyFactory
+import org.freeplane.plugin.script.proxy.ScriptUtils
+
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent;
+
+
+
+@groovy.transform.Field uniqueIdForScript = 999
+
+def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
+    try {
+        return listener.uniqueIdForScript == uniqueIdForScript
+    } catch (Exception ex) {
+        return false
+    }
+}
+
+if (listenerFound) {
+    showMessageDialog(Controller.currentController.mapViewManager.mapView.parent.parent, "UtilityPanels already running. To show/hide it, use the hotkey (by default, it's Ctrl+U).")
+    return
+}
+
+
+
+//cleanPreviousScriptExecution()
+
+
 
 //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 // remember to include new settings at the methods showSettingsDialog(), saveSettings() and loadSettings()
@@ -286,8 +337,6 @@ showAncestorsOnFirstInspector = false
 
 fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 
-@groovy.transform.Field uniqueIdForScript = 999
-cleanPreviousScriptExecution()
 
 @groovy.transform.Field DefaultListModel<NodeModel> ancestorsOfCurrentNode = new DefaultListModel<>()
 @groovy.transform.Field DefaultListModel<NodeModel> history = new DefaultListModel<>()
@@ -561,6 +610,8 @@ class NodeModelTransferable implements Transferable {
 loadSettings()
 createPanels()
 
+createComponentChangeListener()
+
 INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
     @Override
     public void onDeselect(NodeModel node) {
@@ -631,8 +682,20 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
         if (freezeInspectors || isMouseOverSearchBox) {
             return
         }
+
         if (inspectorUpdateSelection) {
-            cleanAndCreateInspectors(node, panelsInMasterPanels[0])
+            if(! areSiblingsAndChildrenVisible(currentlySelectedNode)) {
+                cleanAndCreateInspectors(node, panelsInMasterPanels[0])
+            }
+            else {
+                visibleInspectors.each {
+                    it.setVisible(false)
+                }
+                parentPanel.revalidate()
+                parentPanel.repaint()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+            }
         }
 
 
@@ -681,6 +744,7 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         if (newView == null) {
             return
         }
+        createComponentChangeListener()
 
         searchText = ""
         quickSearchResults.clear()
@@ -724,8 +788,13 @@ IMapChangeListener myMapChangeListener = new IMapChangeListener() {
     @Override
     public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
         NodeModel deletedNode = nodeDeletionEvent.node
-        history.removeElement(deletedNode)
-        pinnedItems.removeElement(deletedNode)
+        allDeletedNodes = ProxyUtils.findImpl(null, deletedNode, false)
+        allDeletedNodes.each {
+//        history.removeElement(deletedNode)
+//        pinnedItems.removeElement(deletedNode)
+            history.removeElement(it)
+            pinnedItems.removeElement(it)
+        }
         saveSettings()
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
@@ -1263,16 +1332,28 @@ def createPanels() {
         @Override
         public void insertUpdate(DocumentEvent e) {
             scheduleLiveSearch()
+            parentPanel.revalidate()
+            parentPanel.repaint()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
 
         @Override
         public void removeUpdate(DocumentEvent e) {
             scheduleLiveSearch()
+            parentPanel.revalidate()
+            parentPanel.repaint()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
 
         @Override
         public void changedUpdate(DocumentEvent e) {
             scheduleLiveSearch()
+            parentPanel.revalidate()
+            parentPanel.repaint()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
 
         private void scheduleLiveSearch() {
@@ -1291,8 +1372,10 @@ def createPanels() {
                 refreshList(searchText)
             }
 
-            Controller.currentController.getMapViewManager().getMapViewComponent().revalidate()
-            Controller.currentController.getMapViewManager().getMapViewComponent().repaint()
+            parentPanel.revalidate()
+            parentPanel.repaint()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
 
         private void refreshList(String searchText) {
@@ -1330,35 +1413,89 @@ def createPanels() {
 //                        }
 //                    }
 
+//                    private void searchNodesRecursively(NodeModel node, String searchText2) {
+//                        if (resultCount >= 500) return;
+//
+//                        String nodeText = (node.text ?: "").toLowerCase();
+//                        String[] terms = searchText2.toLowerCase().split("\\s+");
+//
+//                        boolean nodeMatches = true;
+//                        for (String term : terms) {
+//                            boolean termFound = nodeText.contains(term);
+//                            if (!termFound) {
+//                                NodeModel ancestor = node.parent;
+//                                while (ancestor != null && !termFound) {
+//                                    String ancestorText = (ancestor.text ?: "").toLowerCase();
+//                                    if (ancestorText.contains(term)) {
+//                                        termFound = true;
+//                                    }
+//                                    ancestor = ancestor.parent;
+//                                }
+//                            }
+//                            if (!termFound) {
+//                                nodeMatches = false;
+//                                break;
+//                            }
+//                        }
+//
+//                        if (nodeMatches) {
+//                            if (resultCount < 500) {
+//                                resultCount++;
+//                                SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node) });
+//                            }
+//                        }
+//
+//                        if (resultCount >= 500) return;
+//
+//                        for (child in node.children) {
+//                            if (resultCount >= 500) break;
+//                            searchNodesRecursively(child, searchText2);
+//                        }
+//                    }
+
                     private void searchNodesRecursively(NodeModel node, String searchText2) {
                         if (resultCount >= 500) return;
 
                         String nodeText = (node.text ?: "").toLowerCase();
                         String[] terms = searchText2.toLowerCase().split("\\s+");
 
-                        boolean nodeMatches = true;
+                        List<String> foundDirect = [];
                         for (String term : terms) {
-                            boolean termFound = nodeText.contains(term);
-                            if (!termFound) {
-                                NodeModel ancestor = node.parent;
-                                while (ancestor != null && !termFound) {
-                                    String ancestorText = (ancestor.text ?: "").toLowerCase();
-                                    if (ancestorText.contains(term)) {
-                                        termFound = true;
-                                    }
-                                    ancestor = ancestor.parent;
-                                }
+                            if (nodeText.contains(term)) {
+                                foundDirect.add(term);
                             }
-                            if (!termFound) {
-                                nodeMatches = false;
-                                break;
+                        }
+
+                        boolean nodeMatches = false;
+                        if (!foundDirect.isEmpty()) {
+                            nodeMatches = true;
+                            for (String term : terms) {
+                                if (!foundDirect.contains(term)) {
+                                    boolean foundInAncestors = false;
+                                    NodeModel ancestor = node.parent;
+                                    while (ancestor != null && !foundInAncestors) {
+                                        String ancestorText = (ancestor.text ?: "").toLowerCase();
+                                        if (ancestorText.contains(term)) {
+                                            foundInAncestors = true;
+                                        }
+                                        ancestor = ancestor.parent;
+                                    }
+                                    if (!foundInAncestors) {
+                                        nodeMatches = false;
+                                        break;
+                                    }
+                                }
                             }
                         }
 
                         if (nodeMatches) {
                             if (resultCount < 500) {
                                 resultCount++;
-                                SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node) });
+                                SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node)
+                                    parentPanel.revalidate()
+                                    parentPanel.repaint()
+                                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()});
                             }
                         }
 
@@ -1369,6 +1506,7 @@ def createPanels() {
                             searchNodesRecursively(child, searchText2);
                         }
                     }
+
 
 
                 }
@@ -1399,6 +1537,10 @@ def createPanels() {
                 if (!searchField.isPopupVisible()) {
                     searchEditor.setCaretPosition(Math.min(caretPosition, searchText.length()))
                 }
+                parentPanel.revalidate()
+                parentPanel.repaint()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
             }
         }
     })
@@ -2337,6 +2479,10 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
 
+        if(currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
+            label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
+        }
+        
         if (currentlySelectedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
         }
@@ -2344,6 +2490,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
         else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
             label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
         }
+
 
         String labelText = prefix + nodeNotProxy.text
 
@@ -3823,3 +3970,85 @@ def reloadPanels() {
 //    }
 }
 
+
+def boolean areSiblingsAndChildrenVisible(NodeModel nodeNotProxy) {
+    def mapView = Controller.currentController.MapViewManager.mapView
+    def viewport = mapView.getParent()
+    if (! (viewport instanceof JViewport)) {
+        return false
+    }
+
+    proxyVersion = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
+    if(proxyVersion.folded) return false
+//    if(proxyVersion == c.viewRoot) return false
+
+
+    def siblings = []
+    siblings += proxyVersion.delegate
+    if(proxyVersion != c.viewRoot) siblings =  proxyVersion.parent.children.collect { it.delegate }
+    def children = proxyVersion.children.collect { it.delegate }
+
+    def nodes = siblings + children
+
+    boolean allVisible = true
+
+    def nodesSnapshot = nodes.toList()
+
+    for (n in nodesSnapshot) {
+        if (!allVisible) {
+            break
+        }
+
+        if (!isNodeOnScreen(n)) allVisible = false
+
+//        if (n != c.viewRoot) {
+//            NodeView nv = mapView.getNodeView(n)
+//            def point = mapView.getNodeContentLocation(nv)
+//            boolean visible = viewport.getViewRect().contains(point)
+//            if (!visible) {
+//                allVisible = false
+//            }
+//        }
+    }
+
+return allVisible
+}
+
+def boolean isNodeOnScreen(NodeModel nodeNotProxy) {
+    if (ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext()) != c.viewRoot) {
+        def mapView = Controller.currentController.MapViewManager.mapView
+        def viewport = mapView.getParent()
+        NodeView nv = mapView.getNodeView(nodeNotProxy)
+        def point = mapView.getNodeContentLocation(nv)
+        boolean visible = viewport.getViewRect().contains(point)
+        if (!visible) {
+            return false
+        }
+    }
+    return true
+}
+
+def createComponentChangeListener() {
+    mapView1 = Controller.currentController.MapViewManager.mapView
+    if (mapView1.componentListeners.any { it.getClass().getName().startsWith("UtilityPanels") }) return
+
+    mapView1.addComponentListener(new ComponentAdapter() {
+        public void componentMoved(ComponentEvent e) {
+            if(areSiblingsAndChildrenVisible(currentlySelectedNode)) {
+                if(visibleInspectors.size() != 0) {
+                    visibleInspectors.each {
+                        it.setVisible(false)
+                    }
+                    parentPanel.revalidate()
+                    parentPanel.repaint()
+                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+                    return
+                }
+                else return
+            }
+            if(visibleInspectors.size() != 0 && visibleInspectors[0].isVisible()) return
+            cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
+        }
+    })
+}
