@@ -3,7 +3,7 @@
 
 version 1.41: Now, at the script startup, it checks if the script is already running. If it is, then the user is warned and the startup stops.
  Smart Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52
- If a node is not appearing on screen, it get a Blue borden on the lists.
+ If a node is not appearing on the screen, it gets a Blue border on the lists.
 
 version 1.40: Bugfix: Transversal search was finding all descendants.
  Bugfix: on node delete the descendants were not removed from the recent nodes and pinned nodes lists.
@@ -2482,7 +2482,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
         if(currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
             label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
         }
-        
+
         if (currentlySelectedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
         }
@@ -4019,6 +4019,7 @@ def boolean isNodeOnScreen(NodeModel nodeNotProxy) {
         def mapView = Controller.currentController.MapViewManager.mapView
         def viewport = mapView.getParent()
         NodeView nv = mapView.getNodeView(nodeNotProxy)
+        if(nv == null) return false
         def point = mapView.getNodeContentLocation(nv)
         boolean visible = viewport.getViewRect().contains(point)
         if (!visible) {
