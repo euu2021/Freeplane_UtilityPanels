@@ -4,6 +4,7 @@
 version 1.42: Bugfix: selecting a node on the inspector was closing the inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issue-2955896709
  Bugfix: leaving the inspector should go back to the selected node inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issuecomment-2763042689
  Fixed reserved area for inspector panels.
+ Removed the Purple border around items that had inspector panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52#issuecomment-2760093127
 
  version 1.41: Now, at the script startup, it checks if the script is already running. If it is, then the user is warned and the startup stops.
  Smart Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52
@@ -2510,9 +2511,9 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
         }
 
-        else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
-            label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
-        }
+//        else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
+//            label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
+//        }
 
 
         String labelText = prefix + nodeNotProxy.text
