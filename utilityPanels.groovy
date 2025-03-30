@@ -1,7 +1,11 @@
 
 /***************************************************************************
 
-version 1.41: Now, at the script startup, it checks if the script is already running. If it is, then the user is warned and the startup stops.
+version 1.42: Bugfix: selecting a node on the inspector was closing the inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issue-2955896709
+ Bugfix: leaving the inspector should go back to the selected node inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issuecomment-2763042689
+ Fixed reserved area for inspector panels.
+
+ version 1.41: Now, at the script startup, it checks if the script is already running. If it is, then the user is warned and the startup stops.
  Smart Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52
  If a node is not appearing on the screen, it gets a Blue border on the lists.
 
@@ -1030,7 +1034,7 @@ private Rectangle getMasterReservedArea() {
 private Rectangle getInspectorReservedArea() {
     Rectangle combinedBounds = null
     // Combine visibleInspectors and inPlaceInspectors to cover all inspector panels.
-    (visibleInspectors + inPlaceInspectors).each { inspector ->
+    visibleInspectors.each { inspector ->
         if (inspector != null && inspector.isVisible()) {
             Rectangle inspectorBounds = inspector.getBounds()
 
@@ -1062,7 +1066,7 @@ def createPanels() {
 
     parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
     parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
-    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
+//    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
 
     Dimension parentSize = parentPanel.getSize()
 
@@ -2378,6 +2382,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 //    parentPanel.revalidate()
 //    parentPanel.repaint()
+    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
 
     return inspectorPanel
 }
@@ -2388,41 +2393,59 @@ void hideInspectorPanelIfNeeded() {
     if (shouldFreeze()) {return}
     if (!mouseOverList) {
 
-        visibleInspectors.each{
-            if(!inspectorUpdateSelection) {
-                it.setVisible(false)
-            }
-            else{
-                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
-                    it.setVisible(false)
-                }
-            }
-        }
-
-        if(!inspectorUpdateSelection) {
-            visibleInspectors.clear()
-        }
-        else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-            if(visibleInspectors.size() != 0) {
-                setInspectorLocation(visibleInspectors[0], masterPanel)
-                if(visibleInspectors.size() > 1) {
-                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
-                }
-            }
-        }
-
-        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
-            visibleInspectors[0].setVisible(true)
-            if(visibleInspectors.size() > 1) {
-                visibleInspectors[1].setVisible(true)
-            }
-        }
+//        visibleInspectors.each{
+//            if(!inspectorUpdateSelection) {
+//                it.setVisible(false)
+//            }
+//            else{
+//                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
+//                    it.setVisible(false)
+//                }
+//            }
+//        }
+//
+//        if(!inspectorUpdateSelection) {
+//            visibleInspectors.clear()
+//        }
+//        else {
+//            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
+//            if(visibleInspectors.size() != 0) {
+//                setInspectorLocation(visibleInspectors[0], masterPanel)
+//                if(visibleInspectors.size() > 1) {
+//                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+//                }
+//            }
+//        }
+//
+//        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
+//            visibleInspectors[0].setVisible(true)
+//            if(visibleInspectors.size() > 1) {
+//                visibleInspectors[1].setVisible(true)
+//            }
+//        }
 
         retractMasterPanel()
 
-//        parentPanel.revalidate()
-//        parentPanel.repaint()
+        if(areSiblingsAndChildrenVisible(currentlySelectedNode)) {
+            if(visibleInspectors.size() != 0) {
+                visibleInspectors.each {
+                    it.setVisible(false)
+                }
+                parentPanel.revalidate()
+                parentPanel.repaint()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+                return
+            }
+            else return
+        }
+        cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
+
+
+
+
+
+
 
         if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
             setInspectorLocation(visibleInspectors[0], masterPanel)
@@ -2577,7 +2600,11 @@ void configureListSelection(JList<NodeModel> list) {
             int selectedItemIndex = list.getSelectedIndex()
             if (selectedItemIndex != -1) {
                 NodeModel selectedItemNode = list.getModel().getElementAt(selectedItemIndex)
+                flagFreezeInspectorsWasOn = freezeInspectors
+                if(!flagFreezeInspectorsWasOn) freezeInspectors = true
+                currentlySelectedNode = selectedItemNode
                 Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(selectedItemNode)
+                freezeInspectors = flagFreezeInspectorsWasOn
             }
         }
     } as ListSelectionListener)
