@@ -1,6 +1,9 @@
 
 /***************************************************************************
 
+version 1.43: Changed the appearance of the nodes, in the lists, that are not visible in the map. Now, they are also hatched.
+ Even Smarter Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/54
+
 version 1.42: Bugfix: selecting a node on the inspector was closing the inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issue-2955896709
  Bugfix: leaving the inspector should go back to the selected node inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issuecomment-2763042689
  Fixed reserved area for inspector panels.
@@ -266,22 +269,27 @@ import org.freeplane.plugin.script.proxy.ScriptUtils
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent;
 
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+
+import javax.swing.border.AbstractBorder
+
 
 
 @groovy.transform.Field uniqueIdForScript = 999
 
-def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
-    try {
-        return listener.uniqueIdForScript == uniqueIdForScript
-    } catch (Exception ex) {
-        return false
-    }
-}
-
-if (listenerFound) {
-    showMessageDialog(Controller.currentController.mapViewManager.mapView.parent.parent, "UtilityPanels already running. To show/hide it, use the hotkey (by default, it's Ctrl+U).")
-    return
-}
+//def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
+//    try {
+//        return listener.uniqueIdForScript == uniqueIdForScript
+//    } catch (Exception ex) {
+//        return false
+//    }
+//}
+//
+//if (listenerFound) {
+//    showMessageDialog(Controller.currentController.mapViewManager.mapView.parent.parent, "UtilityPanels already running. To show/hide it, use the hotkey (by default, it's Ctrl+U).")
+//    return
+//}
 
 
 
@@ -689,18 +697,28 @@ INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
         }
 
         if (inspectorUpdateSelection) {
-            if(! areSiblingsAndChildrenVisible(currentlySelectedNode)) {
-                cleanAndCreateInspectors(node, panelsInMasterPanels[0])
-            }
-            else {
-                visibleInspectors.each {
-                    it.setVisible(false)
-                }
-                parentPanel.revalidate()
-                parentPanel.repaint()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-            }
+
+//            if(areNodesVisible(currentlySelectedNode)) {
+//                visibleInspectors.each {
+//                    it.setVisible(false)
+//                }
+//                parentPanel.revalidate()
+//                parentPanel.repaint()
+//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//
+//            }
+//            else if (! areNodesVisible(currentlySelectedNode, "siblings") && ! areNodesVisible(currentlySelectedNode, "children")) {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0])
+//            }
+//            else if (! areNodesVisible(currentlySelectedNode, "siblings")) {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "children")
+//            }
+//            else {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "siblings")
+//            }
+
+            smartCreateInspectors(node)
         }
 
 
@@ -1013,6 +1031,13 @@ def refreshHighlighterCacheTags() {
 }
 
 
+println "list item:" + listItemPosition(historyJList, 0)
+
+mapView2 = Controller.currentController.MapViewManager.mapView
+NodeView nv = mapView2.getNodeView(node.delegate)
+if(nv == null) return false
+def point = mapView2.getNodeContentLocation(nv)
+println "node location:" + point
 
 return
 
@@ -1782,8 +1807,11 @@ def updateAllGUIs() {
 }
 
 
-JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
+JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean dummyMode = false) {
     if (shouldShowInspectors()) { return }
+
+    dummyPanel2 = dummyMode
+
 
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
         @Override
@@ -2361,7 +2389,15 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel) {
 
 
     /////////////////////////////////////////
-
+    if(dummyPanel2 == true) {
+        ancestorsLineList.setVisible(false)
+        siblingsList.setVisible(false)
+        childrenList.setVisible(false)
+        tagsInNode.setVisible(false)
+        tagsSelectedList.setVisible(false)
+        nodesThatContainAnyTagInTagsSelection.setVisible(false)
+        verticalStackPanel.setVisible(false)
+    }
 
     setInspectorLocation(inspectorPanel, sourcePanel)
     inspectorPanel.setVisible(true)
@@ -2427,20 +2463,10 @@ void hideInspectorPanelIfNeeded() {
 
         retractMasterPanel()
 
-        if(areSiblingsAndChildrenVisible(currentlySelectedNode)) {
-            if(visibleInspectors.size() != 0) {
-                visibleInspectors.each {
-                    it.setVisible(false)
-                }
-                parentPanel.revalidate()
-                parentPanel.repaint()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-                return
-            }
-            else return
-        }
-        cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
+
+        smartCreateInspectors(currentlySelectedNode)
+
+
 
 
 
@@ -2503,9 +2529,26 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         NodeModel storedNode = (NodeModel) sourcePanel.getClientProperty("referenceNode")
 
-        if(currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
-            label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
+//        if(currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
+//            label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
+//        }
+
+
+        // Ativa o overlay com hachurado se o nó não estiver visível
+        if (currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
+//            label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
+//            label.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1))
+            label.setBorder(BorderFactory.createLineBorder(new Color(0, 0, 150), 2))
+//            label.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255), 2))
+//            label.setBorder(new DottedBorder(new Color(0, 0, 150), 4))
+
+            label.overlayEnabled = true
+            label.useHatch = true
+        } else {
+            label.overlayEnabled = false
         }
+
+
 
         if (currentlySelectedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
@@ -2940,12 +2983,20 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
                                                       int index,
                                                       boolean isSelected,
                                                       boolean cellHasFocus) {
-            JLabel label = (JLabel) super.getListCellRendererComponent(list,
+//            JLabel label = (JLabel) super.getListCellRendererComponent(list,
+            JLabel baseLabel = (JLabel) super.getListCellRendererComponent(list,
                     value,
                     index,
                     isSelected,
                     cellHasFocus)
 
+////
+            OverlayLabel label = new OverlayLabel(baseLabel.getText(), baseLabel.getIcon(), baseLabel.getHorizontalAlignment())
+            label.setFont(baseLabel.getFont())
+            label.setForeground(baseLabel.getForeground())
+            label.setBackground(baseLabel.getBackground())
+            label.setOpaque(true)
+//////
 
             if (value instanceof NodeModel) {
                 NodeModel currentNode = (NodeModel) value
@@ -3422,17 +3473,39 @@ def getAllTags(NodeModel nodeNotProxy) {
     return tagss.toList()
 }
 
-def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel) {
+def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel, String dummyMode = "no") {
     if (shouldShowInspectors()) { return }
+
+    dummyPanel = "no"
+
+    switch(dummyMode.toLowerCase()) {
+        case "siblings":
+            dummyPanel = "siblings"
+            break
+        case "children":
+            dummyPanel = "children"
+            break
+        default:
+            dummyPanel = "no"
+            break
+    }
 
     visibleInspectors.each {
         it.setVisible(false)
     }
     visibleInspectors.clear()
-    JPanel subInspectorPanel = createInspectorPanel(nodeNotProxy, somePanel)
+    JPanel subInspectorPanel
+    if (dummyPanel == "siblings") {
+        subInspectorPanel = createInspectorPanel(nodeNotProxy, somePanel, true)
+    }
+    else subInspectorPanel = createInspectorPanel(nodeNotProxy, somePanel)
     visibleInspectors.add(subInspectorPanel)
 
-    JPanel subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
+    JPanel subInspectorPanel2
+    if (dummyPanel == "children") {
+        subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel, true)
+    }
+    else subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
     visibleInspectors.add(subInspectorPanel2)
 //    if (visibleInspectors.size() == 2) {
 //        subInspectorPanel2.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
@@ -3999,48 +4072,100 @@ def reloadPanels() {
 }
 
 
-def boolean areSiblingsAndChildrenVisible(NodeModel nodeNotProxy) {
+//def boolean areSiblingsAndChildrenVisible(NodeModel nodeNotProxy) {
+//    def mapView = Controller.currentController.MapViewManager.mapView
+//    def viewport = mapView.getParent()
+//    if (! (viewport instanceof JViewport)) {
+//        return false
+//    }
+//
+//    proxyVersion = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
+//    if(proxyVersion.folded) return false
+////    if(proxyVersion == c.viewRoot) return false
+//
+//
+//    def siblings = []
+//    siblings += proxyVersion.delegate
+//    if(proxyVersion != c.viewRoot) siblings =  proxyVersion.parent.children.collect { it.delegate }
+//
+//    def children = proxyVersion.children.collect { it.delegate }
+//
+//    def nodes = siblings + children
+//
+//    boolean allVisible = true
+//
+//    def nodesSnapshot = nodes.toList()
+//
+//    for (n in nodesSnapshot) {
+//        if (!allVisible) {
+//            break
+//        }
+//
+//        if (!isNodeOnScreen(n)) allVisible = false
+//
+//    }
+//
+//return allVisible
+//}
+
+//def boolean areAllSiblingsVisible(NodeModel nodeNotProxy) {
+//
+//}
+//
+//def boolean areAllChildrenVisible(NodeModel nodeNotProxy) {
+//
+//}
+
+def boolean areNodesVisible(NodeModel nodeNotProxy, String testMode = "both") {
     def mapView = Controller.currentController.MapViewManager.mapView
     def viewport = mapView.getParent()
-    if (! (viewport instanceof JViewport)) {
+    if (!(viewport instanceof JViewport)) {
         return false
     }
 
-    proxyVersion = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
-    if(proxyVersion.folded) return false
-//    if(proxyVersion == c.viewRoot) return false
-
+    def proxyVersion = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
+    if (proxyVersion.folded && testMode != "siblings") return false
 
     def siblings = []
-    siblings += proxyVersion.delegate
-    if(proxyVersion != c.viewRoot) siblings =  proxyVersion.parent.children.collect { it.delegate }
-    def children = proxyVersion.children.collect { it.delegate }
-
-    def nodes = siblings + children
-
-    boolean allVisible = true
-
-    def nodesSnapshot = nodes.toList()
-
-    for (n in nodesSnapshot) {
-        if (!allVisible) {
-            break
-        }
-
-        if (!isNodeOnScreen(n)) allVisible = false
-
-//        if (n != c.viewRoot) {
-//            NodeView nv = mapView.getNodeView(n)
-//            def point = mapView.getNodeContentLocation(nv)
-//            boolean visible = viewport.getViewRect().contains(point)
-//            if (!visible) {
-//                allVisible = false
-//            }
-//        }
+    if (proxyVersion == c.viewRoot) {
+        siblings = [proxyVersion.delegate]
+    } else {
+        siblings = proxyVersion.parent.children.collect { it.delegate }
     }
 
-return allVisible
+    def children = proxyVersion.children.collect { it.delegate }
+
+    def nodesToTest = []
+    switch(testMode.toLowerCase()) {
+        case "both":
+            nodesToTest = siblings + children
+            break
+        case "siblings":
+            nodesToTest = siblings
+            break
+        case "children":
+            nodesToTest = children
+            break
+        default:
+            nodesToTest = siblings + children
+            break
+    }
+
+    boolean allVisible = true
+    def nodesSnapshot = nodesToTest.toList()
+    for (n in nodesSnapshot) {
+        if (!isNodeOnScreen(n)) {
+            allVisible = false
+            break
+        }
+    }
+
+    return allVisible
 }
+
+
+
+
 
 def boolean isNodeOnScreen(NodeModel nodeNotProxy) {
     if (ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext()) != c.viewRoot) {
@@ -4057,27 +4182,147 @@ def boolean isNodeOnScreen(NodeModel nodeNotProxy) {
     return true
 }
 
+
+def smartCreateInspectors(NodeModel nodeNotProxy) {
+    if(areNodesVisible(currentlySelectedNode)) {
+        if(visibleInspectors.size() != 0) {
+            visibleInspectors.each {
+                it.setVisible(false)
+            }
+            visibleInspectors.clear()
+            parentPanel.revalidate()
+            parentPanel.repaint()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+        }
+    }
+    else if (! areNodesVisible(currentlySelectedNode, "siblings") && ! areNodesVisible(currentlySelectedNode, "children")) {
+        if(visibleInspectors.size() != 0 && !visibleInspectors[0].dummyPanel2 && !visibleInspectors[1].dummyPanel2 && currentlySelectedNode == visibleInspectors[0].getClientProperty("referenceNode") && currentlySelectedNode == visibleInspectors[1].getClientProperty("referenceNode")) return
+        cleanAndCreateInspectors(nodeNotProxy, panelsInMasterPanels[0])
+    }
+    else if (! areNodesVisible(currentlySelectedNode, "siblings")) {
+        if(visibleInspectors.size() != 0 && !visibleInspectors[0].dummyPanel2 && currentlySelectedNode == visibleInspectors[0].getClientProperty("referenceNode")) return
+        cleanAndCreateInspectors(nodeNotProxy, panelsInMasterPanels[0], "children")
+    }
+    else {
+        if(visibleInspectors.size() != 0 && !visibleInspectors[1].dummyPanel2 && currentlySelectedNode == visibleInspectors[1].getClientProperty("referenceNode")) return
+        cleanAndCreateInspectors(nodeNotProxy, panelsInMasterPanels[0], "siblings")
+    }
+}
+
 def createComponentChangeListener() {
     mapView1 = Controller.currentController.MapViewManager.mapView
     if (mapView1.componentListeners.any { it.getClass().getName().startsWith("UtilityPanels") }) return
 
     mapView1.addComponentListener(new ComponentAdapter() {
         public void componentMoved(ComponentEvent e) {
-            if(areSiblingsAndChildrenVisible(currentlySelectedNode)) {
-                if(visibleInspectors.size() != 0) {
-                    visibleInspectors.each {
-                        it.setVisible(false)
-                    }
-                    parentPanel.revalidate()
-                    parentPanel.repaint()
-                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-                    return
-                }
-                else return
-            }
-            if(visibleInspectors.size() != 0 && visibleInspectors[0].isVisible()) return
-            cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
+            smartCreateInspectors(currentlySelectedNode)
         }
     })
+}
+
+
+
+class OverlayLabel extends JLabel {
+    boolean overlayEnabled = false
+    boolean useHatch = false  // Se true, usará o hachurado; se false, outra cor (por exemplo, vermelho)
+
+    OverlayLabel(String text, Icon icon, int horizontalAlignment) {
+        super(text, icon, horizontalAlignment)
+        setOpaque(true)
+    }
+
+
+    private TexturePaint createHatchPattern(Color bg) {
+        Color hatchColor = getHatchColorForBackground(bg)
+        int size = 8
+        BufferedImage hatchImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+        Graphics2D g2 = hatchImage.createGraphics()
+
+//        g2.setStroke(new BasicStroke(2))
+
+        g2.setColor(hatchColor)
+
+        g2.drawLine(0, 7, 7, 0)
+        g2.drawLine(0, 0, 7, 7)
+
+
+        g2.dispose()
+        return new TexturePaint(hatchImage, new Rectangle2D.Double(0, 0, size, size))
+    }
+
+
+
+
+
+    private Color getHatchColorForBackground(Color bg) {
+        double luminance = (0.299 * bg.getRed() + 0.587 * bg.getGreen() + 0.114 * bg.getBlue()) / 255.0
+        float factor = (float)(1.0 - luminance)
+        Color lightBlue = new Color(220, 255, 255)
+        Color darkBlue = new Color(0, 0, 139)
+
+        int r = (int)(lightBlue.getRed() * factor + darkBlue.getRed() * (1 - factor))
+        int g = (int)(lightBlue.getGreen() * factor + darkBlue.getGreen() * (1 - factor))
+        int b = (int)(lightBlue.getBlue() * factor + darkBlue.getBlue() * (1 - factor))
+
+        return new Color(r, g, b, 40)
+    }
+
+
+
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        // Desenha o componente normalmente (fundo, texto, ícone, etc.)
+        super.paintComponent(g)
+        if (overlayEnabled && useHatch) {
+            Graphics2D g2d = (Graphics2D) g.create()
+            // Cria o hatch com base no fundo atual
+            TexturePaint hatchPattern = createHatchPattern(getBackground())
+            g2d.setPaint(hatchPattern)
+            g2d.fillRect(0, 0, getWidth(), getHeight())
+            g2d.dispose()
+        }
+    }
+
+
+}
+
+
+class DottedBorder extends AbstractBorder {
+    private Color color
+    private int thickness
+    private float dotLength
+    private float gapLength
+
+    DottedBorder(Color color, int thickness, float dotLength = 1f, float gapLength = 3f) {
+        this.color = color
+        this.thickness = thickness
+        this.dotLength = dotLength
+        this.gapLength = gapLength
+    }
+
+    @Override
+    void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+        Graphics2D g2d = (Graphics2D) g.create()
+        g2d.setColor(color)
+        // Usamos CAP_ROUND para que os traços fiquem pontilhados
+        float[] dash = [dotLength, gapLength] as float[]
+        g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER, 1f, dash, 0))
+        g2d.drawRect(x, y, width - 1, height - 1)
+        g2d.dispose()
+    }
+}
+
+
+def Point listItemPosition(JList list, int itemIndex) {
+    Rectangle cellBounds = list.getCellBounds(itemIndex, itemIndex)
+    Point startingPoint = new Point(cellBounds.x as int, cellBounds.y as int)
+    //(final Component from, final Point p, final Component destination)
+    def mapView = Controller.currentController.MapViewManager.mapView
+//    UITools.convertPointToAncestor(list, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent)
+    UITools.convertPointToAncestor(list, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent)
+    UITools.convertPointToAncestor(Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent, startingPoint, mapView)
+//    SwingUtilities.convertPointToScreen(startingPoint, list)
+    return startingPoint
 }
