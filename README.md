@@ -1,6 +1,9 @@
-![image](https://github.com/user-attachments/assets/32bd5da8-230c-4214-83a5-fc78f0ba8e51)
 
+<p align="center">
+  <img width="500" height="500" src="https://github.com/user-attachments/assets/d0ad8158-e22e-400b-961f-720248cf20ee">
+</p>
 
+---
 
 UtilityPanels is a script that creates integrated panels in the Freeplane interface.
 
