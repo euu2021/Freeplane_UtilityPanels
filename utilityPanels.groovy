@@ -1,6 +1,8 @@
 
 /***************************************************************************
 
+version 1.44: New Panel: Styles Panel.
+
 version 1.43: Changed the appearance of the nodes, in the lists, that are not visible in the map. Now, they are also hatched.
  Even Smarter Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/54
 
@@ -274,6 +276,20 @@ import java.awt.image.BufferedImage;
 
 import javax.swing.border.AbstractBorder
 
+import org.freeplane.api.MindMap as ApiMindMap
+
+import org.freeplane.plugin.script.proxy.NodeProxy as ProxyNode
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.styles.MapStyleModel;
+import org.freeplane.plugin.script.ScriptContext
+
+import org.freeplane.plugin.script.proxy.ScriptUtils
+
+import java.awt.font.TextAttribute
+import java.util.HashMap
+
 
 
 @groovy.transform.Field uniqueIdForScript = 999
@@ -386,6 +402,10 @@ savedSearchCriteria.add("")
 @groovy.transform.Field JPanel quickSearchPanel
 @groovy.transform.Field JPanel innerPanelInQuickSearchPanel
 @groovy.transform.Field JPanel inspectorPanel
+@groovy.transform.Field JPanel connectingLines = []
+
+@groovy.transform.Field JPanel stylesPanel
+@groovy.transform.Field DefaultListModel<ProxyNode> stylesListModel = new DefaultListModel<>()
 
 @groovy.transform.Field JPanel currentSourcePanel
 
@@ -1735,6 +1755,181 @@ def createPanels() {
 
     //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Ancestor Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Styles Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+    stylesPanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    stylesPanel.setOpaque(false)
+    stylesPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        stylesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        stylesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
+    loadStylesIntoModel(stylesListModel)
+
+    JList<ProxyNode> stylesJList = new JList<>(stylesListModel)
+
+    configureListFont(stylesJList)
+    if (rtlOrientation) {
+        stylesJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        stylesJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+    stylesJList.setOpaque(false)
+    stylesJList.setBackground(new Color(0,0,0,0))
+
+
+    stylesJList.setCellRenderer(new DefaultListCellRenderer() {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            if (value instanceof NodeModel) {
+                styleNode = ProxyFactory.createNode(value, ScriptUtils.getCurrentContext())
+                label.setText(styleNode.text)
+                label.setBackground(styleNode.style.backgroundColor)
+                label.setForeground(styleNode.style.textColor)
+
+                plainBoldItalic = Font.PLAIN
+                if(styleNode.style.font.bold && node.style.font.italic) plainBoldItalic = Font.BOLD + Font.ITALIC
+                else if(styleNode.style.font.bold) plainBoldItalic = Font.BOLD
+                else if(styleNode.style.font.italic) plainBoldItalic = Font.ITALIC
+
+                label.setFont(new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size))
+
+                Font baseFont = new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size)
+
+                Map attributes = new HashMap(baseFont.getAttributes())
+
+                attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON)
+
+                Font fontWithStrikethrough = baseFont.deriveFont(attributes)
+
+                if(styleNode.style.font.strikedThrough) label.setFont(fontWithStrikethrough)
+
+
+//                node.style.font.strikedThrough
+
+//                borderColor = new Color(0, 0, 0, 0)
+//
+//                if(styleNode.style.border.usesEdgeColorSet) borderColor = styleNode.style.edge.color
+//                else borderColor = styleNode.style.border.color
+
+                label.setBorder(BorderFactory.createLineBorder(styleNode.style.border.color, 2))
+
+//                if (isSelected) {
+//                    label.setBackground(list.getSelectionBackground())
+//                    label.setForeground(list.getSelectionForeground())
+//                    label.setOpaque(true) // Torna opaco apenas na seleção
+//                } else {
+//                    label.setForeground(list.getForeground()) // Cor padrão do texto
+//                }
+            }
+            return label
+        }
+    })
+
+    stylesJList.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 1) {
+                int index = stylesJList.locationToIndex(e.getPoint())
+                if (index >= 0) {
+                    selectedStyleNode = stylesListModel.getElementAt(index)
+                    selectedStyleNodeProxy = ProxyFactory.createNode(selectedStyleNode, ScriptUtils.getCurrentContext())
+                    String styleName = selectedStyleNodeProxy.text
+                    if (styleName) {
+                        def selectedMapNodes = c.selecteds
+                        if (!selectedMapNodes.isEmpty()) {
+                            selectedMapNodes.each { mapNode ->
+                                mapNode.style.setName(styleName)
+                            }
+//                            Controller.currentController.getMapViewManager().getMapViewComponent().repaint()
+                        } else {
+                        }
+                    }
+                }
+            }
+        }
+//        @Override
+//        public void mouseEntered(MouseEvent e) {
+//            hideInspectorTimer.stop()
+//            mouseOverList = true
+//            expandMasterPanel()
+//        }
+//
+//        @Override
+//        public void mouseExited(MouseEvent e) {
+//            mouseOverList = false
+//            hideInspectorTimer.restart()
+//        }
+    })
+
+    stylesJList.addMouseListener(sharedMouseListener)
+//    stylesJList.addMouseMotionListener(new MouseAdapter() {
+//        @Override
+//        public void mouseMoved(MouseEvent e) {
+//            if (shouldShowInspectors()) return
+//            lastMouseModifiers = e.getModifiersEx()
+//            if (shouldFreeze()) return
+//
+//            // hoverTimer.stop()
+//            currentList = stylesJList
+//            currentListModel = stylesListModel
+//            currentSourcePanel = stylesPanel
+//            lastMouseLocation = e.getPoint()
+//            mouseOverList = true
+//
+//            if (panelsInMasterPanels.contains(currentSourcePanel)) {
+//                expandMasterPanel()
+//            }
+//        }
+//    })
+
+
+
+    JScrollPane scrollPaneStyles = new JScrollPane(stylesJList) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    configureScrollPaneForRTL(scrollPaneStyles)
+    scrollPaneStyles.setOpaque(false)
+    scrollPaneStyles.getViewport().setOpaque(false)
+    scrollPaneStyles.setBackground(new Color(0, 0, 0, 0))
+    scrollPaneStyles.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+
+    scrollPaneStyles.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPaneStyles.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPaneStyles.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPaneStyles.getHorizontalScrollBar())
+
+//    TitledBorder titledBorderStyles = BorderFactory.createTitledBorder("Styles")
+//    titledBorderStyles.setTitleJustification(TitledBorder.LEFT)
+//    titledBorderStyles.setTitleFont(new Font(panelTextFontName, Font.BOLD, panelTextFontSize))
+//    titledBorderStyles.setTitleColor(Color.DARK_GRAY)
+//    scrollPaneStyles.setBorder(titledBorderStyles)
+
+
+    stylesPanel.add(scrollPaneStyles, BorderLayout.CENTER)
+
+    stylesPanel.addMouseListener(sharedMouseListener)
+
+    configureMouseMotionListener(stylesJList, stylesListModel, stylesPanel)
+    configureMouseExitListener(stylesJList)
+
+
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Styles Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
 
 
     if (!showOnlyBreadcrumbs) {
@@ -1758,7 +1953,8 @@ def createPanels() {
         masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height - 5)
 
 
-        panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, tagsPanel, quickSearchPanel]
+
+        panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel, quickSearchPanel]
 
 
         panelsInMasterPanels.eachWithIndex { panel, idx ->
@@ -2632,6 +2828,13 @@ void commonJListsConfigs(JList<NodeModel> theJlist, DefaultListModel<NodeModel> 
     } else {
         theJlist.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
+
+//    if(theListModel.size() > 0) {
+//        connectingLines.each {it.visible = false}
+//        connectingLines = []
+//    connectListItemToNode(theJlist, 0)
+//    }
+
 }
 
 void configureListFont(JList<NodeModel> list) {
@@ -3507,11 +3710,18 @@ def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel, String du
     }
     else subInspectorPanel2 = createInspectorPanel(nodeNotProxy, subInspectorPanel)
     visibleInspectors.add(subInspectorPanel2)
+
+
 //    if (visibleInspectors.size() == 2) {
 //        subInspectorPanel2.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
 //    }
 //    parentPanel.revalidate()
 //    parentPanel.repaint()
+
+//    parentPanel.revalidate()
+//    parentPanel.repaint()
+//    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
 }
 
 
@@ -4321,8 +4531,93 @@ def Point listItemPosition(JList list, int itemIndex) {
     //(final Component from, final Point p, final Component destination)
     def mapView = Controller.currentController.MapViewManager.mapView
 //    UITools.convertPointToAncestor(list, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent)
-    UITools.convertPointToAncestor(list, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent)
-    UITools.convertPointToAncestor(Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent, startingPoint, mapView)
+    UITools.convertPointToAncestor(masterPanel, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent)
+//    UITools.convertPointToAncestor(Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent, startingPoint, mapView)
 //    SwingUtilities.convertPointToScreen(startingPoint, list)
     return startingPoint
+}
+
+def void connectListItemToNode(JList list, int itemIndex) {
+    startPoint = listItemPosition(list, itemIndex)
+
+    correspondingNode = list.getModel().getElementAt(itemIndex)
+
+    mapView = Controller.currentController.MapViewManager.mapView
+
+    NodeView correspondingNodeView = mapView.getNodeView(correspondingNode)
+    if(correspondingNodeView == null) {
+        println "NodeView não encontrado!"
+        return
+    }
+
+    Point correspondingNodeLocation = mapView.getNodeContentLocation(correspondingNodeView)
+    UITools.convertPointToAncestor(mapView, correspondingNodeLocation, Controller.currentController.mapViewManager.mapView.parent.parent)
+
+
+    JPanel overlay = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g)
+            g.setColor(Color.RED)
+            // Desenha a linha entre o ponto de partida e a localização do nó.
+            g.drawLine(startPoint.x as int, startPoint.y as int, correspondingNodeLocation.x as int, correspondingNodeLocation.y as int)
+//  g.drawLine(startPoint.x as int, startPoint.y as int, 1500, 1500)
+        }
+    }
+    overlay.setOpaque(false)
+    overlay.setBounds(0, 0, mapView.getWidth(), mapView.getHeight())
+
+    parentPanel2 = Controller.currentController.mapViewManager.mapView.parent.parent
+// Adicione o overlay ao mapView e atualize a exibição.
+//mapView.add(overlay)
+//mapView.repaint()
+    parentPanel2.add(overlay)
+    parentPanel2.setComponentZOrder(overlay, 0)
+    parentPanel2.repaint()
+
+    connectingLines.add(overlay)
+
+
+}
+
+
+def loadStylesIntoModel(DefaultListModel<ProxyNode> model) {
+    model.clear()
+    try {
+        def userStylesParent = getUserDefinedStylesParentNode()
+
+        if (userStylesParent != null && userStylesParent.children != null) {
+            userStylesParent.children.each { styleNode ->
+                model.addElement(styleNode.delegate)
+            }
+        } else {
+        }
+    } catch (Exception e) {
+        e.printStackTrace()
+    }
+}
+
+def static getUserDefinedStylesParentNode(x = null){
+    return getUserDefinedStylesParentNode((ScriptContext) null)
+}
+
+
+def static getUserDefinedStylesParentNode(ScriptContext scriptContext){
+    MapModel mapa = Controller.getCurrentController().getMap();
+    return getUserDefinedStylesParentNode(mapa, scriptContext)
+}
+
+def static getUserDefinedStylesParentNode(ApiMindMap mapaProxy, ScriptContext scriptContext){
+    return getUserDefinedStylesParentNode(mapaProxy.delegate, scriptContext)
+}
+
+def static getUserDefinedStylesParentNode(MapModel mapa, ScriptContext scriptContext){
+    if(!mapa) {
+        return getUserDefinedStylesParentNode(scriptContext)
+    }
+    MapStyleModel styleModel = MapStyleModel.getExtension(mapa);
+    MapModel styleMap = styleModel.getStyleMap();
+    NodeModel userStyleParentNode = styleModel.getStyleNodeGroup(styleMap, MapStyleModel.STYLES_USER_DEFINED);
+    def userDefinedParentNode = new ProxyNode(userStyleParentNode, scriptContext)
+    return userDefinedParentNode
 }
