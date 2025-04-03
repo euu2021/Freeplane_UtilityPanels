@@ -1,6 +1,11 @@
 
 /***************************************************************************
 
+version 1.45: Bugfix: RTL not working in some panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/55
+ Bugfix: included mouse listeners to the hatch overlay.
+ Bugfix: inspectors recreation wasn't correct on master panel retract action.
+ Purple border is back. Now, only in inspectors. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52#issuecomment-2774213690
+
 version 1.44: New Panel: Styles Panel.
 
 version 1.43: Changed the appearance of the nodes, in the lists, that are not visible in the map. Now, they are also hatched.
@@ -396,6 +401,7 @@ savedSearchCriteria.add("")
 @groovy.transform.Field JPanel masterPanel
 @groovy.transform.Field JPanel breadcrumbPanel
 @groovy.transform.Field List<JPanel> panelsInMasterPanels = []
+@groovy.transform.Field List<JScrollPane> scrollPanelsInMasterPanelPanels = []
 @groovy.transform.Field JPanel recentSelectedNodesPanel
 @groovy.transform.Field JPanel pinnedItemsPanel
 @groovy.transform.Field JPanel tagsPanel
@@ -1956,6 +1962,8 @@ def createPanels() {
 
         panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel, quickSearchPanel]
 
+        scrollPanelsInMasterPanelPanels = []
+
 
         panelsInMasterPanels.eachWithIndex { panel, idx ->
             if (rtlOrientation) {
@@ -2626,29 +2634,29 @@ void hideInspectorPanelIfNeeded() {
     if (shouldFreeze()) {return}
     if (!mouseOverList) {
 
-//        visibleInspectors.each{
-//            if(!inspectorUpdateSelection) {
-//                it.setVisible(false)
-//            }
-//            else{
-//                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
-//                    it.setVisible(false)
-//                }
-//            }
-//        }
-//
-//        if(!inspectorUpdateSelection) {
-//            visibleInspectors.clear()
-//        }
-//        else {
-//            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-//            if(visibleInspectors.size() != 0) {
-//                setInspectorLocation(visibleInspectors[0], masterPanel)
-//                if(visibleInspectors.size() > 1) {
-//                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
-//                }
-//            }
-//        }
+        visibleInspectors.each{
+            if(!inspectorUpdateSelection) {
+                it.setVisible(false)
+            }
+            else{
+                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
+                    it.setVisible(false)
+                }
+            }
+        }
+
+        if(!inspectorUpdateSelection) {
+            visibleInspectors.clear()
+        }
+        else {
+            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
+            if(visibleInspectors.size() != 0) {
+                setInspectorLocation(visibleInspectors[0], masterPanel)
+                if(visibleInspectors.size() > 1) {
+                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                }
+            }
+        }
 //
 //        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
 //            visibleInspectors[0].setVisible(true)
@@ -2661,11 +2669,6 @@ void hideInspectorPanelIfNeeded() {
 
 
         smartCreateInspectors(currentlySelectedNode)
-
-
-
-
-
 
 
 
@@ -2730,7 +2733,6 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 //        }
 
 
-        // Ativa o overlay com hachurado se o nó não estiver visível
         if (currentMapView.getNodeView(nodeNotProxy) == null || !isNodeOnScreen(nodeNotProxy)) {
 //            label.setBorder(BorderFactory.createLineBorder(Color.BLUE, 4))
 //            label.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1))
@@ -2748,6 +2750,12 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
 
         if (currentlySelectedNode == nodeNotProxy) {
             label.setBorder(BorderFactory.createLineBorder(Color.RED, 4))
+        }
+
+        else if(!panelsInMasterPanels.contains(sourcePanel) && sourcePanel != breadcrumbPanel) {
+            if (visibleInspectors.any { it.getClientProperty("referenceNode") == nodeNotProxy }) {
+                label.setBorder(BorderFactory.createLineBorder((new Color(160, 32, 240, 255)), 4))
+            }
         }
 
 //        else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
@@ -3195,10 +3203,12 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
 
 ////
             OverlayLabel label = new OverlayLabel(baseLabel.getText(), baseLabel.getIcon(), baseLabel.getHorizontalAlignment())
+            label.setComponentOrientation(baseLabel.getComponentOrientation())
             label.setFont(baseLabel.getFont())
             label.setForeground(baseLabel.getForeground())
             label.setBackground(baseLabel.getBackground())
             label.setOpaque(true)
+            label.addMouseListener(sharedMouseListener)
 //////
 
             if (value instanceof NodeModel) {
@@ -3777,9 +3787,15 @@ def retractMasterPanel() {
     bounds = masterPanel.getBounds()
     bounds.width = calculateRetractedWidthForMasterPanel()
     masterPanel.setBounds(bounds)
-    panelsInMasterPanels.each { it.setVisible(true) }
-    masterPanel.revalidate()
+    panelsInMasterPanels.each {
+        it.setVisible(true)
+    }
+    scrollPanelsInMasterPanelPanels.each {
+        scrollPanel = it
+        configureScrollPaneForRTL(scrollPanel)
+    }
     masterPanel.repaint()
+    masterPanel.revalidate()
     isMasterPanelExpanded = false
 }
 
@@ -3892,8 +3908,8 @@ def JList createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPan
         jList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
-
     JScrollPane scrollPane = new JScrollPane(jList)
+    scrollPanelsInMasterPanelPanels.add(scrollPane)
     configureScrollPaneForRTL(scrollPane)
 
     scrollPane.setBackground(new Color(0, 0, 0, 0))
