@@ -1,19 +1,17 @@
 
 /***************************************************************************
 
- version 1.46: New Panel: In-place Siblings Preview.
-
- version 1.45: Bugfix: RTL not working in some panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/55
+version 1.45: Bugfix: RTL not working in some panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/55
  Bugfix: included mouse listeners to the hatch overlay.
  Bugfix: inspectors recreation wasn't correct on master panel retract action.
  Purple border is back. Now, only in inspectors. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52#issuecomment-2774213690
 
- version 1.44: New Panel: Styles Panel.
+version 1.44: New Panel: Styles Panel.
 
- version 1.43: Changed the appearance of the nodes, in the lists, that are not visible in the map. Now, they are also hatched.
+version 1.43: Changed the appearance of the nodes, in the lists, that are not visible in the map. Now, they are also hatched.
  Even Smarter Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/54
 
- version 1.42: Bugfix: selecting a node on the inspector was closing the inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issue-2955896709
+version 1.42: Bugfix: selecting a node on the inspector was closing the inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issue-2955896709
  Bugfix: leaving the inspector should go back to the selected node inspector. https://github.com/euu2021/Freeplane_UtilityPanels/issues/53#issuecomment-2763042689
  Fixed reserved area for inspector panels.
  Removed the Purple border around items that had inspector panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52#issuecomment-2760093127
@@ -22,11 +20,11 @@
  Smart Update Selection: inspector panel only shows if any of the siblings or children of the current node are not visible in the map. https://github.com/euu2021/Freeplane_UtilityPanels/issues/52
  If a node is not appearing on the screen, it gets a Blue border on the lists.
 
- version 1.40: Bugfix: Transversal search was finding all descendants.
+version 1.40: Bugfix: Transversal search was finding all descendants.
  Bugfix: on node delete the descendants were not removed from the recent nodes and pinned nodes lists.
  Bugfix: quicksearch panel was blinking if map overview was hidden. Fixed by adding repaints and revalidates.
 
- version 1.39: option to also hide the inspectors, even if "Update Selection" is activated. This option is active, by default. https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2724134882
+version 1.39: option to also hide the inspectors, even if "Update Selection" is activated. This option is active, by default. https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2724134882
  Bugfix: DnD not working when dragging from the map.
  Quicksearch was accidentally simplified on a previous version. Now, it has transversal search, again.
  Redesign of the buttons at the top of the inspector panel. https://github.com/euu2021/Freeplane_UtilityPanels/issues/31
@@ -35,9 +33,9 @@
  Settings UI: on list item right-click contextual menu there is now a Settings option. The settings are saved in the json.
  Solved the performance degradation problem. The problem was that, on each mapview change, the createPanels() was called, but previous panels weren't properly cleared. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41
 
- version 1.38: Hotkey toggle panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
+version 1.38: Hotkey toggle panels visibility. By default, Ctrl+U (can be configured in user settings). https://github.com/euu2021/Freeplane_UtilityPanels/issues/18#issuecomment-2565581115
 
- version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
+version 1.37: Visual feedback in drag and drop operation on lists in panels. Ie, while dragging, the items are highlighted in the list.
  Fixed label prefixes not showing on breadcrumbs panel.
  Quicksearch: now, uses a SwingWorker, to avoid locking the interface while searching.
  Quicksearch: results are limited to 500.
@@ -45,12 +43,12 @@
  Quicksearch: when cursor is in the quicksearch field, pressing ESC erases the search bar content.
  Add viewport reserved area methods for utility panels. https://github.com/euu2021/Freeplane_UtilityPanels/pull/45
 
- version 1.36: Included automatic import of the SwingX library.
- Bugfix first item of lists not being selected on hover. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41#issuecomment-2645055560
+version 1.36: Included automatic import of the SwingX library.
+  Bugfix first item of lists not being selected on hover. https://github.com/euu2021/Freeplane_UtilityPanels/issues/41#issuecomment-2645055560
 
- version 1.35: Improved responsiveness on node selection. Fixed unnecessary tag check of all nodes on each node selection.
- Fixed Index Out Of Bounds Exception on hovering over breadcrumbs panel.
- Updated to work with Freeplane 1.12.9 (stable). There was a change in the signature of the method isNodeHighlighted.
+version 1.35: Improved responsiveness on node selection. Fixed unnecessary tag check of all nodes on each node selection.
+  Fixed Index Out Of Bounds Exception on hovering over breadcrumbs panel.
+  Updated to work with Freeplane 1.12.9 (stable). There was a change in the signature of the method isNodeHighlighted.
 
  version 1.34: Cleaned unused imports.
  Uniform Border Color for Selected Nodes Across All Panels.
@@ -62,32 +60,32 @@
  Refactored the backend for ListModels, so they don't get recreated on every update.
  RTL Node Text Panel
 
- version 1.32: Ellipsis on labels in the breadcrumbs panel.
- RTL support. New user option: rtlOrientation.
+version 1.32: Ellipsis on labels in the breadcrumbs panel.
+    RTL support. New user option: rtlOrientation.
 
- version 1.31: Bugfix: wrong positioning of inspector when masterpanel is expanded.
+version 1.31: Bugfix: wrong positioning of inspector when masterpanel is expanded.
 
- version 1.30: Breadcrumbs panel has now transparent background.
+version 1.30: Breadcrumbs panel has now transparent background.
  The ○ symbol doesn't show up in the Breadcrumbs panel.
  Text in the Node text pane (inside the inspector) automatically adjusts size of the font, to fit the pane. Minimum font size can be set at user settings.
  New option in right click menu of a list item: Open in new View.
  Option to showAncestorsOnFirstInspector, on user settings.
 
- version 1.29: Option to show only the breadcrumbs panel.
- Dropped compatibility with FP <= 1.12.8
+version 1.29: Option to show only the breadcrumbs panel.
+    Dropped compatibility with FP <= 1.12.8
 
- version 1.28: Ctrl key freezes the panels.
+version 1.28: Ctrl key freezes the panels.
  New panel: Breadcrumbs, replacing the Ancestors panel.
 
- version 1.27: nodes that have children have a ○ symbol at the start.
+version 1.27: nodes that have children have a ○ symbol at the start.
  New inspectors design: first panel was simplified. Ancestor panel is now part of the left panels.
 
- version 1.26: first version of the new inspectors design.
+version 1.26: first version of the new inspectors design.
 
- version 1.25: Panels on the master panel expand vertically on hover, to fit the whole height of the window.
+version 1.25: Panels on the master panel expand vertically on hover, to fit the whole height of the window.
  Hidden panels in the Inspector leave a space, to show that it's hidden.
 
- version 1.24: improvements in the vertical distribution of panels in the inspector.
+version 1.24: improvements in the vertical distribution of panels in the inspector.
  Panel nodes with the tags: now the search is limited to current view root.
  Fixed listener in the Tags Selection panel.
  Correct font color for tag in panels.
@@ -98,34 +96,34 @@
  Labels are placed side by side in panels.
  Now, hovering over a tag in the tags panel shows, in the Inspector, the nodes that have that tag.
 
- version 1.23: Fixed bug in performance of tags identifier.
+version 1.23: Fixed bug in performance of tags identifier.
  Fixed the method to get all tags in map.
 
- version 1.22: Fixed bug in colors in the list.
+version 1.22: Fixed bug in colors in the list.
 
- version 1.21: Fixed bug when UP configs file wasn't created.
+version 1.21: Fixed bug when UP configs file wasn't created.
 
- version 1.20: Fixed bug when node style had no colors set.
+version 1.20: Fixed bug when node style had no colors set.
 
- version 1.19: Fixed bug when node style had no colors set.
+version 1.19: Fixed bug when node style had no colors set.
 
- version 1.18: Tags: now, adding, adds to all selected nodes.
+version 1.18: Tags: now, adding, adds to all selected nodes.
  Tags: right click on tag opens context menu. Option to remove tag.
  Tags: basic filtering of the tags list in the tags panel.
  Tags: highlighters for tags. It highlights nodes that have all the tags in the selection.
  Tags: tags selection. A tag is added to the selection on the right click context menu. The tag selection list appears on the fist inspector. Also there, appears a list of nodes containing the tags.
 
- version 1.17: added mouse listeners to scrollbars and scrollbars arrows.
- List of recent nodes is now saved between sessions.
- Tags Panel (very basic).
+version 1.17: added mouse listeners to scrollbars and scrollbars arrows.
+    List of recent nodes is now saved between sessions.
+    Tags Panel (very basic).
 
- version 1.16: Quick search: search field is cleared when map view is changed.
+version 1.16: Quick search: search field is cleared when map view is changed.
  Created caching mechanism in the NodeHighlighter to optimize performance. By storing and reusing the state of highlighted nodes and their descendants, the script reduces unnecessary recursive operations, resulting in faster load times and a more responsive user interface, particularly in complex and large-scale maps
  Automatically remove panels, in the Inspector that have no nodes, including the ancestors panel.
  Included shared mouse listener in context menu and in master panel.
  Removed space between masterpanel and inspectorpanel. Also, removed space between inspector panels. Increased the border for inspector panels.
 
- version 1.15: substring search with multiple terms: Quick Search now supports partial word matching, allowing nodes to be found if their text contains fragments of the searched terms. For example, searching for 'ab 12' will find 'abc 123'.
+version 1.15: substring search with multiple terms: Quick Search now supports partial word matching, allowing nodes to be found if their text contains fragments of the searched terms. For example, searching for 'ab 12' will find 'abc 123'.
  Transversal Search: Quick Search now supports transversal search, finding nodes that contain at least one of the searched terms and whose ancestors complement the other terms. For example, searching for 'ab 12' will find a node with text 'abc' if any ancestor contains '12'.
  Folded nodes with matching descendants are now highlighted in red, indicating they have hidden search results. Orange for nodes directly found that also have highlighted descendants and are folded.
  Recent Nodes Panel: improved the logic for the recent nodes panel: selected nodes are now always moved to the top of the list, avoiding duplicates. If the node is not already in the list, it is added at the top.
@@ -136,32 +134,32 @@
  Created the user option: widthOfTheClearButtonOnQuickSearchPanel.
  Fixed mouse click while mouse moving was interpreted as a drag to itself.
 
- version 1.14: add horizontal scrollbar to pinned nodes, quick search and history panels.
+version 1.14: add horizontal scrollbar to pinned nodes, quick search and history panels.
  Created option additionalInspectorDistanceToTheBottomOfTheScreen.
  Fixed Blinking "Update Selection" panel when mouse on an empty space of a list.
  Added history of recent searches.
  Added shortcut to quick search.
  Automatically remove panels, in the Inspector, that have no nodes
 
- version 1.13: Quick Search now works without Jumper integration.
+version 1.13: Quick Search now works without Jumper integration.
 
- version 1.12: In siblings panel, scrollbar rolls automatically to selected node.
+version 1.12: In siblings panel, scrollbar rolls automatically to selected node.
 
- version 1.11: Fine tuned reaction to mouse listeners.
- Fixed calculation of inspector locations.
+version 1.11: Fine tuned reaction to mouse listeners.
+    Fixed calculation of inspector locations.
 
- version 1.10: Fixed inspector hiding with Update Selection enabled.
+version 1.10: Fixed inspector hiding with Update Selection enabled.
  Fixed Update Selection button only in first inspector.
  Created option paddingBeforeHorizontalScrollBar, to avoid the vertical scrollbar appearing unnecessarily;
 
- version 1.9: Fixed calculation of inspector location.
+version 1.9: Fixed calculation of inspector location.
  Fixed node text panel scrollbar not starting at the top.
  Option to reverse the order of ancestors list.
 
- version 1.8: selection delay
+version 1.8: selection delay
  Fixed size calculations relative to map view window.
 
- version: 1.7: Inspector max height is equal to the window height.
+version: 1.7: Inspector max height is equal to the window height.
  Not necessary to have Map Overview active anymore.
  Solved graphical glitch problem (actually, it was multiple inspectors being created).
  Master panel expands on hover.
@@ -171,9 +169,9 @@
  Quick search panel now is transparent
  Right clicking on a list item doesn't navigate to it, anymore.
 
- version: 1.6: Inspector height adapts to the content.
+version: 1.6: Inspector height adapts to the content.
 
- version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
+version: 1.5: performance improvement when Update Selection is enabled. Inspector height adapts to the content.
 
  *****************************************************************/
 
@@ -299,8 +297,6 @@ import java.util.HashMap
 
 
 
-
-
 @groovy.transform.Field uniqueIdForScript = 999
 
 //def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
@@ -358,10 +354,6 @@ showAncestorsOnFirstInspector = false
 
 @groovy.transform.Field hideInspectorsEvenIfUpdateSelection = true
 
-@groovy.transform.Field showInPlaceSiblingsPreview = true
-
-
-
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
@@ -392,7 +384,6 @@ fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 //@groovy.transform.Field List<NodeModel> pinnedItems = []
 //@groovy.transform.Field List<NodeModel> quickSearchResults = []
 @groovy.transform.Field List<JPanel> visibleInspectors = []
-@groovy.transform.Field List<JPanel> visiblePreviewInspectors = []
 @groovy.transform.Field List<JPanel> inPlaceInspectors = []
 @groovy.transform.Field List<String> savedSearchCriteria = []
 savedSearchCriteria.add("")
@@ -406,13 +397,11 @@ savedSearchCriteria.add("")
 
 @groovy.transform.Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
-//@groovy.transform.Field JScrollPane parentPanel
-@groovy.transform.Field JScrollPane parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
+@groovy.transform.Field JScrollPane parentPanel
 @groovy.transform.Field JPanel masterPanel
 @groovy.transform.Field JPanel breadcrumbPanel
 @groovy.transform.Field List<JPanel> panelsInMasterPanels = []
 @groovy.transform.Field List<JScrollPane> scrollPanelsInMasterPanelPanels = []
-@groovy.transform.Field List <JPanel> activeSiblingPreviewPanels = []
 @groovy.transform.Field JPanel recentSelectedNodesPanel
 @groovy.transform.Field JPanel pinnedItemsPanel
 @groovy.transform.Field JPanel tagsPanel
@@ -514,18 +503,12 @@ sharedMouseListener = new MouseAdapter() {
 
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
+    if (shouldShowInspectors()) { return }
     if (shouldFreeze()) return
-
+    
 
     if(panelsInMasterPanels.contains(currentSourcePanel)) {
         expandMasterPanel()
-
-        visiblePreviewInspectors.each {
-            it.setVisible(false)
-            parentPanel.remove(it)
-        }
-
-        visiblePreviewInspectors.clear()
 
 
         visibleInspectors.each{
@@ -553,37 +536,7 @@ hoverTimer.addActionListener(e -> {
         }
     }
 
-    if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
-        visiblePreviewInspectors.each {
-            it.setVisible(false)
-            parentPanel.remove(it)
-        }
-
-        visiblePreviewInspectors.clear()
-
-
-        visibleInspectors.each{
-            if(!inspectorUpdateSelection) {
-                it.setVisible(false)
-            }
-            else{
-                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
-                    it.setVisible(false)
-                }
-            }
-        }
-
-        if(!inspectorUpdateSelection) {
-            visibleInspectors.clear()
-        }
-        else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-        }
-
-
-    }
-
-    if (lastMouseLocation) {
+     if (lastMouseLocation) {
 
 
         int index = currentList.locationToIndex(lastMouseLocation)
@@ -613,22 +566,7 @@ hoverTimer.addActionListener(e -> {
 
                     if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
                         cleanAndCreateInspectors(subNode, masterPanel)
-                    }
-                    else if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
-                        visiblePreviewInspectors.each {
-                            it.setVisible(false)
-                            parentPanel.remove(it)
-                        }
-                        visiblePreviewInspectors.clear()
-
-                        previewInspector = createInspectorPanel(subNode, currentSourcePanel)
-                        visiblePreviewInspectors.add(previewInspector)
-
-                        previewInspector2 = createInspectorPanel(subNode, previewInspector)
-                        visiblePreviewInspectors.add(previewInspector2)
-
-                    }
-                    else {
+                    } else {
 
 
                         JTextPane textLabelInInspector = (JTextPane) currentSourcePanel.getClientProperty("textLabel")
@@ -645,28 +583,14 @@ hoverTimer.addActionListener(e -> {
 
                         subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
 
-                        if (visiblePreviewInspectors.contains(currentSourcePanel)) {
-                            visiblePreviewInspectors.add(subInspectorPanel)
-                            locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                            visiblePreviewInspectors.clone().each {
-                                if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                                    it.setVisible(false)
-                                    visiblePreviewInspectors.remove(it)
-                                }
+                        visibleInspectors.add(subInspectorPanel)
+                        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
+                        visibleInspectors.clone().each {
+                            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
+                                it.setVisible(false)
+                                visibleInspectors.remove(it)
                             }
                         }
-
-                        else {
-                            visibleInspectors.add(subInspectorPanel)
-                            locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                            visibleInspectors.clone().each {
-                                if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                                    it.setVisible(false)
-                                    visibleInspectors.remove(it)
-                                }
-                            }
-                        }
-
 
                         parentPanel.revalidate()
                         parentPanel.repaint()
@@ -869,6 +793,7 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
         if (newView == null) {
             return
         }
+        createComponentChangeListener()
 
         searchText = ""
         quickSearchResults.clear()
@@ -900,9 +825,6 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
 //        }
 
         reloadPanels()
-
-        createComponentChangeListener()
-        refreshSiblingPreviewPanels()
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
@@ -2090,15 +2012,9 @@ def updateAllGUIs() {
 
 
 JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean dummyMode = false) {
-
+    if (shouldShowInspectors()) { return }
 
     dummyPanel2 = dummyMode
-
-//    isPreviewInspector = false
-//
-//    if(activeSiblingPreviewPanels.contains(sourcePanel) || (visibleInspectors.contains(sourcePanel) && sourcePanel.isPreviewInspector == true)) {
-//        isPreviewInspector = true
-//    }
 
 
     JPanel inspectorPanel = new JPanel(new BorderLayout()) {
@@ -2111,8 +2027,6 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
     }
 
     inspectorPanel.putClientProperty("referenceNode", nodeNotProxy)
-
-    if (!shouldShowInspectors() && !activeSiblingPreviewPanels.contains(sourcePanel) && !visiblePreviewInspectors.contains(sourcePanel))  return inspectorPanel
 
     inspectorPanel.setLayout(new BorderLayout())
 //    if (currentlySelectedNode == nodeNotProxy) {
@@ -2152,7 +2066,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 
     inspectorPanel.putClientProperty("textScrollPane", textScrollPane)
 
-    if(visibleInspectors.size() == 0 || activeSiblingPreviewPanels.contains(sourcePanel)) {
+    if(visibleInspectors.size() == 0) {
         configureLabelForNode(textLabel, nodeNotProxy, inspectorPanel)
     }
 
@@ -2197,7 +2111,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
                 JPanel panelToRemove = visibleInspectors.get(i)
                 panelToRemove.setVisible(false)
                 visibleInspectors.remove(i)
-            }
+                }
         } else {
             inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 5))
         }
@@ -2271,7 +2185,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
             super.paintComponent(g)
         }
     }
-    configureScrollPaneForRTL(scrollPaneAncestorsLineList)
+        configureScrollPaneForRTL(scrollPaneAncestorsLineList)
     ancestorsLineList.setSize(ancestorsLineList.getPreferredSize())
 //    ancestorsLineList.revalidate()
     Dimension listPreferredSize = ancestorsLineList.getPreferredSize()
@@ -2326,7 +2240,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 //    siblingsList.setBorder(titledBorderSiblings)
 
     JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
-    configureScrollPaneForRTL(scrollPanelSiblingsList)
+        configureScrollPaneForRTL(scrollPanelSiblingsList)
     siblingsList.setSize(siblingsList.getPreferredSize())
 //    siblingsList.revalidate()
     Dimension listPreferredSize2 = siblingsList.getPreferredSize()
@@ -2606,18 +2520,18 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
     }
 
 
-    if((panelsInMasterPanels.contains(sourcePanel) && visibleInspectors.size() == 0) || (activeSiblingPreviewPanels.contains(sourcePanel) && visiblePreviewInspectors.size() == 0)) {
+    if(visibleInspectors.size() == 0) {
         columnsPanel.add(scrollPanelSiblingsList)
         ammountOfPannelsInInspector++
     }
-//    else{
+    else{
 //        JPanel line = new JPanel()
 //        line.setBackground(Color.GRAY)
 //        line.setPreferredSize(new Dimension(10, 3))
 //        line.setBorder(BorderFactory.createLineBorder(Color.RED, 2))
 //
 //        columnsPanel.add(line)
-//    }
+    }
 //    if(childrenModel.getSize() > 0) {
 //        columnsPanel.add(scrollPaneChildrenList)
 //        ammountOfPannelsInInspector++
@@ -2630,8 +2544,7 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 ////        columnsPanel.add(line2)
 //    }
 
-//    if(visibleInspectors.size() != 0 || visiblePreviewInspectors.size() != 0) {
-    else {
+    if(visibleInspectors.size() != 0) {
         columnsPanel.add(scrollPaneChildrenList)
         ammountOfPannelsInInspector++
 
@@ -2716,242 +2629,34 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 }
 
 
-JPanel createSiblingPreviewPanel(NodeModel nodeNotProxy, boolean positionAtBottom = false, int referenceNodeScreenX, int referenceNodeScreenY) {
-
-
-    nodeProxy = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
-
-    JPanel siblingsPreviewPanel = new JPanel(new BorderLayout()) {
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g)
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-        }
-    }
-
-    siblingsPreviewPanel.putClientProperty("referenceNode", nodeNotProxy)
-    siblingsPreviewPanel.putClientProperty("positionAtBottom", positionAtBottom)
-
-    siblingsPreviewPanel.setLayout(new BorderLayout())
-//    siblingsPreviewPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1))
-    siblingsPreviewPanel.setBackground(Color.LIGHT_GRAY)
-
-
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Siblings panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-    DefaultListModel<NodeModel> siblingsUpOrDownModel = new DefaultListModel<>()
-
-
-    if (!positionAtBottom){
-
-        siblingsUP = []
-        nodeProxy.parent.children.each {
-            if(it.parent.children.indexOf(it) < nodeProxy.parent.children.indexOf(nodeProxy)) {
-                siblingsUP.add(it.delegate)
-            }
-        }
-
-        siblingsUP.each {
-            if(!isNodeVisibleInViewport(it)) {
-                siblingsUpOrDownModel.addElement(it)
-            }
-        }
-
-
-    }
-    else {
-
-        siblingsDown = []
-        nodeProxy.parent.children.each {
-            if(it.parent.children.indexOf(it) > nodeProxy.parent.children.indexOf(nodeProxy)) {
-                siblingsDown.add(it.delegate)
-            }
-        }
-
-        siblingsDown.each {
-            if(!isNodeVisibleInViewport(it)) {
-                siblingsUpOrDownModel.addElement(it)
-            }
-        }
-
-    }
-
-
-    JList<NodeModel> siblingsList = new JList<>(siblingsUpOrDownModel)
-
-
-    JScrollPane scrollPanelSiblingsList = new JScrollPane(siblingsList)
-    horizontalScrollBarOriginalHeight = 0
-    if (scrollPanelSiblingsList.getHorizontalScrollBar().isVisible()) horizontalScrollBarOriginalHeight = scrollPanelSiblingsList.getHorizontalScrollBar().getPreferredSize().height
-    scrollPanelSiblingsList.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 0))
-
-    final int MAX_VISIBLE_SIBLING_ROWS = 7
-    int numItems = siblingsUpOrDownModel.getSize()
-
-    if (numItems > 0) {
-        int visibleRows = Math.min(numItems, MAX_VISIBLE_SIBLING_ROWS)
-        visibleRows = Math.max(1, visibleRows)
-
-        siblingsList.setVisibleRowCount(visibleRows)
-
-        int preferredWidth = 100
-        scrollPanelSiblingsList.setPreferredSize(new Dimension(preferredWidth, scrollPanelSiblingsList.getPreferredSize().height as int))
-
-    }
-
-
-
-    if(!positionAtBottom) {
-        SwingUtilities.invokeLater {
-
-            if (scrollPanelSiblingsList.getVerticalScrollBar().isVisible()) scrollPanelSiblingsList.getVerticalScrollBar().setValue(scrollPanelSiblingsList.getVerticalScrollBar().getMaximum())
-
-        }
-    }
-
-
-
-
-    commonJListsConfigs(siblingsList, siblingsUpOrDownModel, siblingsPreviewPanel)
-
-//    TitledBorder titledBorderSiblings = BorderFactory.createTitledBorder("Siblings")
-//    titledBorderSiblings.setTitleJustification(TitledBorder.LEFT)
-//    titledBorderSiblings.setTitleFont(new Font(panelTextFontName, Font.PLAIN, panelTextFontSize))
-//    siblingsList.setBorder(titledBorderSiblings)
-
-    configureScrollPaneForRTL(scrollPanelSiblingsList)
-
-
-    siblingsList.addMouseListener(sharedMouseListener)
-    scrollPanelSiblingsList.getVerticalScrollBar().addMouseListener(sharedMouseListener)
-    scrollPanelSiblingsList.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
-    addMouseListenerToScrollBarButtons(scrollPanelSiblingsList.getVerticalScrollBar())
-    addMouseListenerToScrollBarButtons(scrollPanelSiblingsList.getHorizontalScrollBar())
-
-
-
-
-
-
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Siblings panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-
-    siblingsPreviewPanel.add(scrollPanelSiblingsList, BorderLayout.CENTER)
-
-    siblingsPreviewPanel.setLocation(referenceNodeScreenX as int, 0)
-
-
-    siblingsPreviewPanel.setVisible(true)
-    parentPanel.add(siblingsPreviewPanel)
-    parentPanel.setComponentZOrder(siblingsPreviewPanel, 0)
-
-    Dimension preferredSize = siblingsPreviewPanel.getPreferredSize()
-
-    int currentX = siblingsPreviewPanel.getX()
-    int currentY = siblingsPreviewPanel.getY()
-    int calculatedWidth = preferredSize.width
-    int calculatedHeight = preferredSize.height
-
-
-    def mapView = Controller.currentController.MapViewManager.mapView
-    def viewport = mapView.getParent()
-    if (!(viewport instanceof JViewport)) {
-        return
-    }
-
-    NodeView nodeView = mapView.getNodeView(nodeNotProxy)
-    if(nodeView == null) {
-        return
-    }
-
-    def pointOnMap = mapView.getNodeContentLocation(nodeView)
-    verticalSpaceToViewportEdge = 600
-    if (pointOnMap != null) {
-
-        UITools.convertPointToAncestor(mapView, pointOnMap, viewport)
-
-        verticalSpaceToViewportEdge = pointOnMap.y
-
-        if(positionAtBottom) {
-            verticalSpaceToViewportEdge = (viewport.getHeight() - pointOnMap.y - nodeView.getContentPane().height) as int
-        }
-    }
-
-
-    int margin = 5
-    currentY = referenceNodeScreenY - calculatedHeight - margin
-    currentY = Math.max(0, currentY)
-
-    maxHeight = (int) Math.min(siblingsList.getPreferredSize().height as int, verticalSpaceToViewportEdge)
-
-    nodeWidth = nodeView.getContentPane().width
-
-    siblingsPreviewPanel.setSize(nodeWidth as int, maxHeight as int + horizontalScrollBarOriginalHeight as int)
-
-//    if(!positionAtBottom) {
-//        siblingsPreviewPanel.setLocation(referenceNodeScreenX as int, 0)
-//
-//    }
-//    else {
-//        siblingsPreviewPanel.setLocation(referenceNodeScreenX as int, viewport.getHeight() as int - siblingsPreviewPanel.getHeight() as int)
-//    }
-
-    if(!positionAtBottom) {
-        siblingsPreviewPanel.setLocation(referenceNodeScreenX as int, (referenceNodeScreenY - siblingsPreviewPanel.getHeight()) as int)
-
-    }
-    else {
-        siblingsPreviewPanel.setLocation(referenceNodeScreenX as int, (referenceNodeScreenY + nodeView.getContentPane().height) as int)
-    }
-
-    parentPanel.revalidate()
-    parentPanel.repaint()
-
-    return siblingsPreviewPanel
-}
-
-
 
 void hideInspectorPanelIfNeeded() {
-    if (shouldFreeze()) return
-    if (mouseOverList) return
+    if (shouldFreeze()) {return}
+    if (!mouseOverList) {
 
-    visiblePreviewInspectors.each {
-        it.setVisible(false)
-        parentPanel.remove(it)
-    }
-
-    visiblePreviewInspectors.clear()
-
-    visibleInspectors.each{
-        if(!inspectorUpdateSelection) {
-            it.setVisible(false)
-        }
-        else{
-            if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
+        visibleInspectors.each{
+            if(!inspectorUpdateSelection) {
                 it.setVisible(false)
             }
-        }
-    }
-
-    if(!inspectorUpdateSelection) {
-        visibleInspectors.clear()
-    }
-    else {
-        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-        if(visibleInspectors.size() != 0) {
-            setInspectorLocation(visibleInspectors[0], masterPanel)
-            if(visibleInspectors.size() > 1) {
-                setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+            else{
+                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
+                    it.setVisible(false)
+                }
             }
         }
-    }
+
+        if(!inspectorUpdateSelection) {
+            visibleInspectors.clear()
+        }
+        else {
+            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
+            if(visibleInspectors.size() != 0) {
+                setInspectorLocation(visibleInspectors[0], masterPanel)
+                if(visibleInspectors.size() > 1) {
+                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+                }
+            }
+        }
 //
 //        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
 //            visibleInspectors[0].setVisible(true)
@@ -2960,23 +2665,23 @@ void hideInspectorPanelIfNeeded() {
 //            }
 //        }
 
-    retractMasterPanel()
+        retractMasterPanel()
 
 
-    smartCreateInspectors(currentlySelectedNode)
+        smartCreateInspectors(currentlySelectedNode)
 
 
 
 
-    if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
-        setInspectorLocation(visibleInspectors[0], masterPanel)
-        if(visibleInspectors.size() > 1) {
-            setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+        if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
+            setInspectorLocation(visibleInspectors[0], masterPanel)
+            if(visibleInspectors.size() > 1) {
+                setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+            }
         }
+
+        return
     }
-
-    return
-
 }
 
 void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
@@ -2984,7 +2689,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
     Color fontColor = NodeStyleController.getController().getColor(nodeNotProxy, StyleOption.FOR_UNSELECTED_NODE)
     String fontColorHex
     if(fontColor != null) {
-        fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
+         fontColorHex = String.format("#%02x%02x%02x", fontColor.getRed(), fontColor.getGreen(), fontColor.getBlue())
     } else {  fontColorHex = "#000000"}
 
     fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
@@ -3048,7 +2753,7 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
         }
 
         else if(!panelsInMasterPanels.contains(sourcePanel) && sourcePanel != breadcrumbPanel) {
-            if (visibleInspectors.size() != 0 && visibleInspectors.any { it.getClientProperty("referenceNode") == nodeNotProxy }) {
+            if (visibleInspectors.any { it.getClientProperty("referenceNode") == nodeNotProxy }) {
                 label.setBorder(BorderFactory.createLineBorder((new Color(160, 32, 240, 255)), 4))
             }
         }
@@ -3228,168 +2933,168 @@ void configureDragAndDrop(JList<NodeModel> list) {
                 List<NodeModel> nodeToMove = []
                 nodeToMove.add(selectedNodeModel)
 
-                IMapSelection mapSelectionForTransfer = new IMapSelection() {
-                    @Override
-                    void centerNode(NodeModel nodeModel) {
+                    IMapSelection mapSelectionForTransfer = new IMapSelection() {
+                        @Override
+                        void centerNode(NodeModel nodeModel) {
 
+                        }
+
+                        @Override
+                        void centerNodeSlowly(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void moveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
+
+                        }
+
+                        @Override
+                        void slowlyMoveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
+
+                        }
+
+                        @Override
+                        NodeModel getSelected() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getSelectionRoot() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getSearchRoot() {
+                            return null
+                        }
+
+                        @Override
+                        NodeModel getEffectiveSearchRoot() {
+                            return null
+                        }
+
+                        @Override
+                        Set<NodeModel> getSelection() {
+                            return null
+                        }
+
+                        @Override
+                        List<String> getOrderedSelectionIds() {
+                            return null
+                        }
+
+                        @Override
+                        List<NodeModel> getOrderedSelection() {
+                            return null
+                        }
+
+                        @Override
+                        List<NodeModel> getSortedSelection(boolean b) {
+                            return nodeToMove
+                        }
+
+                        @Override
+                        boolean isSelected(NodeModel nodeModel) {
+                            return false
+                        }
+
+                        @Override
+                        void preserveRootNodeLocationOnScreen() {
+
+                        }
+
+                        @Override
+                        void preserveSelectedNodeLocationOnScreen() {
+
+                        }
+
+                        @Override
+                        void preserveNodeLocationOnScreen(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void preserveNodeLocationOnScreen(NodeModel nodeModel, float v, float v1) {
+
+                        }
+
+                        @Override
+                        void scrollNodeTreeToVisible(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void makeTheSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void makeTheSearchRoot(final NodeModel node) {
+
+                        }
+
+                        @Override
+                        void scrollNodeToVisible(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectAsTheOnlyOneSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectBranch(NodeModel nodeModel, boolean b) {
+
+                        }
+
+                        @Override
+                        void selectContinuous(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void selectRoot() {
+
+                        }
+
+
+                        @Override
+                        int size() {
+                            return 0
+                        }
+
+                        @Override
+                        void toggleSelected(NodeModel nodeModel) {
+
+                        }
+
+                        @Override
+                        void replaceSelection(NodeModel[] nodeModels) {
+
+                        }
+
+                        @Override
+                        Filter getFilter() {
+                            return null
+                        }
+
+                        @Override
+                        void setFilter(Filter filter) {
+
+                        }
+
+                        @Override
+                        boolean isFolded(NodeModel nodeModel) {
+                            return false
+                        }
+
+                        @Override
+                        boolean isVisible(NodeModel nodeModel) {
+                            return false
+                        }
                     }
-
-                    @Override
-                    void centerNodeSlowly(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void moveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
-
-                    }
-
-                    @Override
-                    void slowlyMoveNodeTo(NodeModel nodeModel, IMapSelection.NodePosition nodePosition) {
-
-                    }
-
-                    @Override
-                    NodeModel getSelected() {
-                        return null
-                    }
-
-                    @Override
-                    NodeModel getSelectionRoot() {
-                        return null
-                    }
-
-                    @Override
-                    NodeModel getSearchRoot() {
-                        return null
-                    }
-
-                    @Override
-                    NodeModel getEffectiveSearchRoot() {
-                        return null
-                    }
-
-                    @Override
-                    Set<NodeModel> getSelection() {
-                        return null
-                    }
-
-                    @Override
-                    List<String> getOrderedSelectionIds() {
-                        return null
-                    }
-
-                    @Override
-                    List<NodeModel> getOrderedSelection() {
-                        return null
-                    }
-
-                    @Override
-                    List<NodeModel> getSortedSelection(boolean b) {
-                        return nodeToMove
-                    }
-
-                    @Override
-                    boolean isSelected(NodeModel nodeModel) {
-                        return false
-                    }
-
-                    @Override
-                    void preserveRootNodeLocationOnScreen() {
-
-                    }
-
-                    @Override
-                    void preserveSelectedNodeLocationOnScreen() {
-
-                    }
-
-                    @Override
-                    void preserveNodeLocationOnScreen(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void preserveNodeLocationOnScreen(NodeModel nodeModel, float v, float v1) {
-
-                    }
-
-                    @Override
-                    void scrollNodeTreeToVisible(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void makeTheSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void makeTheSearchRoot(final NodeModel node) {
-
-                    }
-
-                    @Override
-                    void scrollNodeToVisible(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectAsTheOnlyOneSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectBranch(NodeModel nodeModel, boolean b) {
-
-                    }
-
-                    @Override
-                    void selectContinuous(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void selectRoot() {
-
-                    }
-
-
-                    @Override
-                    int size() {
-                        return 0
-                    }
-
-                    @Override
-                    void toggleSelected(NodeModel nodeModel) {
-
-                    }
-
-                    @Override
-                    void replaceSelection(NodeModel[] nodeModels) {
-
-                    }
-
-                    @Override
-                    Filter getFilter() {
-                        return null
-                    }
-
-                    @Override
-                    void setFilter(Filter filter) {
-
-                    }
-
-                    @Override
-                    boolean isFolded(NodeModel nodeModel) {
-                        return false
-                    }
-
-                    @Override
-                    boolean isVisible(NodeModel nodeModel) {
-                        return false
-                    }
-                }
 
                 Transferable transferable = MapClipboardController.getController().copy(mapSelectionForTransfer)
                 ((MindMapNodesSelection) transferable).setDropAction(2)
@@ -3544,8 +3249,9 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
     list.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-//            mouseOverList = true
-            currentSourcePanel = sourcePanel
+            if (shouldShowInspectors()) {
+                return
+            }
 
             lastMouseModifiers = e.getModifiersEx()
 
@@ -3554,9 +3260,9 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
             hoverTimer.stop()
             currentList = list
             currentListModel = listModel
-//            currentSourcePanel = sourcePanel
+            currentSourcePanel = sourcePanel
             lastMouseLocation = e.getPoint()
-//            mouseOverList = true
+            mouseOverList = true
             hoverTimer.restart()
 
 
@@ -3578,6 +3284,7 @@ void configureMouseExitListener(JList<NodeModel> list) {
     list.addMouseListener(new MouseAdapter() {
         @Override
         void mouseExited(MouseEvent e) {
+            if (shouldShowInspectors()) { return }
             mouseOverList = false
             hideInspectorTimer.restart()
         }
@@ -3745,7 +3452,6 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
     jList.addMouseMotionListener(new MouseAdapter() {
         @Override
         public void mouseMoved(MouseEvent e) {
-            currentSourcePanel = thePanelPanel
             lastMouseModifiers = e.getModifiersEx()
 
             if (shouldFreeze()) {return}
@@ -3753,6 +3459,7 @@ void commonTagsJListsConfigs(JList<String> jList, DefaultListModel<String> theLi
             hoverTimer.stop()
             currentList = jList
             currentListModel = theListModel
+            currentSourcePanel = thePanelPanel
             lastMouseLocation = e.getPoint()
             mouseOverList = true
             hoverTimer.restart()
@@ -3807,8 +3514,7 @@ def saveSettings() {
                     showAncestorsOnFirstInspector: showAncestorsOnFirstInspector,
                     rtlOrientation: rtlOrientation,
                     keyStrokeToShowPanels: keyStrokeToShowPanels.toString(),
-                    hideInspectorsEvenIfUpdateSelection: hideInspectorsEvenIfUpdateSelection,
-                    showInPlaceSiblingsPreview: showInPlaceSiblingsPreview
+                    hideInspectorsEvenIfUpdateSelection: hideInspectorsEvenIfUpdateSelection
             ]
     ]).toPrettyString()
 
@@ -3886,7 +3592,6 @@ private void loadSettings() {
             rtlOrientation = settings.userSettings.rtlOrientation ?: rtlOrientation
             keyStrokeToShowPanels = KeyStroke.getKeyStroke(settings.userSettings.keyStrokeToShowPanels as String)
             hideInspectorsEvenIfUpdateSelection = settings.userSettings.hideInspectorsEvenIfUpdateSelection ?: hideInspectorsEvenIfUpdateSelection
-            showInPlaceSiblingsPreview = settings.userSettings.showInPlaceSiblingsPreview ?: showInPlaceSiblingsPreview
         }
 
     } catch (Exception e) {
@@ -3914,35 +3619,10 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 }
 
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
+    if (shouldShowInspectors()) { return }
     int x = sourcePanel.getLocation().x + sourcePanel.width
 
-    int y = sourcePanel.getLocation().y
-    if(panelsInMasterPanels.contains(sourcePanel)) {
-        y = masterPanel.getLocation().y
-    }
-
-    if(activeSiblingPreviewPanels.contains(sourcePanel) || visiblePreviewInspectors.contains(sourcePanel)) {
-//        if(activeSiblingPreviewPanels.contains(sourcePanel) && !sourcePanel.getClientProperty("positionAtBottom")) {
-//            y = sourcePanel.getLocation().y
-//        }
-//        else if(activeSiblingPreviewPanels.contains(sourcePanel) && sourcePanel.getClientProperty("positionAtBottom")) {
-        viewportHeight = parentPanel.height
-//            y = (viewportHeight - inspectorPanel.height) as int
-//        }
-
-
-
-//        y = sourcePanel.getLocation().y as int
-        y = Math.min(sourcePanel.getLocation().y, (viewportHeight - inspectorPanel.height) as int)
-
-//        Point sourcePanelLocation = new Point(sourcePanel.getLocation().x as int, sourcePanel.getLocation().y as int)
-//        UITools.convertPointToAncestor(sourcePanel.parent, sourcePanelLocation, parentPanel)
-//        sourcepanelY = sourcePanelLocation.y
-
-//        y = (viewportHeight - (inspectorPanel.height - (viewportHeight - sourcepanelY))) as int
-
-    }
-
+    int y = masterPanel.getLocation().y
     inspectorPanel.setLocation(x, y)
 }
 
@@ -4001,12 +3681,13 @@ def loadTagsIntoModel(DefaultListModel<String> model, NodeModel node) {
 def getAllTags(NodeModel nodeNotProxy) {
     Set<String> tagss = new HashSet<>()
 
-    tagss.addAll(Controller.getCurrentController().getMap().getIconRegistry().getTagCategories().tagsAsListModel)
+        tagss.addAll(Controller.getCurrentController().getMap().getIconRegistry().getTagCategories().tagsAsListModel)
 
     return tagss.toList()
 }
 
 def cleanAndCreateInspectors(NodeModel nodeNotProxy, JPanel somePanel, String dummyMode = "no") {
+    if (shouldShowInspectors()) { return }
 
     dummyPanel = "no"
 
@@ -4089,11 +3770,11 @@ def expandMasterPanel() {
     bounds = masterPanel.getBounds()
     bounds.width = calculateExpandedWidthForMasterPanel()
     masterPanel.setBounds(bounds)
-    panelsInMasterPanels.each {
-        if(it != currentSourcePanel) {
-            it.setVisible(false)
+        panelsInMasterPanels.each {
+            if(it != currentSourcePanel) {
+                it.setVisible(false)
+            }
         }
-    }
 
     masterPanel.revalidate()
     masterPanel.repaint()
@@ -4410,17 +4091,12 @@ def clearQuickSearch() {
 def togglePanelsVisibility() {
     boolean visible = masterPanel.isVisible()
     if (visible) {
-//        inspectorUpdateSelection = false
         masterPanel.setVisible(false)
         breadcrumbPanel.setVisible(false)
         visibleInspectors.each { it.setVisible(false) }
-//        visibleInspectors.clear()
-        visiblePreviewInspectors.each { it.setVisible(false) }
-//        visiblePreviewInspectors.clear()
         clearQuickSearch()
         showPanels = false
     } else {
-//        inspectorUpdateSelection = true
         showPanels = true
         masterPanel.setVisible(true)
         breadcrumbPanel.setVisible(true)
@@ -4431,13 +4107,7 @@ def togglePanelsVisibility() {
 }
 
 def shouldShowInspectors() {
-//    return (showOnlyBreadcrumbs || (!showPanels && hideInspectorsEvenIfUpdateSelection))
-    shouldShowInspectors = true
-    if (showOnlyBreadcrumbs) shouldShowInspectors = false
-    if (!showPanels && hideInspectorsEvenIfUpdateSelection) shouldShowInspectors = false
-//    if (mouseOverList && (activeSiblingPreviewPanels.contains(currentSourcePanel) || visiblePreviewInspectors.contains(currentSourcePanel))) shouldShowInspectors = true
-    return shouldShowInspectors
-//    return (showOnlyBreadcrumbs || !visiblePreviewInspectors.contains(currentSourcePanel) || !activeSiblingPreviewPanels.contains(currentSourcePanel) || (!showPanels && hideInspectorsEvenIfUpdateSelection))
+    return (showOnlyBreadcrumbs || (!showPanels && hideInspectorsEvenIfUpdateSelection))
 }
 
 def showSettingsDialog() {
@@ -4540,11 +4210,6 @@ def showSettingsDialog() {
     JCheckBox rtlOrientationCheck = new JCheckBox("", rtlOrientation)
     settingsPanel.add(rtlOrientationCheck)
 
-    // Show in-Place Siblings Preview (Boolean)
-    settingsPanel.add(new JLabel("Show in-Place Siblings Preview:"))
-    JCheckBox showInPlaceSiblingsPreviewCheck = new JCheckBox("", showInPlaceSiblingsPreview)
-    settingsPanel.add(showInPlaceSiblingsPreviewCheck)
-
     // Hotkey to Show Panels (KeyStroke)
     settingsPanel.add(new JLabel("Hotkey to Show Panels:"))
     JTextField showPanelsHotkeyField = new JTextField(keyStrokeToShowPanels.toString())
@@ -4580,7 +4245,6 @@ def showSettingsDialog() {
         showOnlyBreadcrumbs = showOnlyBreadcrumbsCheck.isSelected()
         showAncestorsOnFirstInspector = showAncestorsCheck.isSelected()
         rtlOrientation = rtlOrientationCheck.isSelected()
-        showInPlaceSiblingsPreview = showInPlaceSiblingsPreviewCheck.isSelected()
         try {
             keyStrokeToShowPanels = KeyStroke.getKeyStroke(showPanelsHotkeyField.getText())
 //            reloadPanels()
@@ -4745,44 +4409,7 @@ def boolean isNodeOnScreen(NodeModel nodeNotProxy) {
 }
 
 
-def boolean isNodeVisibleInViewport(NodeModel nodeNotProxy) {
-
-    def mapView = Controller.currentController.MapViewManager.mapView
-    def viewport = mapView.getParent()
-    if (!(viewport instanceof JViewport)) {
-        return false
-    }
-
-    NodeView nodeView2 = mapView.getNodeView(nodeNotProxy)
-    if(nodeView2 == null) {
-        return false
-    }
-
-    def pointOnMap = mapView.getNodeContentLocation(nodeView2)
-
-    if (pointOnMap == null) return false
-
-    nodeView2.getContentPane().height
-
-    Rectangle r = new Rectangle()
-    r.x = pointOnMap.x
-    r.y = pointOnMap.y
-    r.width = nodeView2.getContentPane().width
-    r.height = nodeView2.getContentPane().height
-
-    def viewRect = viewport.getViewRect()
-
-//    boolean visible = viewRect.contains(pointOnMap)
-    visible = viewRect.intersects(r)
-
-    return visible
-}
-
-
-
-
 def smartCreateInspectors(NodeModel nodeNotProxy) {
-    if(!inspectorUpdateSelection) return
     if(areNodesVisible(currentlySelectedNode)) {
         if(visibleInspectors.size() != 0) {
             visibleInspectors.each {
@@ -4809,33 +4436,22 @@ def smartCreateInspectors(NodeModel nodeNotProxy) {
     }
 }
 
-
 def createComponentChangeListener() {
     mapView1 = Controller.currentController.MapViewManager.mapView
     if (mapView1.componentListeners.any { it.getClass().getName().startsWith("UtilityPanels") }) return
 
-
     mapView1.addComponentListener(new ComponentAdapter() {
         public void componentMoved(ComponentEvent e) {
-            if(inspectorUpdateSelection) smartCreateInspectors(currentlySelectedNode)
-            if (showInPlaceSiblingsPreview) refreshSiblingPreviewPanels()
-            else if (activeSiblingPreviewPanels.size() != 0) {
-                activeSiblingPreviewPanels.each {
-                    it.setVisible(false)
-                }
-                activeSiblingPreviewPanels.clear()
-            }
+            smartCreateInspectors(currentlySelectedNode)
         }
     })
 }
 
 
 
-
-
 class OverlayLabel extends JLabel {
     boolean overlayEnabled = false
-    boolean useHatch = false
+    boolean useHatch = false  // Se true, usará o hachurado; se false, outra cor (por exemplo, vermelho)
 
     OverlayLabel(String text, Icon icon, int horizontalAlignment) {
         super(text, icon, horizontalAlignment)
@@ -4883,9 +4499,11 @@ class OverlayLabel extends JLabel {
 
     @Override
     protected void paintComponent(Graphics g) {
+        // Desenha o componente normalmente (fundo, texto, ícone, etc.)
         super.paintComponent(g)
         if (overlayEnabled && useHatch) {
             Graphics2D g2d = (Graphics2D) g.create()
+            // Cria o hatch com base no fundo atual
             TexturePaint hatchPattern = createHatchPattern(getBackground())
             g2d.setPaint(hatchPattern)
             g2d.fillRect(0, 0, getWidth(), getHeight())
@@ -5018,105 +4636,4 @@ def static getUserDefinedStylesParentNode(MapModel mapa, ScriptContext scriptCon
     NodeModel userStyleParentNode = styleModel.getStyleNodeGroup(styleMap, MapStyleModel.STYLES_USER_DEFINED);
     def userDefinedParentNode = new ProxyNode(userStyleParentNode, scriptContext)
     return userDefinedParentNode
-}
-
-
-def refreshSiblingPreviewPanels() {
-
-    activeSiblingPreviewPanels.each {
-        it.visible = false
-        parentPanel.remove(it)
-    }
-    activeSiblingPreviewPanels.clear()
-
-    def mapView = Controller.currentController.MapViewManager.mapView
-    def viewport = mapView.getParent()
-    if (!(viewport instanceof JViewport)) {
-        return
-    }
-
-    c.viewRoot.findAll().each {
-
-        if (it == c.viewRoot) return
-
-        def testedNode = it
-        if (testedNode == null) {
-            return
-        }
-
-        NodeView testedNodeView = mapView.getNodeView(testedNode.delegate)
-        if (testedNodeView == null) {
-            return
-        }
-        Point selectedPointOnMap = mapView.getNodeContentLocation(testedNodeView)
-        Point selectedPointOnScreen = SwingUtilities.convertPoint(mapView, selectedPointOnMap, viewport)
-        referenceNodeScreenX = selectedPointOnScreen.x
-        referenceNodeScreenY = selectedPointOnScreen.y
-
-
-//        if(referenceNodeScreenX < 0 || referenceNodeScreenX > viewport.getViewRect().width) return
-
-        if(testedNode.parent.children.size() == 1) return
-
-
-        def parentNode = testedNode.parent
-        def siblings = parentNode.children
-        int selectedIndex = siblings.indexOf(testedNode)
-        if (selectedIndex < 0) {
-            return
-        }
-
-        NodeModel offScreenSiblingAbove = null
-
-
-        if(selectedIndex > 0 && !isNodeVisibleInViewport(siblings[selectedIndex - 1].delegate)) offScreenSiblingAbove = siblings[selectedIndex - 1].delegate
-
-        if (offScreenSiblingAbove != null) {
-
-            NodeView offScreenSiblingAboveNodeView = mapView.getNodeView(offScreenSiblingAbove)
-            Point offScreenSiblingAboveSelectedPointOnMap = mapView.getNodeContentLocation(offScreenSiblingAboveNodeView)
-            Point offScreenSiblingAboveSelectedPointOnScreen = SwingUtilities.convertPoint(mapView, offScreenSiblingAboveSelectedPointOnMap, viewport)
-            offScreenSiblingAboveXPoint = offScreenSiblingAboveSelectedPointOnScreen.x
-            offScreenSiblingAboveYPoint = offScreenSiblingAboveSelectedPointOnScreen.y
-
-
-            if (referenceNodeScreenY >= 0 && offScreenSiblingAboveYPoint <= 0 && referenceNodeScreenX > 0 && referenceNodeScreenX < viewport.getWidth()) {
-
-                siblingsPreviewPanelCreated = createSiblingPreviewPanel(testedNode.delegate, false, referenceNodeScreenX as int, referenceNodeScreenY as int)
-
-                activeSiblingPreviewPanels << siblingsPreviewPanelCreated
-
-            }
-
-
-        } else {
-        }
-
-
-        NodeModel offScreenSiblingBelow = null
-
-        if(selectedIndex + 1 < siblings.size() && !isNodeVisibleInViewport(siblings[selectedIndex + 1].delegate)) offScreenSiblingBelow = siblings[selectedIndex + 1].delegate
-
-
-        if (offScreenSiblingBelow != null) {
-
-            NodeView offScreenSiblingBelowNodeView = mapView.getNodeView(offScreenSiblingBelow)
-            Point offScreenSiblingBelowSelectedPointOnMap = mapView.getNodeContentLocation(offScreenSiblingBelowNodeView)
-            Point offScreenSiblingBelowSelectedPointOnScreen = SwingUtilities.convertPoint(mapView, offScreenSiblingBelowSelectedPointOnMap, viewport)
-            offScreenSiblingBelowXPoint = offScreenSiblingBelowSelectedPointOnScreen.x
-            offScreenSiblingBelowYPoint = offScreenSiblingBelowSelectedPointOnScreen.y
-
-
-            if (referenceNodeScreenY < viewport.getHeight() && offScreenSiblingBelowYPoint >= viewport.getHeight() && referenceNodeScreenX > 0 && referenceNodeScreenX < viewport.getWidth()) {
-
-                siblingsPreviewPanelCreated = createSiblingPreviewPanel(testedNode.delegate, true, referenceNodeScreenX as int, referenceNodeScreenY as int)
-
-                activeSiblingPreviewPanels << siblingsPreviewPanelCreated
-
-            }
-
-
-        } else {
-        }
-    }
 }
