@@ -1,6 +1,12 @@
 
 /***************************************************************************
 
+ version 1.47: Quick search panel: Lines connecting the results in the quick search panel to the respective nodes.
+  Quick search panel: now, it's the first panel.
+  Quick search panel: now, it shows the number of results and the status of the search.
+  Recent nodes panel: changed the backend logic, to rely on the data from the Freeplane internal node history list. This is useful, to allow disabling the node change listener when the panels are hidden. The negative side effect is that recent nodes are not saved between sessions, anymore.
+  Faster when the panels are hidden. Now, when hidden, most listeners are removed, to save performance.
+
  version 1.46: New Panel: In-place Siblings Preview.
 
  version 1.45: Bugfix: RTL not working in some panels. https://github.com/euu2021/Freeplane_UtilityPanels/issues/55
@@ -203,6 +209,7 @@ import org.freeplane.features.mode.Controller
 import org.freeplane.features.nodestyle.NodeStyleController
 import org.freeplane.features.styles.LogicalStyleController.StyleOption
 import org.freeplane.features.ui.IMapViewChangeListener
+import org.w3c.dom.ls.LSOutput
 
 import javax.swing.*
 import javax.swing.border.Border
@@ -274,6 +281,7 @@ import java.awt.Rectangle
 import org.freeplane.plugin.script.proxy.ProxyUtils
 import org.freeplane.plugin.script.proxy.ProxyFactory
 import org.freeplane.plugin.script.proxy.ScriptUtils
+import org.freeplane.view.swing.features.nodehistory.NodeHistory
 
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent;
@@ -291,11 +299,21 @@ import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.styles.MapStyleModel;
 import org.freeplane.plugin.script.ScriptContext
-
 import org.freeplane.plugin.script.proxy.ScriptUtils
 
 import java.awt.font.TextAttribute
 import java.util.HashMap
+import java.awt.geom.Line2D
+import java.util.Random
+
+import java.util.List
+import java.util.Map
+import java.util.Random
+import java.awt.RenderingHints
+import java.awt.BasicStroke
+
+import javax.swing.event.ChangeListener
+import javax.swing.event.ChangeEvent
 
 
 
@@ -403,6 +421,7 @@ savedSearchCriteria.add("")
 @groovy.transform.Field DefaultListModel<Tag> hoveredTagModel = new DefaultListModel<>()
 @groovy.transform.Field JList <NodeModel> ancestorsJList = new JList<>()
 @groovy.transform.Field JList <NodeModel> historyJList = new JList<>()
+@groovy.transform.Field JList <NodeModel> quickSearchResultsJList = new JList<>()
 
 @groovy.transform.Field DefaultListModel<String> listModelForAllTags = new DefaultListModel<>()
 
@@ -419,7 +438,7 @@ savedSearchCriteria.add("")
 @groovy.transform.Field JPanel quickSearchPanel
 @groovy.transform.Field JPanel innerPanelInQuickSearchPanel
 @groovy.transform.Field JPanel inspectorPanel
-@groovy.transform.Field JPanel connectingLines = []
+@groovy.transform.Field List <JPanel> connectingLines = []
 
 @groovy.transform.Field JPanel stylesPanel
 @groovy.transform.Field DefaultListModel<ProxyNode> stylesListModel = new DefaultListModel<>()
@@ -449,6 +468,11 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 @groovy.transform.Field final String INLINE_EDITOR_ACTIVE = "inline_editor_active"
 
 
+@groovy.transform.Field List<Map<String, Object>> connectingLineData = []
+@groovy.transform.Field JPanel linesOverlayPanel = null
+@groovy.transform.Field Component overlayParentPanel = null
+
+
 
 @groovy.transform.Field NodeModel currentlySelectedNode = Controller.currentController.MapViewManager.mapView.mapSelection.selectionRoot
 @groovy.transform.Field NodeModel hoveredNode
@@ -457,13 +481,43 @@ mapViewWindowForSizeReferences = Controller.currentController.mapViewManager.map
 @groovy.transform.Field MIconController iconController = (MIconController) Controller.currentModeController.getExtension(IconController.class)
 
 
+@groovy.transform.Field int maxNumberOfResults = 500
+
+
 
 @groovy.transform.Field Set<NodeModel> cachedHighlightedNodes = new HashSet<>()
 @groovy.transform.Field Set<NodeModel> cachedHighlightedNodesTags = new HashSet<>()
 
 @groovy.transform.Field DocumentListener searchTextBoxListener
 
-@groovy.transform.Field Timer liveSearchTimer = new Timer(200, null)
+@groovy.transform.Field final List<Color> COLORS_FOR_LIGHT_BG = [
+        Color.BLUE,              // Standard Blue (vibrant)
+        Color.RED,               // Standard Red (vibrant)
+        new Color(0, 180, 0),    // Green (slightly darker, vibrant)
+        Color.MAGENTA,           // Standard Magenta (vibrant)
+        Color.CYAN,              // Cyan (can be too light, let's try Teal) // Note: Teal below is commented out
+//        new Color(0, 150, 150),  // Teal (Darker Cyan)
+        Color.ORANGE.darker(),   // Orange (darkened for contrast)
+        new Color(138, 43, 226), // Purple/Violet (BlueViolet)
+//        new Color(255, 20, 147), // Hot Pink (DeepPink)
+//        new Color(0, 100, 200),  // Slightly different Blue
+//        new Color(210, 105, 30)  // Chocolate Brown (contrast)
+]
+
+@groovy.transform.Field final List<Color> COLORS_FOR_DARK_BG = [
+        Color.CYAN.brighter(),
+        Color.MAGENTA.brighter(),
+        Color.YELLOW.brighter(),
+        new Color(100, 100, 255), // Light Blue
+        Color.GREEN.brighter(),
+        Color.ORANGE,
+        Color.WHITE,
+//        Color.LIGHT_GRAY,
+        new Color(255, 000, 000),  // Red
+        Color.PINK
+]
+
+@groovy.transform.Field Timer liveSearchTimer = new Timer(800, null)
 liveSearchTimer.setRepeats(false)
 
 @groovy.transform.Field Timer hideInspectorTimer = new Timer(500, null)
@@ -638,7 +692,7 @@ hoverTimer.addActionListener(e -> {
                         JTextPane textLabelInInspector = (JTextPane) currentSourcePanel.getClientProperty("textLabel")
 
 
-                        configureLabelForNode(textLabelInInspector, hoveredNode, currentSourcePanel)
+                        configureLabelForNode(textLabelInInspector, hoveredNode, currentSourcePanel, index)
 
 
                         DefaultListModel<Tags> accessorTagsInNodeModel = (DefaultListModel<Tags>) currentSourcePanel.getClientProperty("tagsInNodeAccessor")
@@ -727,146 +781,10 @@ class NodeModelTransferable implements Transferable {
 }
 
 loadSettings()
+
+
 createPanels()
 
-createComponentChangeListener()
-
-INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
-    @Override
-    public void onDeselect(NodeModel node) {
-
-    }
-
-    @Override
-    public void onSelect(NodeModel node) {
-
-        if (node == currentlySelectedNode) {
-            return
-        }
-
-//        recentSelectedNodesPanel.removeAll()
-//        breadcrumbPanel.removeAll()
-
-        currentlySelectedNode = node
-        hoveredTagModel.clear()
-
-        def newHistoryModel = new DefaultListModel<NodeModel>()
-
-        newHistoryModel = history
-
-        if (newHistoryModel.contains(node)) {
-            newHistoryModel.removeElement(node)
-        }
-        newHistoryModel.insertElementAt(node, 0)
-        if (newHistoryModel.getSize() > 200) {
-            newHistoryModel.removeElementAt(200)
-        }
-
-        historyJList.setModel(newHistoryModel)
-        history = newHistoryModel
-//
-//        if (history.contains(node)) {
-//            history.removeElement(node)
-//        }
-//        history.insertElementAt(node, 0)
-//        if (history.getSize() > 200) {
-//            history.removeElementAt(200)
-//        }
-
-        saveSettings()
-
-//        def newAncestorsModel = new DefaultListModel<NodeModel>()
-//        if (reverseAncestorsList) {
-//            node.getPathToRoot().reverse().each { newAncestorsModel.addElement(it) }
-//        } else {
-//            node.getPathToRoot().each { newAncestorsModel.addElement(it) }
-//        }
-//
-//        ancestorsJList.setModel(newAncestorsModel)
-//        ancestorsOfCurrentNode = newAncestorsModel
-
-        ancestorsOfCurrentNode.clear()
-        if(reverseAncestorsList) {
-            node.getPathToRoot().reverse().each {
-                ancestorsOfCurrentNode.addElement(it)
-            }
-        }
-        else{
-            node.getPathToRoot().each {
-                ancestorsOfCurrentNode.addElement(it)
-            }
-        }
-
-
-        if (freezeInspectors || isMouseOverSearchBox) {
-            return
-        }
-
-        if (inspectorUpdateSelection) {
-
-//            if(areNodesVisible(currentlySelectedNode)) {
-//                visibleInspectors.each {
-//                    it.setVisible(false)
-//                }
-//                parentPanel.revalidate()
-//                parentPanel.repaint()
-//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-//
-//            }
-//            else if (! areNodesVisible(currentlySelectedNode, "siblings") && ! areNodesVisible(currentlySelectedNode, "children")) {
-//                cleanAndCreateInspectors(node, panelsInMasterPanels[0])
-//            }
-//            else if (! areNodesVisible(currentlySelectedNode, "siblings")) {
-//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "children")
-//            }
-//            else {
-//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "siblings")
-//            }
-
-            smartCreateInspectors(node)
-        }
-
-
-        ////////////////inplaceinspector////////////
-
-//        mapView = Controller.currentController.mapViewManager.mapView
-//
-//
-//        NodeView root = mapView.getRoot()
-//        final JComponent rootContent = root.getMainView()
-//        final Point contentPt = new Point()
-//        UITools.convertPointToAncestor(rootContent, contentPt, mapView)
-//        final float zoom = mapView.getZoom()
-////final Point eventPoint = e.getPoint()
-//        eventPoint = MouseInfo.getPointerInfo().getLocation()
-//        SwingUtilities.convertPointFromScreen(eventPoint, mapView)
-////        int x =(int) ((eventPoint.x - contentPt.x)/zoom)
-//        int x =(int) ((eventPoint.x - contentPt.x))
-//        final int y =(int) ((eventPoint.y - contentPt.y)/zoom)
-//
-//
-//
-//        inPlaceInspectors.each {
-//            it.setVisible(false)
-//        }
-//        inPlaceInspectors.clear()
-//        inPlaceInspector = createInspectorPanel(currentlySelectedNode, panelsInMasterPanels[0])
-//        inPlaceInspectors.add(inPlaceInspector)
-////        mousePosition = MouseInfo.getPointerInfo().getLocation()
-////        inPlaceInspector.setBounds((int) mousePosition.getX(),(int) mousePosition.getY(), 300, 300)
-//        inPlaceInspector.setBounds((int) x, 500, 300, 300)
-//        inPlaceInspector.setVisible(true)
-
-        ////////////////////////
-
-    }
-
-}
-
-createdSelectionListener = mySelectionListener
-
-Controller.currentController.modeController.mapController.addNodeSelectionListener(mySelectionListener)
 
 IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
     public void afterViewChange(final Component oldView, final Component newView) {
@@ -905,82 +823,18 @@ IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
 
         reloadPanels()
 
+
         createComponentChangeListener()
         refreshSiblingPreviewPanels()
 //        SwingUtilities.invokeLater { updateAllGUIs() }
     }
 }
 
-createdMapViewChangeListener = myMapViewChangeListener
 
 Controller.currentController.mapViewManager.addMapViewChangeListener(myMapViewChangeListener)
 
-IMapChangeListener myMapChangeListener = new IMapChangeListener() {
-    @Override
-    public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
-        NodeModel deletedNode = nodeDeletionEvent.node
-        allDeletedNodes = ProxyUtils.findImpl(null, deletedNode, false)
-        allDeletedNodes.each {
-//        history.removeElement(deletedNode)
-//        pinnedItems.removeElement(deletedNode)
-            history.removeElement(it)
-            pinnedItems.removeElement(it)
-        }
-        saveSettings()
-//        SwingUtilities.invokeLater { updateAllGUIs() }
-    }
 
-}
-
-Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
-
-
-NodeChangeListener myNodeChangeListenerZZ= {NodeChanged event->
-    if(event.changedElement == NodeChanged.ChangedElement.TAGS) {
-        loadTagsIntoModel(listModelForAllTags, currentlySelectedNode)
-        tagsNeedUpdate = true
-//        updateAllGUIs()
-//        masterPanel.revalidate()
-//        masterPanel.repaint()
-    }
-} as NodeChangeListener
-
-mindMap.addListener(myNodeChangeListenerZZ)
-
-
-viewportSizeChangeListener = new ComponentAdapter() {
-    @Override
-    public void componentResized(final ComponentEvent e) {
-//        panelsInMasterPanels.each {
-//            parentPanel.remove(it)
-//        }
-
-        saveSettings()
-
-//        masterPanel.setVisible(false)
-//        breadcrumbPanel.setVisible(false)
-//        visibleInspectors.each {it.setVisible(false)}
-//        createPanels()
-//        visibleInspectors.each { it.setVisible(true) }
-//        masterPanel.revalidate()
-//        masterPanel.repaint()
-//        breadcrumbPanel.revalidate()
-//        breadcrumbPanel.repaint()
-//        parentPanel.revalidate()
-//        parentPanel.repaint()
-//        if(!showPanels) {
-//            masterPanel.setVisible(false)
-//            breadcrumbPanel.setVisible(false)
-//            visibleInspectors.each {it.setVisible(false)}
-//        }
-
-        reloadPanels()
-
-//        SwingUtilities.invokeLater { updateAllGUIs() }
-    }
-}
-
-mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener)
+startListeners()
 
 
 Controller controllerForHighlighter = Controller.currentModeController.controller
@@ -1138,14 +992,6 @@ def refreshHighlighterCacheTags() {
     cachedHighlightedNodesTags.clear()
 }
 
-
-println "list item:" + listItemPosition(historyJList, 0)
-
-mapView2 = Controller.currentController.MapViewManager.mapView
-NodeView nv = mapView2.getNodeView(node.delegate)
-if(nv == null) return false
-def point = mapView2.getNodeContentLocation(nv)
-println "node location:" + point
 
 return
 
@@ -1444,6 +1290,11 @@ def createPanels() {
 //    int quickSearchPanelHeight = 130
 //    quickSearchPanel.setBounds(0, recentSelectedNodesPanelHeight + 170, recentSelectedNodesPanelWidth, quickSearchPanelHeight)
 
+    JLabel searchStatusLabel = new JLabel(" ")
+    searchStatusLabel.setHorizontalAlignment(SwingConstants.CENTER)
+    searchStatusLabel.setBackground(Color.WHITE)
+    searchStatusLabel.setFont(fontForItems)
+    searchStatusLabel.setOpaque(false)
 
 //    JComboBox<String> searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
     searchField = new JComboBox<>(savedSearchCriteria.toArray(new String[0]))
@@ -1462,6 +1313,7 @@ def createPanels() {
 //            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
 //            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
             clearQuickSearch()
+            retractMasterPanel()
         }
     })
 
@@ -1470,6 +1322,7 @@ def createPanels() {
         @Override
         public void insertUpdate(DocumentEvent e) {
             scheduleLiveSearch()
+
             parentPanel.revalidate()
             parentPanel.repaint()
             Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
@@ -1519,8 +1372,13 @@ def createPanels() {
         private void refreshList(String searchText) {
             quickSearchResults.clear()
             refreshHighlighterCache()
+
             if (!searchText.isEmpty()) {
+//                expandMasterPanel()
                 final NodeModel rootNode = Controller.currentController.getSelection().selectionRoot
+
+                searchStatusLabel.setText("Searching...")
+                searchStatusLabel.setOpaque(true)
 
                 SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
                     int resultCount = 0
@@ -1531,68 +1389,31 @@ def createPanels() {
                         return null
                     }
 
-//                    private void searchNodesRecursively(NodeModel node, String searchText2) {
-//                        if (resultCount >= 500) return
-//
-//                        if (node.text && node.text.toLowerCase().contains(searchText2.toLowerCase())) {
-//                            if (resultCount < 500) {
-//                                resultCount++
-//                                SwingUtilities.invokeLater({ ->
-//                                    quickSearchResults.addElement(node)
-//                                })
-//                            }
-//                        }
-//
-//                        if (resultCount >= 500) return
-//
-//                        for (child in node.children) {
-//                            if (resultCount >= 500) break
-//                            searchNodesRecursively(child, searchText2)
-//                        }
-//                    }
+                    @Override
+                    protected void done() {
+                        SwingUtilities.invokeLater({ ->
+                            ensureOverlayExistsAndRepaint()
+                            if (resultCount >= maxNumberOfResults) {
+                                searchStatusLabel.setText("Max number of results (${maxNumberOfResults}) reached.")
+                                searchStatusLabel.setOpaque(true)
+                            }
+                            else {
+                                searchStatusLabel.setText("${resultCount} results. Finished.")
+                                searchStatusLabel.setOpaque(true)
+                            }
+                            parentPanel.revalidate()
+                            parentPanel.repaint()
+                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+                            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+                        })
+                    }
 
-//                    private void searchNodesRecursively(NodeModel node, String searchText2) {
-//                        if (resultCount >= 500) return;
-//
-//                        String nodeText = (node.text ?: "").toLowerCase();
-//                        String[] terms = searchText2.toLowerCase().split("\\s+");
-//
-//                        boolean nodeMatches = true;
-//                        for (String term : terms) {
-//                            boolean termFound = nodeText.contains(term);
-//                            if (!termFound) {
-//                                NodeModel ancestor = node.parent;
-//                                while (ancestor != null && !termFound) {
-//                                    String ancestorText = (ancestor.text ?: "").toLowerCase();
-//                                    if (ancestorText.contains(term)) {
-//                                        termFound = true;
-//                                    }
-//                                    ancestor = ancestor.parent;
-//                                }
-//                            }
-//                            if (!termFound) {
-//                                nodeMatches = false;
-//                                break;
-//                            }
-//                        }
-//
-//                        if (nodeMatches) {
-//                            if (resultCount < 500) {
-//                                resultCount++;
-//                                SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node) });
-//                            }
-//                        }
-//
-//                        if (resultCount >= 500) return;
-//
-//                        for (child in node.children) {
-//                            if (resultCount >= 500) break;
-//                            searchNodesRecursively(child, searchText2);
-//                        }
-//                    }
 
                     private void searchNodesRecursively(NodeModel node, String searchText2) {
-                        if (resultCount >= 500) return;
+                        if (resultCount >= maxNumberOfResults) {
+                            return
+                        };
+//                        if (resultCount >= 500) return;
 
                         String nodeText = (node.text ?: "").toLowerCase();
                         String[] terms = searchText2.toLowerCase().split("\\s+");
@@ -1627,20 +1448,17 @@ def createPanels() {
                         }
 
                         if (nodeMatches) {
-                            if (resultCount < 500) {
+                            if (resultCount < maxNumberOfResults) {
                                 resultCount++;
                                 SwingUtilities.invokeLater({ -> quickSearchResults.addElement(node)
-                                    parentPanel.revalidate()
-                                    parentPanel.repaint()
-                                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-                                    Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()});
+                                })
                             }
                         }
 
-                        if (resultCount >= 500) return;
+                        if (resultCount >= maxNumberOfResults) return;
 
                         for (child in node.children) {
-                            if (resultCount >= 500) break;
+                            if (resultCount >= maxNumberOfResults) break;
                             searchNodesRecursively(child, searchText2);
                         }
                     }
@@ -1680,6 +1498,12 @@ def createPanels() {
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
             }
+
+            else {
+                searchStatusLabel.setText(" ")
+                searchStatusLabel.setOpaque(false)
+            }
+
         }
     })
 
@@ -1689,11 +1513,9 @@ def createPanels() {
     clearButton.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-            searchField.setSelectedItem("")
-            quickSearchResults.clear()
+            clearQuickSearch()
+            retractMasterPanel()
 //            updateAllGUIs()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
         }
     })
 
@@ -1730,8 +1552,11 @@ def createPanels() {
     innerPanelInQuickSearchPanel.setOpaque(false)
     innerPanelInQuickSearchPanel.setBackground(new Color(0, 0, 0, 0))
 
-    quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER)
 
+
+    innerPanelInQuickSearchPanel.add(searchStatusLabel, BorderLayout.SOUTH)
+
+    quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER)
 
     searchField.addMouseListener(new MouseAdapter() {
         @Override
@@ -2042,7 +1867,7 @@ def createPanels() {
 
 
 
-        panelsInMasterPanels = [recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel, quickSearchPanel]
+        panelsInMasterPanels = [quickSearchPanel, recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel]
 
         scrollPanelsInMasterPanelPanels = []
 
@@ -2062,12 +1887,22 @@ def createPanels() {
         }
 
 
+        loadHistoryWithFPHistory()
+
         historyJList = createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
 //        listeners = history.getListDataListeners().toList()
 //        listeners.each { history.removeListDataListener(it) }
 
         createJList(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
-        createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
+        quickSearchResultsJList = createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
+        JScrollPane quickSearchResultsScrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, quickSearchResultsJList);
+        quickSearchResultsScrollPane.getViewport().addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                int firstVisibleIndex = quickSearchResultsJList.getFirstVisibleIndex();
+                ensureOverlayExistsAndRepaint()
+            }
+        });
 
 
         masterPanel.revalidate()
@@ -2079,6 +1914,8 @@ def createPanels() {
         parentPanel.add(masterPanel)
         parentPanel.setComponentZOrder(masterPanel, 0)
     }
+
+
 
     parentPanel.revalidate()
     parentPanel.repaint()
@@ -2967,23 +2804,13 @@ void hideInspectorPanelIfNeeded() {
     retractMasterPanel()
 
 
-    smartCreateInspectors(currentlySelectedNode)
 
-
-
-
-    if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
-        setInspectorLocation(visibleInspectors[0], masterPanel)
-        if(visibleInspectors.size() > 1) {
-            setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
-        }
-    }
 
     return
 
 }
 
-void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel) {
+void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel, int indexOfNode = 0) {
     Color backgroundColor = NodeStyleController.getController().getBackgroundColor(nodeNotProxy, StyleOption.FOR_UNSELECTED_NODE)
     Color fontColor = NodeStyleController.getController().getColor(nodeNotProxy, StyleOption.FOR_UNSELECTED_NODE)
     String fontColorHex
@@ -3057,9 +2884,22 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
             }
         }
 
-//        else if (visibleInspectors.any{ it.getClientProperty("referenceNode") == nodeNotProxy }) {
-//            label.setBorder(BorderFactory.createLineBorder(( new Color(160, 32, 240, 255) ), 4))
-//        }
+        if(sourcePanel == quickSearchPanel) {
+            Color mapBackgroundColor = Controller.currentController.MapViewManager.mapView.getBackground()
+            if (mapBackgroundColor == null) {
+                mapBackgroundColor = currentMapView.getBackground()
+            }
+
+            boolean backgroundIsDark = isColorDark(mapBackgroundColor)
+
+            List<Color> colorPalette = backgroundIsDark ? COLORS_FOR_DARK_BG : COLORS_FOR_LIGHT_BG
+
+
+            Color itemColor = colorPalette[indexOfNode % colorPalette.size()]
+
+            label.setBorder(BorderFactory.createMatteBorder(2, 8, 2, 8, itemColor))
+        }
+
 
 
         String labelText = prefix + nodeNotProxy.text
@@ -3139,7 +2979,15 @@ void commonJListsConfigs(JList<NodeModel> theJlist, DefaultListModel<NodeModel> 
 //    if(theListModel.size() > 0) {
 //        connectingLines.each {it.visible = false}
 //        connectingLines = []
-//    connectListItemToNode(theJlist, 0)
+//        aaa = theJlist == historyJList
+//        bbb = theListModel == history
+//        ccc = thePanelPanel == recentSelectedNodesPanel
+//        if (thePanelPanel == recentSelectedNodesPanel) {
+//            for (int i = 0; i < theListModel.size() - 1; i++) {
+//                connectListItemToNode(theJlist, i)
+//            }
+//        }
+////        connectListItemToNode(theJlist, 0)
 //    }
 
 }
@@ -3512,7 +3360,7 @@ void configureListCellRenderer(JList<NodeModel> listParameter, JPanel sourcePane
 
             if (value instanceof NodeModel) {
                 NodeModel currentNode = (NodeModel) value
-                configureLabelForNode(label, currentNode, sourcePanel)
+                configureLabelForNode(label, currentNode, sourcePanel, index)
 
                 if (sourcePanel == breadcrumbPanel) {
                     String currentText = label.getText()
@@ -3560,7 +3408,7 @@ void configureMouseMotionListener(JList<NodeModel> list, DefaultListModel<NodeMo
             currentListModel = listModel
 //            currentSourcePanel = sourcePanel
             lastMouseLocation = e.getPoint()
-//            mouseOverList = true
+            mouseOverList = true
             hoverTimer.restart()
 
 
@@ -3784,14 +3632,14 @@ def saveSettings() {
     File file = getSettingsFile()
 
     List<String> pinnedItemsIds = pinnedItems.collect { it.id }
-    List<String> recentNodesIds = (0..<history.getSize()).collect { index ->
-        history.getElementAt(index).id
-    }
+//    List<String> recentNodesIds = (0..<history.getSize()).collect { index ->
+//        history.getElementAt(index).id
+//    }
 
     String jsonString = new JsonBuilder([
             pinnedItems: pinnedItemsIds,
-            recentSearches: savedSearchCriteria,
-            recentNodes: recentNodesIds,
+//            recentSearches: savedSearchCriteria,
+//            recentNodes: recentNodesIds,
             userSettings: [
                     panelTextFontName: panelTextFontName,
                     panelTextFontSize: panelTextFontSize,
@@ -3862,13 +3710,13 @@ private void loadSettings() {
             savedSearchCriteria.addAll(settings.recentSearches)
         }
 
-        history.clear()
-        def nodesToAdd = settings.recentNodes.collect { id ->
-            Controller.currentController.map.getNodeForID(id)
-        }.findAll { it != null }
-        nodesToAdd.each { node ->
-            history.addElement(node)
-        }
+//        history.clear()
+//        def nodesToAdd = settings.recentNodes.collect { id ->
+//            Controller.currentController.map.getNodeForID(id)
+//        }.findAll { it != null }
+//        nodesToAdd.each { node ->
+//            history.addElement(node)
+//        }
 
         if (settings.userSettings) {
             panelTextFontName = settings.userSettings.panelTextFontName ?: panelTextFontName
@@ -4107,6 +3955,7 @@ def expandMasterPanel() {
 }
 
 def retractMasterPanel() {
+//    if(!searchEditor.text.equals("") || quickSearchResults.size() > 0) return
     bounds = masterPanel.getBounds()
     bounds.width = calculateRetractedWidthForMasterPanel()
     masterPanel.setBounds(bounds)
@@ -4120,6 +3969,15 @@ def retractMasterPanel() {
     masterPanel.repaint()
     masterPanel.revalidate()
     isMasterPanelExpanded = false
+
+    smartCreateInspectors(currentlySelectedNode)
+
+    if(visibleInspectors.size() != 0 && inspectorUpdateSelection) {
+        setInspectorLocation(visibleInspectors[0], masterPanel)
+        if(visibleInspectors.size() > 1) {
+            setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+        }
+    }
 }
 
 
@@ -4349,7 +4207,6 @@ def cleanPreviousScriptExecution() {
     }
     listenersToRemove.each { listenerToRemove ->
         Controller.currentController.modeController.mapController.removeNodeSelectionListener(listenerToRemove)
-        println("removed previous nodeSelection listener")
     }
 
     listenersToRemove2 = []
@@ -4365,27 +4222,25 @@ def cleanPreviousScriptExecution() {
 
     listenersToRemove2.each { listenerToRemove ->
         Controller.currentController.modeController.mapController.removeMapChangeListener(listenerToRemove)
-        println("removed previous mapChange listener")
     }
 
-    listenersToRemove3 = []
-
-    Field field = MapViewController.class.getDeclaredField("mapViewChangeListeners")
-    field.setAccessible(true)
-
-    field.get(Controller.currentController.mapViewManager).viewListeners.each { listener ->
-        try {
-            if (listener.uniqueIdForScript == uniqueIdForScript) {
-                listenersToRemove3 << listener
-            }
-        } catch (Exception ex) {
-        }
-    }
-
-    listenersToRemove3.each { listenerToRemove ->
-        Controller.currentController.mapViewManager.removeMapViewChangeListener(listenerToRemove)
-        println("removed previous mapview listener")
-    }
+//    listenersToRemove3 = []
+//
+//    Field field = MapViewController.class.getDeclaredField("mapViewChangeListeners")
+//    field.setAccessible(true)
+//
+//    field.get(Controller.currentController.mapViewManager).viewListeners.each { listener ->
+//        try {
+//            if (listener.uniqueIdForScript == uniqueIdForScript) {
+//                listenersToRemove3 << listener
+//            }
+//        } catch (Exception ex) {
+//        }
+//    }
+//
+//    listenersToRemove3.each { listenerToRemove ->
+//        Controller.currentController.mapViewManager.removeMapViewChangeListener(listenerToRemove)
+//    }
 
     listenersToRemove4 = []
 
@@ -4400,13 +4255,14 @@ def cleanPreviousScriptExecution() {
 
     listenersToRemove4.each { listenerToRemove ->
         mindMap.removeListener(listenerToRemove)
-        println("removed previous nodeChange listener")
     }
+
 }
 
 def clearQuickSearch() {
     searchField.setSelectedItem("")
     quickSearchResults.clear()
+    ensureOverlayExistsAndRepaint()
     Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
     Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
 }
@@ -4423,8 +4279,12 @@ def togglePanelsVisibility() {
 //        visiblePreviewInspectors.clear()
         clearQuickSearch()
         showPanels = false
+        cleanPreviousScriptExecution()
     } else {
 //        inspectorUpdateSelection = true
+        startListeners()
+        loadHistoryWithFPHistory()
+        currentlySelectedNode = ScriptUtils.node().delegate
         showPanels = true
         masterPanel.setVisible(true)
         breadcrumbPanel.setVisible(true)
@@ -4618,71 +4478,20 @@ def reloadPanels() {
         breadcrumbPanel = null
     }
 
-//    breadcrumbPanel.setVisible(false)
     visibleInspectors.each {it.setVisible(false)}
-//    SwingUtilities.invokeLater {
     createPanels()
     if (!showOnlyBreadcrumbs) visibleInspectors.each { it.setVisible(true) }
-//        masterPanel.revalidate()
-//        masterPanel.repaint()
-//        breadcrumbPanel.revalidate()
-//        breadcrumbPanel.repaint()
-//        parentPanel.revalidate()
-//        parentPanel.repaint()
     if(!showPanels) {
         masterPanel.setVisible(false)
         breadcrumbPanel.setVisible(false)
         visibleInspectors.each {it.setVisible(false)}
     }
-//    }
 }
 
 
-//def boolean areSiblingsAndChildrenVisible(NodeModel nodeNotProxy) {
-//    def mapView = Controller.currentController.MapViewManager.mapView
-//    def viewport = mapView.getParent()
-//    if (! (viewport instanceof JViewport)) {
-//        return false
-//    }
-//
-//    proxyVersion = ProxyFactory.createNode(nodeNotProxy, ScriptUtils.getCurrentContext())
-//    if(proxyVersion.folded) return false
-////    if(proxyVersion == c.viewRoot) return false
-//
-//
-//    def siblings = []
-//    siblings += proxyVersion.delegate
-//    if(proxyVersion != c.viewRoot) siblings =  proxyVersion.parent.children.collect { it.delegate }
-//
-//    def children = proxyVersion.children.collect { it.delegate }
-//
-//    def nodes = siblings + children
-//
-//    boolean allVisible = true
-//
-//    def nodesSnapshot = nodes.toList()
-//
-//    for (n in nodesSnapshot) {
-//        if (!allVisible) {
-//            break
-//        }
-//
-//        if (!isNodeOnScreen(n)) allVisible = false
-//
-//    }
-//
-//return allVisible
-//}
-
-//def boolean areAllSiblingsVisible(NodeModel nodeNotProxy) {
-//
-//}
-//
-//def boolean areAllChildrenVisible(NodeModel nodeNotProxy) {
-//
-//}
 
 def boolean areNodesVisible(NodeModel nodeNotProxy, String testMode = "both") {
+
     def mapView = Controller.currentController.MapViewManager.mapView
     def viewport = mapView.getParent()
     if (!(viewport instanceof JViewport)) {
@@ -4776,7 +4585,6 @@ def boolean isNodeVisibleInViewport(NodeModel nodeNotProxy) {
 
     def viewRect = viewport.getViewRect()
 
-//    boolean visible = viewRect.contains(pointOnMap)
     visible = viewRect.intersects(r)
 
     return visible
@@ -4786,7 +4594,7 @@ def boolean isNodeVisibleInViewport(NodeModel nodeNotProxy) {
 
 
 def smartCreateInspectors(NodeModel nodeNotProxy) {
-    if(!inspectorUpdateSelection) return
+    if(!inspectorUpdateSelection || shouldFreeze()) return
     if(areNodesVisible(currentlySelectedNode)) {
         if(visibleInspectors.size() != 0) {
             visibleInspectors.each {
@@ -4814,6 +4622,7 @@ def smartCreateInspectors(NodeModel nodeNotProxy) {
 }
 
 
+
 def createComponentChangeListener() {
     mapView1 = Controller.currentController.MapViewManager.mapView
     if (mapView1.componentListeners.any { it.getClass().getName().startsWith("UtilityPanels") }) return
@@ -4821,6 +4630,12 @@ def createComponentChangeListener() {
 
     mapView1.addComponentListener(new ComponentAdapter() {
         public void componentMoved(ComponentEvent e) {
+
+            ensureOverlayExistsAndRepaint()
+
+            if(!showPanels) {
+                currentlySelectedNode = ScriptUtils.node().delegate
+            }
 
             if(inspectorUpdateSelection) smartCreateInspectors(currentlySelectedNode)
 
@@ -4842,9 +4657,6 @@ def createComponentChangeListener() {
 }
 
 
-
-
-
 class OverlayLabel extends JLabel {
     boolean overlayEnabled = false
     boolean useHatch = false
@@ -4861,7 +4673,6 @@ class OverlayLabel extends JLabel {
         BufferedImage hatchImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
         Graphics2D g2 = hatchImage.createGraphics()
 
-//        g2.setStroke(new BasicStroke(2))
 
         g2.setColor(hatchColor)
 
@@ -4926,7 +4737,6 @@ class DottedBorder extends AbstractBorder {
     void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
         Graphics2D g2d = (Graphics2D) g.create()
         g2d.setColor(color)
-        // Usamos CAP_ROUND para que os traços fiquem pontilhados
         float[] dash = [dotLength, gapLength] as float[]
         g2d.setStroke(new BasicStroke(thickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER, 1f, dash, 0))
         g2d.drawRect(x, y, width - 1, height - 1)
@@ -4938,57 +4748,313 @@ class DottedBorder extends AbstractBorder {
 def Point listItemPosition(JList list, int itemIndex) {
     Rectangle cellBounds = list.getCellBounds(itemIndex, itemIndex)
     Point startingPoint = new Point(cellBounds.x as int, cellBounds.y as int)
-    //(final Component from, final Point p, final Component destination)
     def mapView = Controller.currentController.MapViewManager.mapView
-//    UITools.convertPointToAncestor(list, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent)
     UITools.convertPointToAncestor(masterPanel, startingPoint, Controller.currentController.mapViewManager.mapView.parent.parent)
-//    UITools.convertPointToAncestor(Controller.currentController.mapViewManager.mapView.parent.parent.parent.parent.parent, startingPoint, mapView)
-//    SwingUtilities.convertPointToScreen(startingPoint, list)
     return startingPoint
 }
 
 def void connectListItemToNode(JList list, int itemIndex) {
-    startPoint = listItemPosition(list, itemIndex)
+
+    mapView4 = Controller.currentController.MapViewManager.mapView
+    finalMapView = mapView4
+
+    Rectangle itemBounds2 = list.getCellBounds(itemIndex, itemIndex)
+
+
+    Point itemPointInList2 = itemBounds2.getLocation()
+
+
+    startPoint = itemPointInList2
+
+    UITools.convertPointToAncestor(list, startPoint, Controller.currentController.mapViewManager.mapView.parent.parent)
+
+
+    newStartPoint = startPoint
 
     correspondingNode = list.getModel().getElementAt(itemIndex)
 
-    mapView = Controller.currentController.MapViewManager.mapView
 
-    NodeView correspondingNodeView = mapView.getNodeView(correspondingNode)
+
+    NodeView correspondingNodeView = null
+    correspondingNode.views.each {
+        if(it.map.name == finalMapView.name) {
+            correspondingNodeView = it
+        }
+    }
+
     if(correspondingNodeView == null) {
-        println "NodeView não encontrado!"
         return
     }
 
-    Point correspondingNodeLocation = mapView.getNodeContentLocation(correspondingNodeView)
-    UITools.convertPointToAncestor(mapView, correspondingNodeLocation, Controller.currentController.mapViewManager.mapView.parent.parent)
+    Point correspondingNodeLocation = finalMapView.getNodeContentLocation(correspondingNodeView)
+    UITools.convertPointToAncestor(finalMapView, correspondingNodeLocation, Controller.currentController.mapViewManager.mapView.parent.parent)
+
+
+    def finalStart = new Point(startPoint.x as int, startPoint.y as int)
+    def finalNodeLocation = new Point(correspondingNodeLocation.x as int, correspondingNodeLocation.y as int)
+
+
+    Random seededRandom = new Random(itemIndex);
+    float hue = seededRandom.nextFloat();
+    float saturation = 0.7f + seededRandom.nextFloat() * 0.3f; // [0.7, 1.0)
+    float brightness = 0.6f + seededRandom.nextFloat() * 0.3f; // [0.6, 0.9)
+    final Color itemColor = Color.getHSBColor(hue, saturation, brightness);
 
 
     JPanel overlay = new JPanel() {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g)
-            g.setColor(Color.RED)
-            // Desenha a linha entre o ponto de partida e a localização do nó.
-            g.drawLine(startPoint.x as int, startPoint.y as int, correspondingNodeLocation.x as int, correspondingNodeLocation.y as int)
-//  g.drawLine(startPoint.x as int, startPoint.y as int, 1500, 1500)
+
+            Graphics2D g2d = (Graphics2D) g.create();
+            try {
+                g2d.setColor(itemColor);
+
+                g2d.setStroke(new BasicStroke(1.5f))
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+
+                g2d.drawLine(finalStart.x as int, finalStart.y as int,
+                        finalNodeLocation.x as int, finalNodeLocation.y as int)
+            } finally {
+                g2d.dispose();
+            }
         }
     }
-    overlay.setOpaque(false)
-    overlay.setBounds(0, 0, mapView.getWidth(), mapView.getHeight())
 
+
+    overlay.setOpaque(false)
+    overlay.setBounds(0, 0, finalMapView.getWidth(), finalMapView.getHeight())
+
+    overlayFinal = overlay
     parentPanel2 = Controller.currentController.mapViewManager.mapView.parent.parent
-// Adicione o overlay ao mapView e atualize a exibição.
-//mapView.add(overlay)
-//mapView.repaint()
     parentPanel2.add(overlay)
     parentPanel2.setComponentZOrder(overlay, 0)
-    parentPanel2.repaint()
 
-    connectingLines.add(overlay)
-
-
+    connectingLines.add(overlayFinal)
 }
+
+
+
+def void calculateConnectionData(JList list, int itemIndex) {
+
+    mapView4 = Controller.currentController.MapViewManager.mapView
+    finalMapView = mapView4
+
+    Rectangle itemBounds = list.getCellBounds(itemIndex, itemIndex)
+    if (itemBounds == null) {
+        return
+    }
+    Point startPointRelative = itemBounds.getLocation()
+    Point startPoint = new Point(startPointRelative)
+    if (overlayParentPanel == null) {
+        overlayParentPanel = Controller.currentController.mapViewManager.mapView.parent.parent
+    }
+    if (overlayParentPanel == null) {
+        return
+    }
+    UITools.convertPointToAncestor(list, startPoint, overlayParentPanel)
+
+    correspondingNode = list.getModel().getElementAt(itemIndex)
+    if (!(correspondingNode instanceof NodeModel)) return
+
+    NodeView correspondingNodeView = null
+    correspondingNode.views.each { view ->
+        if (view.map.name == finalMapView.name) {
+            correspondingNodeView = view
+        }
+    }
+    correspondingNodeProxy = ProxyFactory.createNode(correspondingNode, ScriptUtils.getCurrentContext())
+    ascendants = correspondingNodeProxy.pathToRoot
+
+    List<Node> filteredAscendants = ascendants.findAll { ascendantNode ->
+        boolean keepBasedOnFolded = ascendantNode.folded
+        boolean keepBasedOnView = false
+        if (ascendantNode.delegate?.views != null && !ascendantNode.delegate.views.isEmpty()) {
+            keepBasedOnView = (ascendantNode.delegate.views.find { view -> view.map.name == finalMapView.name } != null)
+        }
+        return keepBasedOnFolded && keepBasedOnView
+    }
+
+    isInsideFoldedNode = false
+
+    if (correspondingNodeView == null) {
+        if(filteredAscendants.size() == 0) return
+        filteredAscendants[0].delegate.views.each { view ->
+            if (view.map.name == finalMapView.name) {
+                correspondingNodeView = view
+                isInsideFoldedNode = true
+            }
+        }
+        if (correspondingNodeView == null) return
+    }
+
+
+    viewRoot = c.viewRoot
+
+    isInCurrentRootViewBranch = ascendants.contains(viewRoot)
+
+    if(!isInCurrentRootViewBranch) return
+
+
+    Point nodeLocationRelative = finalMapView.getNodeContentLocation(correspondingNodeView)
+    Point endPoint = new Point(nodeLocationRelative)
+    UITools.convertPointToAncestor(finalMapView, endPoint, overlayParentPanel)
+
+
+
+
+    Color mapBackgroundColor = finalMapView.getBackground()
+    if (mapBackgroundColor == null) {
+        mapBackgroundColor = currentMapView.getBackground()
+    }
+
+    boolean backgroundIsDark = isColorDark(mapBackgroundColor)
+
+    List<Color> colorPalette = backgroundIsDark ? COLORS_FOR_DARK_BG : COLORS_FOR_LIGHT_BG
+
+
+    Color itemColor = colorPalette[itemIndex % colorPalette.size()]
+
+
+
+    connectingLineData.add([
+            start: startPoint,
+            end: endPoint,
+            color: itemColor,
+            targetNodeIsInsideFoldedNode: isInsideFoldedNode,
+            cellHeight: itemBounds.height,
+            nodeHeight: correspondingNodeView.getContentPane().height
+    ])
+}
+
+
+
+
+
+def void ensureOverlayExistsAndRepaint() {
+
+    removeOverlay()
+
+    if (quickSearchResults.size() > 0 && quickSearchResultsJList != null) {
+        if (overlayParentPanel == null) {
+            overlayParentPanel = Controller.currentController.mapViewManager.mapView.parent.parent
+        }
+
+        if (overlayParentPanel != null) {
+            for (int i = 0; i < quickSearchResults.size(); i++) {
+                calculateConnectionData(quickSearchResultsJList, i)
+            }
+        } else {
+        }
+    }
+
+    if (connectingLineData.isEmpty()) {
+        removeOverlay()
+        return
+    }
+
+
+    if (overlayParentPanel == null) {
+        overlayParentPanel = Controller.currentController.mapViewManager.mapView.parent.parent
+        if (overlayParentPanel == null) {
+            return
+        }
+    }
+
+    if (linesOverlayPanel == null) {
+        linesOverlayPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g)
+
+                Graphics2D g2d = (Graphics2D) g.create()
+                try {
+                    float strokeWidth = 5.5f;
+
+                    Stroke solidStroke = new BasicStroke(strokeWidth);
+
+                    float[] dashPattern = [1f, 4f] as float[];
+                    Stroke dashedStroke = new BasicStroke(
+                            strokeWidth,
+                            BasicStroke.CAP_BUTT,
+                            BasicStroke.JOIN_BEVEL,
+                            0,
+                            dashPattern,
+                            0f
+                    );
+
+                    g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+
+
+                    connectingLineData.eachWithIndex { data, index ->
+                        Point start = data.start as Point
+                        Point end = data.end as Point
+                        Color color = data.color as Color
+                        Boolean isInsideFolded = data.targetNodeIsInsideFoldedNode as Boolean
+
+
+                        if (start != null && end != null && color != null) {
+
+                            if (isInsideFolded == true) {
+                                g2d.setStroke(dashedStroke);
+                            } else {
+                                g2d.setStroke(solidStroke);
+                            }
+
+                            g2d.setColor(color)
+
+                            g2d.drawLine((start.x + masterPanel.width) as int, (start.y + ((data.cellHeight as int) / 2)) as int,
+                                    end.x as int, ((end.y + ((data.nodeHeight as int) / 2)) as int))
+                        } else {
+                        }
+                    }
+                } finally {
+                    g2d.dispose()
+                }
+            }
+        }
+        linesOverlayPanel.setOpaque(false)
+        linesOverlayPanel.setName("ConnectingLinesOverlay")
+
+        overlayParentPanel.add(linesOverlayPanel)
+        overlayParentPanel.setComponentZOrder(linesOverlayPanel, 0)
+    }
+
+    linesOverlayPanel.setBounds(0, 0, overlayParentPanel.getWidth(), overlayParentPanel.getHeight())
+    overlayParentPanel.revalidate()
+    overlayParentPanel.repaint()
+}
+
+
+def void removeOverlay() {
+    if (linesOverlayPanel != null && overlayParentPanel != null) {
+        overlayParentPanel.remove(linesOverlayPanel)
+        overlayParentPanel.revalidate()
+        overlayParentPanel.repaint()
+        linesOverlayPanel = null
+    }
+    overlayParentPanel = null
+    connectingLineData.clear()
+}
+
+
+double calculateLuminance(Color color) {
+    if (color == null) return 128;
+    return 0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue();
+}
+
+
+boolean isColorDark(Color color) {
+    double luminanceThreshold = 128.0;
+    return calculateLuminance(color) < luminanceThreshold;
+}
+
+
+
+
+
+
+//////////////////////////////////////
 
 
 def loadStylesIntoModel(DefaultListModel<ProxyNode> model) {
@@ -5131,4 +5197,228 @@ def refreshSiblingPreviewPanels() {
         } else {
         }
     }
+}
+
+def startListeners() {
+
+    createComponentChangeListener()
+
+    INodeSelectionListener mySelectionListener = new INodeSelectionListener() {
+        @Override
+        public void onDeselect(NodeModel node) {
+
+        }
+
+        @Override
+        public void onSelect(NodeModel node) {
+
+            if (node == currentlySelectedNode) {
+                return
+            }
+
+//        recentSelectedNodesPanel.removeAll()
+//        breadcrumbPanel.removeAll()
+
+            currentlySelectedNode = node
+            hoveredTagModel.clear()
+
+            def newHistoryModel = new DefaultListModel<NodeModel>()
+
+            newHistoryModel = history
+
+            if (newHistoryModel.contains(node)) {
+                newHistoryModel.removeElement(node)
+            }
+            newHistoryModel.insertElementAt(node, 0)
+            if (newHistoryModel.getSize() > 200) {
+                newHistoryModel.removeElementAt(200)
+            }
+
+            historyJList.setModel(newHistoryModel)
+            history = newHistoryModel
+//
+//        if (history.contains(node)) {
+//            history.removeElement(node)
+//        }
+//        history.insertElementAt(node, 0)
+//        if (history.getSize() > 200) {
+//            history.removeElementAt(200)
+//        }
+
+            saveSettings()
+
+//        def newAncestorsModel = new DefaultListModel<NodeModel>()
+//        if (reverseAncestorsList) {
+//            node.getPathToRoot().reverse().each { newAncestorsModel.addElement(it) }
+//        } else {
+//            node.getPathToRoot().each { newAncestorsModel.addElement(it) }
+//        }
+//
+//        ancestorsJList.setModel(newAncestorsModel)
+//        ancestorsOfCurrentNode = newAncestorsModel
+
+            ancestorsOfCurrentNode.clear()
+            if(reverseAncestorsList) {
+                node.getPathToRoot().reverse().each {
+                    ancestorsOfCurrentNode.addElement(it)
+                }
+            }
+            else{
+                node.getPathToRoot().each {
+                    ancestorsOfCurrentNode.addElement(it)
+                }
+            }
+
+
+            if (freezeInspectors || isMouseOverSearchBox) {
+                return
+            }
+
+            if (inspectorUpdateSelection) {
+
+//            if(areNodesVisible(currentlySelectedNode)) {
+//                visibleInspectors.each {
+//                    it.setVisible(false)
+//                }
+//                parentPanel.revalidate()
+//                parentPanel.repaint()
+//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//                Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+//
+//            }
+//            else if (! areNodesVisible(currentlySelectedNode, "siblings") && ! areNodesVisible(currentlySelectedNode, "children")) {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0])
+//            }
+//            else if (! areNodesVisible(currentlySelectedNode, "siblings")) {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "children")
+//            }
+//            else {
+//                cleanAndCreateInspectors(node, panelsInMasterPanels[0], "siblings")
+//            }
+
+                smartCreateInspectors(node)
+            }
+
+
+            ////////////////inplaceinspector////////////
+
+//        mapView = Controller.currentController.mapViewManager.mapView
+//
+//
+//        NodeView root = mapView.getRoot()
+//        final JComponent rootContent = root.getMainView()
+//        final Point contentPt = new Point()
+//        UITools.convertPointToAncestor(rootContent, contentPt, mapView)
+//        final float zoom = mapView.getZoom()
+////final Point eventPoint = e.getPoint()
+//        eventPoint = MouseInfo.getPointerInfo().getLocation()
+//        SwingUtilities.convertPointFromScreen(eventPoint, mapView)
+////        int x =(int) ((eventPoint.x - contentPt.x)/zoom)
+//        int x =(int) ((eventPoint.x - contentPt.x))
+//        final int y =(int) ((eventPoint.y - contentPt.y)/zoom)
+//
+//
+//
+//        inPlaceInspectors.each {
+//            it.setVisible(false)
+//        }
+//        inPlaceInspectors.clear()
+//        inPlaceInspector = createInspectorPanel(currentlySelectedNode, panelsInMasterPanels[0])
+//        inPlaceInspectors.add(inPlaceInspector)
+////        mousePosition = MouseInfo.getPointerInfo().getLocation()
+////        inPlaceInspector.setBounds((int) mousePosition.getX(),(int) mousePosition.getY(), 300, 300)
+//        inPlaceInspector.setBounds((int) x, 500, 300, 300)
+//        inPlaceInspector.setVisible(true)
+
+            ////////////////////////
+
+        }
+
+    }
+
+    createdSelectionListener = mySelectionListener
+
+    Controller.currentController.modeController.mapController.addNodeSelectionListener(mySelectionListener)
+
+    IMapChangeListener myMapChangeListener = new IMapChangeListener() {
+        @Override
+        public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
+            NodeModel deletedNode = nodeDeletionEvent.node
+            allDeletedNodes = ProxyUtils.findImpl(null, deletedNode, false)
+            allDeletedNodes.each {
+//        history.removeElement(deletedNode)
+//        pinnedItems.removeElement(deletedNode)
+                history.removeElement(it)
+                pinnedItems.removeElement(it)
+            }
+            saveSettings()
+//        SwingUtilities.invokeLater { updateAllGUIs() }
+        }
+
+    }
+
+    Controller.currentController.modeController.getMapController().addUIMapChangeListener(myMapChangeListener)
+
+
+    NodeChangeListener myNodeChangeListenerZZ= {NodeChanged event->
+        if(event.changedElement == NodeChanged.ChangedElement.TAGS) {
+            loadTagsIntoModel(listModelForAllTags, currentlySelectedNode)
+            tagsNeedUpdate = true
+//        updateAllGUIs()
+//        masterPanel.revalidate()
+//        masterPanel.repaint()
+        }
+    } as NodeChangeListener
+
+    mindMap.addListener(myNodeChangeListenerZZ)
+
+
+    viewportSizeChangeListener = new ComponentAdapter() {
+        @Override
+        public void componentResized(final ComponentEvent e) {
+//        panelsInMasterPanels.each {
+//            parentPanel.remove(it)
+//        }
+
+            saveSettings()
+
+//        masterPanel.setVisible(false)
+//        breadcrumbPanel.setVisible(false)
+//        visibleInspectors.each {it.setVisible(false)}
+//        createPanels()
+//        visibleInspectors.each { it.setVisible(true) }
+//        masterPanel.revalidate()
+//        masterPanel.repaint()
+//        breadcrumbPanel.revalidate()
+//        breadcrumbPanel.repaint()
+//        parentPanel.revalidate()
+//        parentPanel.repaint()
+//        if(!showPanels) {
+//            masterPanel.setVisible(false)
+//            breadcrumbPanel.setVisible(false)
+//            visibleInspectors.each {it.setVisible(false)}
+//        }
+
+            reloadPanels()
+
+//        SwingUtilities.invokeLater { updateAllGUIs() }
+        }
+    }
+
+    mapViewWindowForSizeReferences.addComponentListener(viewportSizeChangeListener)
+
+
+}
+
+
+def loadHistoryWithFPHistory() {
+    history.clear()
+
+    NodeHistory historyInternal = Controller.currentController.getExtension(NodeHistory.class)
+
+    historyInternal.nodes
+            .reverse()
+            .collect { it.node }
+            .unique()
+            .each { history.addElement(it) }
 }
