@@ -1,11 +1,13 @@
 
 /***************************************************************************
 
+ version 1.48: Updated to be compatible with Freeplane 1.12.12.
+
  version 1.47: Quick search panel: Lines connecting the results in the quick search panel to the respective nodes.
-  Quick search panel: now, it's the first panel.
-  Quick search panel: now, it shows the number of results and the status of the search.
-  Recent nodes panel: changed the backend logic, to rely on the data from the Freeplane internal node history list. This is useful, to allow disabling the node change listener when the panels are hidden. The negative side effect is that recent nodes are not saved between sessions, anymore.
-  Faster when the panels are hidden. Now, when hidden, most listeners are removed, to save performance.
+ Quick search panel: now, it's the first panel.
+ Quick search panel: now, it shows the number of results and the status of the search.
+ Recent nodes panel: changed the backend logic, to rely on the data from the Freeplane internal node history list. This is useful, to allow disabling the node change listener when the panels are hidden. The negative side effect is that recent nodes are not saved between sessions, anymore.
+ Faster when the panels are hidden. Now, when hidden, most listeners are removed, to save performance.
 
  version 1.46: New Panel: In-place Siblings Preview.
 
@@ -315,32 +317,45 @@ import java.awt.BasicStroke
 import javax.swing.event.ChangeListener
 import javax.swing.event.ChangeEvent
 
-
-
-
-
 @groovy.transform.Field uniqueIdForScript = 999
 
-//def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
-//    try {
-//        return listener.uniqueIdForScript == uniqueIdForScript
-//    } catch (Exception ex) {
-//        return false
-//    }
-//}
-//
-//if (listenerFound) {
-//    showMessageDialog(Controller.currentController.mapViewManager.mapView.parent.parent, "UtilityPanels already running. To show/hide it, use the hotkey (by default, it's Ctrl+U).")
-//    return
-//}
+
+if(checkIfUtilityPanelsIsAlreadyRunning()) return
 
 
 
-//cleanPreviousScriptExecution()
 
 
 
-//↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ User settings ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+/*
+
+888     888
+888     888
+888     888
+888     888 .d8888b   .d88b.  888d888
+888     888 88K      d8P  Y8b 888P"
+888     888 "Y8888b. 88888888 888
+Y88b. .d88P      X88 Y8b.     888
+ "Y88888P"   88888P'  "Y8888  888
+
+
+
+ .d8888b.           888    888    d8b
+d88P  Y88b          888    888    Y8P
+Y88b.               888    888
+ "Y888b.    .d88b.  888888 888888 888 88888b.   .d88b.  .d8888b
+    "Y88b. d8P  Y8b 888    888    888 888 "88b d88P"88b 88K
+      "888 88888888 888    888    888 888  888 888  888 "Y8888b.
+Y88b  d88P Y8b.     Y88b.  Y88b.  888 888  888 Y88b 888      X88
+ "Y8888P"   "Y8888   "Y888  "Y888 888 888  888  "Y88888  88888P'
+                                                    888
+                                               Y8b d88P
+                                                "Y88P"
+
+↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+*/
+
 // remember to include new settings at the methods showSettingsDialog(), saveSettings() and loadSettings()
 
 panelTextFontName = "Dialog"
@@ -378,8 +393,6 @@ showAncestorsOnFirstInspector = false
 
 @groovy.transform.Field showInPlaceSiblingsPreview = true
 
-
-
 //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
@@ -390,7 +403,20 @@ showAncestorsOnFirstInspector = false
 
 
 
+/*
 
+888     888                 d8b          888      888
+888     888                 Y8P          888      888
+888     888                              888      888
+Y88b   d88P 8888b.  888d888 888  8888b.  88888b.  888  .d88b.  .d8888b
+ Y88b d88P     "88b 888P"   888     "88b 888 "88b 888 d8P  Y8b 88K
+  Y88o88P  .d888888 888     888 .d888888 888  888 888 88888888 "Y8888b.
+   Y888P   888  888 888     888 888  888 888 d88P 888 Y8b.          X88
+    Y8P    "Y888888 888     888 "Y888888 88888P"  888  "Y8888   88888P'
+
+
+↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+*/
 
 
 @groovy.transform.Field DefaultListModel<String> allTags = new DefaultListModel<String>()
@@ -412,8 +438,7 @@ fontForItems = new Font(panelTextFontName, fontForListItens, panelTextFontSize)
 @groovy.transform.Field List<JPanel> visibleInspectors = []
 @groovy.transform.Field List<JPanel> visiblePreviewInspectors = []
 @groovy.transform.Field List<JPanel> inPlaceInspectors = []
-@groovy.transform.Field List<String> savedSearchCriteria = []
-savedSearchCriteria.add("")
+@groovy.transform.Field List<String> savedSearchCriteria = ['']
 @groovy.transform.Field List<Tags> selectedTagsInPanel = []
 @groovy.transform.Field List<Tag> hoveredTag = []
 @groovy.transform.Field DefaultListModel<NodeModel> nodesThatContainAnyTagInTagsSelectionModel = new DefaultListModel<>()
@@ -529,6 +554,9 @@ hideInspectorTimer.addActionListener(e -> {
 
 @groovy.transform.Field MouseListener sharedMouseListener
 
+@groovy.transform.Field Timer hoverTimer = new Timer(selectionDelay, null)
+@groovy.transform.Field Point lastMouseLocation = null
+
 sharedMouseListener = new MouseAdapter() {
     @Override
     public void mouseEntered(MouseEvent e) {
@@ -541,216 +569,9 @@ sharedMouseListener = new MouseAdapter() {
     }
 }
 
-//@groovy.transform.Field fileToGet = getSettingsFile()
-//@groovy.transform.Field settingsToGet = new JsonSlurper().parseText(fileToGet.text)
-//def settingsToGet = new JsonSlurper().parseText(fileToGet.text)
-
-//
-//File fileToGet = getSettingsFile()
-//String content = fileToGet.text
-//def settingsToGet = new JsonSlurper().parseText(content)
-//
-//if (fileToGet.exists()) {
-//    try {
-//        if (settingsToGet.userSettings && settingsToGet.userSettings.selectionDelay != null) {
-//            aaa = settingsToGet.userSettings.selectionDelay as int
-//        }
-//    } catch(Exception e) {
-//        e.printStackTrace()
-//    }
-//}
-
-//@groovy.transform.Field aaa = getDefaultSelectionDelay()
-//@groovy.transform.Field aaa = 150
-//@groovy.transform.Field Timer hoverTimer = new Timer(150, null)
-//@groovy.transform.Field Timer hoverTimer = new Timer(aaa, null)
-
-//@groovy.transform.Field selectionDelay = 150 //miliseconds
-@groovy.transform.Field Timer hoverTimer = new Timer(selectionDelay, null)
-//@groovy.transform.Field Timer hoverTimer = new Timer(getDefaultSelectionDelay(), null)
-@groovy.transform.Field Point lastMouseLocation = null
-
 hoverTimer.setRepeats(false)
 hoverTimer.addActionListener(e -> {
-    if (shouldFreeze()) return
-
-
-    if(panelsInMasterPanels.contains(currentSourcePanel)) {
-        expandMasterPanel()
-
-        visiblePreviewInspectors.each {
-            it.setVisible(false)
-            parentPanel.remove(it)
-        }
-
-        visiblePreviewInspectors.clear()
-
-
-        visibleInspectors.each{
-            if(!inspectorUpdateSelection) {
-                it.setVisible(false)
-            }
-            else{
-                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
-                    it.setVisible(false)
-                }
-            }
-        }
-
-        if(!inspectorUpdateSelection) {
-            visibleInspectors.clear()
-        }
-        else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-            if(visibleInspectors.size() != 0) {
-                setInspectorLocation(visibleInspectors[0], masterPanel)
-                if(visibleInspectors.size() > 1) {
-                    setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
-                }
-            }
-        }
-    }
-
-    if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
-        visiblePreviewInspectors.each {
-            it.setVisible(false)
-            parentPanel.remove(it)
-        }
-
-        visiblePreviewInspectors.clear()
-
-
-        visibleInspectors.each{
-            if(!inspectorUpdateSelection) {
-                it.setVisible(false)
-            }
-            else{
-                if(it != visibleInspectors[0] && it != visibleInspectors[1]) {
-                    it.setVisible(false)
-                }
-            }
-        }
-
-        if(!inspectorUpdateSelection) {
-            visibleInspectors.clear()
-        }
-        else {
-            visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
-        }
-
-
-    }
-
-    if (lastMouseLocation) {
-
-
-        int index = currentList.locationToIndex(lastMouseLocation)
-
-        Rectangle cellBounds = currentList.getCellBounds(index, index)
-        if (cellBounds != null && cellBounds.contains(lastMouseLocation)) {
-            if (index >= 0 && index < currentListModel.getSize()) {
-//            if (index >= 0 && index) {
-                Object hoveredItem = currentListModel.getElementAt(index)
-                if(hoveredItem instanceof NodeModel) {
-                    NodeModel subNode = currentListModel.getElementAt(index)
-                    hoveredNode = subNode
-
-                    ancestorsOfCurrentNode.clear()
-                    if(reverseAncestorsList) {
-                        hoveredNode.getPathToRoot().reverse().each {
-                            ancestorsOfCurrentNode.addElement(it)
-                        }
-                    }
-                    else{
-                        hoveredNode.getPathToRoot().each {
-                            ancestorsOfCurrentNode.addElement(it)
-                        }
-                    }
-
-//                    updateAllGUIs()
-
-                    if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
-                        cleanAndCreateInspectors(subNode, masterPanel)
-                    }
-                    else if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
-                        visiblePreviewInspectors.each {
-                            it.setVisible(false)
-                            parentPanel.remove(it)
-                        }
-                        visiblePreviewInspectors.clear()
-
-                        previewInspector = createInspectorPanel(subNode, currentSourcePanel)
-                        visiblePreviewInspectors.add(previewInspector)
-
-                        previewInspector2 = createInspectorPanel(subNode, previewInspector)
-                        visiblePreviewInspectors.add(previewInspector2)
-
-                    }
-                    else {
-
-
-                        JTextPane textLabelInInspector = (JTextPane) currentSourcePanel.getClientProperty("textLabel")
-
-
-                        configureLabelForNode(textLabelInInspector, hoveredNode, currentSourcePanel, index)
-
-
-                        DefaultListModel<Tags> accessorTagsInNodeModel = (DefaultListModel<Tags>) currentSourcePanel.getClientProperty("tagsInNodeAccessor")
-                        accessorTagsInNodeModel.clear()
-                        iconController.getTags(hoveredNode).each {
-                            accessorTagsInNodeModel.addElement(it)
-                        }
-
-                        subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
-
-                        if (visiblePreviewInspectors.contains(currentSourcePanel)) {
-                            visiblePreviewInspectors.add(subInspectorPanel)
-                            locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                            visiblePreviewInspectors.clone().each {
-                                if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                                    it.setVisible(false)
-                                    visiblePreviewInspectors.remove(it)
-                                }
-                            }
-                        }
-
-                        else {
-                            visibleInspectors.add(subInspectorPanel)
-                            locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-                            visibleInspectors.clone().each {
-                                if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                                    it.setVisible(false)
-                                    visibleInspectors.remove(it)
-                                }
-                            }
-                        }
-
-
-                        parentPanel.revalidate()
-                        parentPanel.repaint()
-                    }
-                }
-                else if(currentSourcePanel == tagsPanel) {
-                    Tag tagHovered = currentListModel.getElementAt(index)
-                    hoveredTagModel.clear()
-                    hoveredTagModel.addElement(tagHovered)
-
-                    List<Tag> tagsListForComparison = []
-                    tagsListForComparison.add(tagHovered)
-
-
-
-                    nodesThatContainHoveredTagModel.clear()
-                    c.viewRoot.findAll().each {
-                        if (selectedTagsInPanel.size() == 0 && iconController.getTags(it.delegate).containsAll(tagsListForComparison)) {
-                            nodesThatContainHoveredTagModel.addElement(it.delegate)
-                        }
-                    }
-                    cleanAndCreateInspectors(currentlySelectedNode, currentSourcePanel)
-                }
-            }
-        }
-    }
+    manageInspectorsCreation()
 })
 
 class NodeModelTransferable implements Transferable {
@@ -780,223 +601,254 @@ class NodeModelTransferable implements Transferable {
     }
 }
 
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Variables ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+
+
+
+
+
+
+
+/*
+
+888b     d888          d8b               .d8888b.                888
+8888b   d8888          Y8P              d88P  Y88b               888
+88888b.d88888                           888    888               888
+888Y88888P888  8888b.  888 88888b.      888         .d88b.   .d88888  .d88b.
+888 Y888P 888     "88b 888 888 "88b     888        d88""88b d88" 888 d8P  Y8b
+888  Y8P  888 .d888888 888 888  888     888    888 888  888 888  888 88888888
+888   "   888 888  888 888 888  888     Y88b  d88P Y88..88P Y88b 888 Y8b.
+888       888 "Y888888 888 888  888      "Y8888P"   "Y88P"   "Y88888  "Y8888
+
+
+↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+*/
+
 loadSettings()
-
-
 createPanels()
-
-
-IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
-    public void afterViewChange(final Component oldView, final Component newView) {
-        if (newView == null) {
-            return
-        }
-
-        searchText = ""
-        quickSearchResults.clear()
-
-//        panelsInMasterPanels.each {
-//            parentPanel.remove(it)
-//        }
-//        breadcrumbPanel.parentPanel.remove(breadcrumbPanel)
-
-        saveSettings()
-
-//        masterPanel.setVisible(false)
-//        breadcrumbPanel.setVisible(false)
-//        visibleInspectors.each {it.setVisible(false)}
-//        SwingUtilities.invokeLater {
-//            createPanels()
-//            visibleInspectors.each { it.setVisible(true) }
-//            masterPanel.revalidate()
-//            masterPanel.repaint()
-//            breadcrumbPanel.revalidate()
-//            breadcrumbPanel.repaint()
-//            parentPanel.revalidate()
-//            parentPanel.repaint()
-//            if(!showPanels) {
-//                masterPanel.setVisible(false)
-//                breadcrumbPanel.setVisible(false)
-//                visibleInspectors.each {it.setVisible(false)}
-//            }
-//        }
-
-        reloadPanels()
-
-
-        createComponentChangeListener()
-        refreshSiblingPreviewPanels()
-//        SwingUtilities.invokeLater { updateAllGUIs() }
-    }
-}
-
-
-Controller.currentController.mapViewManager.addMapViewChangeListener(myMapViewChangeListener)
-
-
+createSingleRunListeners()
 startListeners()
-
-
-Controller controllerForHighlighter = Controller.currentModeController.controller
-controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
-
-    @Override
-    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
-        if(searchText.equals("")) { return  }
-        if (isPrinting) {
-            return false
-        }
-        return (quickSearchResults.contains(node))
-    }
-
-    @Override
-    public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean isFound = quickSearchResults.contains(node)
-
-        if (isFound) {
-            g.setColor(new Color(0, 255, 0, 255))
-            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
-        }
-    }
-
-})
-
-
-controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
-
-    @Override
-    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
-        if(searchText.equals("")) { return  }
-        if (isPrinting) {
-            return false
-        }
-        return (isFoldedWithHighlightedDescendants(node))
-    }
-
-    @Override
-    public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendants(node)
-
-
-        if (hasFoldedDescendants) {
-            g.setColor(new Color(1, 125, 32, 255))
-            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
-        }
-
-
-    }
-
-    private boolean isFoldedWithHighlightedDescendants(NodeModel node) {
-        if (!node.folded) {
-            return false
-        }
-        if (cachedHighlightedNodes.contains(node)) {
-            return true
-        }
-        boolean hasDescendants = hasHighlightedDescendants(node)
-        if (hasDescendants) {
-            cachedHighlightedNodes.add(node)
-        }
-        return hasDescendants
-    }
-
-    private boolean hasHighlightedDescendants(NodeModel node) {
-        for (NodeModel child : node.children) {
-            if (quickSearchResults.contains(child) || hasHighlightedDescendants(child)) {
-                return true
-            }
-        }
-        return false
-    }
-})
-
-def refreshHighlighterCache() {
-    cachedHighlightedNodes.clear()
-}
-
-
-controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
-
-    @Override
-    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
-        if(selectedTagsInPanel.size() == 0) { return  }
-        if (isPrinting) {
-            return false
-        }
-        return (iconController.getTags(node).containsAll(selectedTagsInPanel))
-    }
-
-    @Override
-    public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean hasSelectedTags = iconController.getTags(node).containsAll(selectedTagsInPanel)
-
-        if (hasSelectedTags) {
-            g.setColor(new Color(0, 183, 255, 255))
-            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
-        }
-
-    }
-
-})
-
-controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
-
-    @Override
-    public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
-        if(selectedTagsInPanel.size() == 0) { return  }
-        if (isPrinting) {
-            return false
-        }
-        return (isFoldedWithHighlightedDescendantsTags(node))
-    }
-
-    @Override
-    public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
-        boolean hasFoldedDescendants = isFoldedWithHighlightedDescendantsTags(node)
-
-        if (hasFoldedDescendants) {
-            g.setColor(new Color(1, 0, 255, 255))
-            g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
-        }
-    }
-
-    private boolean isFoldedWithHighlightedDescendantsTags(NodeModel node) {
-        if (!node.folded) {
-            return false
-        }
-        if (cachedHighlightedNodesTags.contains(node)) {
-            return true
-        }
-        boolean hasDescendants = hasHighlightedDescendants(node)
-        if (hasDescendants) {
-            cachedHighlightedNodesTags.add(node)
-        }
-        return hasDescendants
-    }
-
-    private boolean hasHighlightedDescendants(NodeModel node) {
-        for (NodeModel child : node.children) {
-            if (iconController.getTags(child).containsAll(selectedTagsInPanel) || hasHighlightedDescendants(child)) {
-                return true
-            }
-        }
-        return false
-    }
-})
-
-def refreshHighlighterCacheTags() {
-    cachedHighlightedNodesTags.clear()
-}
-
+createHighlighters()
 
 return
 
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Main code ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
-// ------------------ methods definitions ------------------------
+
+
+
+
+
+
+/*
+
+888b     d888          888    888                    888
+8888b   d8888          888    888                    888
+88888b.d88888          888    888                    888
+888Y88888P888  .d88b.  888888 88888b.   .d88b.   .d88888 .d8888b
+888 Y888P 888 d8P  Y8b 888    888 "88b d88""88b d88" 888 88K
+888  Y8P  888 88888888 888    888  888 888  888 888  888 "Y8888b.
+888   "   888 Y8b.     Y88b.  888  888 Y88..88P Y88b 888      X88
+888       888  "Y8888   "Y888 888  888  "Y88P"   "Y88888  88888P'
+
+↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+*/
+
+def boolean checkIfUtilityPanelsIsAlreadyRunning() {
+    def listenerFound = Controller.currentController.modeController.mapController.nodeSelectionListeners.find { listener ->
+        try {
+            return listener.uniqueIdForScript == uniqueIdForScript
+        } catch (Exception ex) {
+            return false
+        }
+    }
+
+    if (listenerFound) {
+        showMessageDialog(Controller.currentController.mapViewManager.mapView.parent.parent, "UtilityPanels already running. To show/hide it, use the hotkey (by default, it's Ctrl+U).")
+        return true
+    }
+}
+
+public void manageInspectorsCreation() {
+    if (shouldFreeze()) return
+    if(panelsInMasterPanels.contains(currentSourcePanel)) expandMasterPanelAndUpdateInspectorsState()
+    if (activeSiblingPreviewPanels.contains(currentSourcePanel)) clearInspectorsAndPreviewInspectors()
+    if (!lastMouseLocation) return
+
+    int index = currentList.locationToIndex(lastMouseLocation)
+
+    if (!validateMousePositionOnList(index)) return
+
+    Object hoveredItem = currentListModel.getElementAt(index)
+
+    if(hoveredItem instanceof NodeModel) {
+        NodeModel subNode = currentListModel.getElementAt(index)
+        hoveredNode = subNode
+
+        populateAncestorsList(hoveredNode)
+
+        if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) cleanAndCreateInspectors(subNode, masterPanel)
+        else if (activeSiblingPreviewPanels.contains(currentSourcePanel)) updatePreviewInspectors(subNode)
+        else createSubInspector(hoveredNode, index, subNode)
+    }
+    else if(currentSourcePanel == tagsPanel) updateInspectorWithTagsPanel(index)
+}
+
+public boolean validateMousePositionOnList(int index) {
+    Rectangle cellBounds = currentList.getCellBounds(index, index)
+
+    if (cellBounds == null || !cellBounds.contains(lastMouseLocation)) return false
+
+    if (index < 0 || index >= currentListModel.getSize()) return false
+
+    return true
+}
+
+public void createSubInspector(NodeModel hoveredNode, int index, NodeModel subNode) {
+    JTextPane textLabelInInspector = (JTextPane) currentSourcePanel.getClientProperty("textLabel")
+
+    configureLabelForNode(textLabelInInspector, hoveredNode, currentSourcePanel, index)
+
+    DefaultListModel<Tags> accessorTagsInNodeModel = (DefaultListModel<Tags>) currentSourcePanel.getClientProperty("tagsInNodeAccessor")
+    accessorTagsInNodeModel.clear()
+    iconController.getTags(hoveredNode).each {
+        accessorTagsInNodeModel.addElement(it)
+    }
+
+    subInspectorPanel = createInspectorPanel(subNode, currentSourcePanel)
+
+    updateSubInspectorsLocation(subInspectorPanel)
+
+    parentPanel.revalidate()
+    parentPanel.repaint()
+}
+
+public void updateSubInspectorsLocation(JPanel subInspectorPanel) {
+    if (visiblePreviewInspectors.contains(currentSourcePanel)) {
+        visiblePreviewInspectors.add(subInspectorPanel)
+        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
+        visiblePreviewInspectors.clone().each {
+            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
+                it.setVisible(false)
+                visiblePreviewInspectors.remove(it)
+            }
+        }
+    } else {
+        visibleInspectors.add(subInspectorPanel)
+        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
+        visibleInspectors.clone().each {
+            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
+                it.setVisible(false)
+                visibleInspectors.remove(it)
+            }
+        }
+    }
+}
+
+public void updatePreviewInspectors(NodeModel subNode) {
+    visiblePreviewInspectors.each {
+        it.setVisible(false)
+        parentPanel.remove(it)
+    }
+    visiblePreviewInspectors.clear()
+
+    previewInspector = createInspectorPanel(subNode, currentSourcePanel)
+    visiblePreviewInspectors.add(previewInspector)
+
+    previewInspector2 = createInspectorPanel(subNode, previewInspector)
+    visiblePreviewInspectors.add(previewInspector2)
+}
+
+public void updateInspectorWithTagsPanel(int index) {
+    Tag tagHovered = currentListModel.getElementAt(index)
+    hoveredTagModel.clear()
+    hoveredTagModel.addElement(tagHovered)
+
+    List<Tag> tagsListForComparison = []
+    tagsListForComparison.add(tagHovered)
+
+    nodesThatContainHoveredTagModel.clear()
+    c.viewRoot.findAll().each {
+        if (selectedTagsInPanel.size() == 0 && iconController.getTags(it.delegate).containsAll(tagsListForComparison)) {
+            nodesThatContainHoveredTagModel.addElement(it.delegate)
+        }
+    }
+    cleanAndCreateInspectors(currentlySelectedNode, currentSourcePanel)
+}
+
+public void populateAncestorsList(NodeModel hoveredNode) {
+    ancestorsOfCurrentNode.clear()
+    if (reverseAncestorsList) {
+        hoveredNode.getPathToRoot().reverse().each {
+            ancestorsOfCurrentNode.addElement(it)
+        }
+    } else {
+        hoveredNode.getPathToRoot().each {
+            ancestorsOfCurrentNode.addElement(it)
+        }
+    }
+}
+
+public void clearInspectorsAndPreviewInspectors() {
+    visiblePreviewInspectors.each {
+        it.setVisible(false)
+        parentPanel.remove(it)
+    }
+
+    visiblePreviewInspectors.clear()
+
+
+    visibleInspectors.each {
+        if (!inspectorUpdateSelection) {
+            it.setVisible(false)
+        } else {
+            if (it != visibleInspectors[0] && it != visibleInspectors[1]) {
+                it.setVisible(false)
+            }
+        }
+    }
+
+    if (!inspectorUpdateSelection) {
+        visibleInspectors.clear()
+    } else {
+        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1] }
+    }
+}
+
+public void expandMasterPanelAndUpdateInspectorsState() {
+    expandMasterPanel()
+
+    visiblePreviewInspectors.each {
+        it.setVisible(false)
+        parentPanel.remove(it)
+    }
+
+    visiblePreviewInspectors.clear()
+
+
+    visibleInspectors.each {
+        if (!inspectorUpdateSelection) {
+            it.setVisible(false)
+        } else {
+            if (it != visibleInspectors[0] && it != visibleInspectors[1]) {
+                it.setVisible(false)
+            }
+        }
+    }
+
+    if (!inspectorUpdateSelection) {
+        visibleInspectors.clear()
+    } else {
+        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1] }
+        if (visibleInspectors.size() != 0) {
+            setInspectorLocation(visibleInspectors[0], masterPanel)
+            if (visibleInspectors.size() > 1) {
+                setInspectorLocation(visibleInspectors[1], visibleInspectors[0])
+            }
+        }
+    }
+}
 
 private Rectangle getBreadcrumbReservedArea() {
     if (!breadcrumbPanel.isVisible())
@@ -1034,243 +886,260 @@ private Rectangle getInspectorReservedArea() {
 }
 
 def createPanels() {
-    parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
+    setupParentPanel()
 
-    parentPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStrokeToShowPanels, "togglePanels")
-    parentPanel.getActionMap().put("togglePanels", new AbstractAction() {
+    recentSelectedNodesPanel = createRecentNodesPanel()
+    pinnedItemsPanel = createPinnedItemsPanel()
+    tagsPanel = createTagsPanel()
+    (quickSearchPanel, innerPanelInQuickSearchPanel) = createQuickSearchPanel()
+    breadcrumbPanel = createAndAttachBreadcrumbsPanels()
+    stylesPanel = createStylesPanel()
+
+    if (!showOnlyBreadcrumbs) {
+        assembleMasterPanel(breadcrumbPanel, quickSearchPanel, recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel, innerPanelInQuickSearchPanel)
+    }
+
+    parentPanel.revalidate()
+    parentPanel.repaint()
+}
+
+public void assembleMasterPanel(JPanel breadcrumbPanel, JPanel quickSearchPanel, JPanel recentSelectedNodesPanel, JPanel pinnedItemsPanel, JPanel stylesPanel, JPanel tagsPanel, JPanel innerPanelInQuickSearchPanel) {
+    masterPanel = new JPanel()
+    basicMasterPanelConfigs(masterPanel, breadcrumbPanel)
+
+    panelsInMasterPanels = [quickSearchPanel, recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel]
+    scrollPanelsInMasterPanelPanels = []
+
+    panelsInMasterPanels.eachWithIndex { panel, idx ->
+        setRTLOrientation(panel)
+        addPanelsWithSpacing(panel, idx)
+    }
+
+    createJLists(recentSelectedNodesPanel, pinnedItemsPanel, innerPanelInQuickSearchPanel, quickSearchPanel)
+
+    createQuickSearchResultsScrollPane()
+
+    masterPanel.revalidate()
+    masterPanel.repaint()
+    masterPanel.setVisible(true)
+
+    parentPanel.add(masterPanel)
+    parentPanel.setComponentZOrder(masterPanel, 0)
+}
+
+public void createQuickSearchResultsScrollPane() {
+    JScrollPane quickSearchResultsScrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, quickSearchResultsJList);
+    quickSearchResultsScrollPane.getViewport().addChangeListener(new ChangeListener() {
         @Override
-        void actionPerformed(ActionEvent e) {
-            togglePanelsVisibility()
+        public void stateChanged(ChangeEvent e) {
+            int firstVisibleIndex = quickSearchResultsJList.getFirstVisibleIndex();
+            ensureOverlayExistsAndRepaint()
+        }
+    });
+}
+
+public void createJLists(JPanel recentSelectedNodesPanel, JPanel pinnedItemsPanel, JPanel innerPanelInQuickSearchPanel, JPanel quickSearchPanel) {
+    loadHistoryWithFPHistory()
+    historyJList = createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
+    createJList(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
+    quickSearchResultsJList = createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
+}
+
+public void addPanelsWithSpacing(JPanel panel, int idx) {
+    masterPanel.add(panel)
+
+    if (idx < panelsInMasterPanels.size() - 1) {
+        masterPanel.add(Box.createVerticalStrut(20))
+    }
+}
+
+public void setRTLOrientation(JPanel panel) {
+    if (rtlOrientation) {
+        panel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        panel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+}
+
+public void basicMasterPanelConfigs(JPanel masterPanel, JPanel breadcrumbPanel) {
+    masterPanel.setLayout(new BoxLayout(masterPanel, BoxLayout.Y_AXIS))
+    masterPanel.setOpaque(false)
+    if (rtlOrientation) {
+        masterPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        masterPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+    masterPanel.addMouseListener(sharedMouseListener)
+    masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height - 5)
+}
+
+public JPanel createStylesPanel() {
+    stylesPanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    stylesPanel.setOpaque(false)
+    stylesPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        stylesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        stylesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
+    loadStylesIntoModel(stylesListModel)
+
+    JList<ProxyNode> stylesJList = new JList<>(stylesListModel)
+
+    configureListFont(stylesJList)
+    if (rtlOrientation) {
+        stylesJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        stylesJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+    stylesJList.setOpaque(false)
+    stylesJList.setBackground(new Color(0, 0, 0, 0))
+
+
+    stylesJList.setCellRenderer(new DefaultListCellRenderer() {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            if (value instanceof NodeModel) {
+                styleNode = ProxyFactory.createNode(value, ScriptUtils.getCurrentContext())
+                label.setText(styleNode.text)
+                label.setBackground(styleNode.style.backgroundColor)
+                label.setForeground(styleNode.style.textColor)
+
+                plainBoldItalic = Font.PLAIN
+                if (styleNode.style.font.bold && node.style.font.italic) plainBoldItalic = Font.BOLD + Font.ITALIC
+                else if (styleNode.style.font.bold) plainBoldItalic = Font.BOLD
+                else if (styleNode.style.font.italic) plainBoldItalic = Font.ITALIC
+
+                label.setFont(new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size))
+
+                Font baseFont = new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size)
+
+                Map attributes = new HashMap(baseFont.getAttributes())
+
+                attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON)
+
+                Font fontWithStrikethrough = baseFont.deriveFont(attributes)
+
+                if (styleNode.style.font.strikedThrough) label.setFont(fontWithStrikethrough)
+
+                label.setBorder(BorderFactory.createLineBorder(styleNode.style.border.color, 2))
+
+            }
+            return label
         }
     })
 
-    parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
-    parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
-//    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
-
-    Dimension parentSize = parentPanel.getSize()
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Master Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Master Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Recent Nodes Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-    recentSelectedNodesPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g) {
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    recentSelectedNodesPanel.setOpaque(false)
-    recentSelectedNodesPanel.setBackground(new Color(0, 0, 0, 0))
-
-    if (rtlOrientation) {
-        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-    } else {
-        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-    }
-
-//    int recentSelectedNodesPanelWidth = 80
-//    int recentSelectedNodesPanelHeight = 170
-
-//    recentSelectedNodesPanel.setBounds(0, 0, recentSelectedNodesPanelWidth, recentSelectedNodesPanelHeight)
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Recent Nodes Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Pinned Items Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-    pinnedItemsPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g) {
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    pinnedItemsPanel.setOpaque(false)
-    pinnedItemsPanel.setBackground(new Color(0, 0, 0, 0))
-
-    if (rtlOrientation) {
-        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-    } else {
-        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-    }
-
-
-//    pinnedItemsPanel.setMaximumSize(pinnedItemsPanel.getPreferredSize())
-
-//    int pinnedPanelHeight = 130
-//    pinnedItemsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, pinnedPanelHeight)
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Pinned Items Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tags Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-    tagsPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g) {
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    tagsPanel.setOpaque(false)
-    tagsPanel.setBackground(new Color(0, 0, 0, 0))
-
-    if (rtlOrientation) {
-        tagsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-    } else {
-        tagsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-    }
-
-//    int tagsPanelHeight = 130
-//    tagsPanel.setBounds(0, recentSelectedNodesPanelHeight + 20, recentSelectedNodesPanelWidth, tagsPanelHeight)
-
-    //was on the updateTagsGUI():
-
-    //    tagsPanel.removeAll()
-
-
-    NodeModel selectedNode = currentlySelectedNode
-//    if(tagsNeedUpdate) {
-//        loadTagsIntoModel(listModelForAllTags, selectedNode)
-//    }
-
-    loadTagsIntoModel(listModelForAllTags, selectedNode)
-
-    JList<String> tagsJList = new JList<>(listModelForAllTags)
-
-    if (rtlOrientation) {
-        tagsJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-    } else {
-        tagsJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-    }
-
-    // search field
-    JTextField tagsSearchField = new JTextField()
-
-    tagsSearchField.addMouseListener(sharedMouseListener)
-
-    tagsSearchField.getDocument().addDocumentListener(new DocumentListener() {
+    stylesJList.addMouseListener(new MouseAdapter() {
         @Override
-        void insertUpdate(DocumentEvent e) { filterTags() }
-
-        @Override
-        void removeUpdate(DocumentEvent e) { filterTags() }
-
-        @Override
-        void changedUpdate(DocumentEvent e) { filterTags() }
-
-        private void filterTags() {
-            String searchText = tagsSearchField.getText().toLowerCase()
-            DefaultListModel<String> filteredModel = new DefaultListModel<>()
-
-            for (int i = 0; i < listModelForAllTags.size(); i++) {
-                tag = listModelForAllTags.getElementAt(i)
-                if (tag.getContent().toLowerCase().contains(searchText)) {
-                    filteredModel.addElement(tag)
+        public void mouseClicked(MouseEvent e) {
+            if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 1) {
+                int index = stylesJList.locationToIndex(e.getPoint())
+                if (index >= 0) {
+                    selectedStyleNode = stylesListModel.getElementAt(index)
+                    selectedStyleNodeProxy = ProxyFactory.createNode(selectedStyleNode, ScriptUtils.getCurrentContext())
+                    String styleName = selectedStyleNodeProxy.text
+                    if (styleName) {
+                        def selectedMapNodes = c.selecteds
+                        if (!selectedMapNodes.isEmpty()) {
+                            selectedMapNodes.each { mapNode ->
+                                mapNode.style.setName(styleName)
+                            }
+                        } else {
+                        }
+                    }
                 }
             }
-            tagsJList.setModel(filteredModel)
-//            tagsNeedUpdate = true
         }
     })
 
-
-    // clear button
-
-    JButton tagsClearButton = new JButton("X")
-    tagsClearButton.addActionListener(new ActionListener() {
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            selectedTagsInPanel.clear()
-            refreshHighlighterCacheTags()
-//            tagsNeedUpdate = true
-            tagsJList.setModel(listModelForAllTags)
-            cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
-//            updateAllGUIs()
-//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
-//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-        }
-    })
-
-    tagsClearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1))
-    tagsClearButton.setForeground(Color.BLACK)
-    tagsClearButton.setBackground(Color.WHITE)
-    tagsClearButton.setBorder(BorderFactory.createEtchedBorder())
-    tagsClearButton.setOpaque(true)
-    tagsClearButton.setBorderPainted(true)
-    tagsClearButton.setFocusPainted(false)
-
-    tagsClearButton.addMouseListener(sharedMouseListener)
+    stylesJList.addMouseListener(sharedMouseListener)
 
 
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-
-    commonTagsJListsConfigs(tagsJList, listModelForAllTags, tagsPanel)
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-    JScrollPane scrollPane = new JScrollPane(tagsJList) {
+    JScrollPane scrollPaneStyles = new JScrollPane(stylesJList) {
         protected void paintComponent(Graphics g) {
             g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
+    configureScrollPaneForRTL(scrollPaneStyles)
+    scrollPaneStyles.setOpaque(false)
+    scrollPaneStyles.getViewport().setOpaque(false)
+    scrollPaneStyles.setBackground(new Color(0, 0, 0, 0))
+    scrollPaneStyles.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
-    configureScrollPaneForRTL(scrollPane)
-    scrollPane.setBackground(new Color(0, 0, 0, 0))
-    tagsJList.setOpaque(false)
-    scrollPane.setOpaque(false)
-    scrollPane.getViewport().setOpaque(false)
+    scrollPaneStyles.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPaneStyles.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPaneStyles.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPaneStyles.getHorizontalScrollBar())
 
-    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
-    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
-    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
-    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
-    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
+    stylesPanel.add(scrollPaneStyles, BorderLayout.CENTER)
 
-    JPanel panelForField = new JPanel(new BorderLayout()) {
-        {
-            if (rtlOrientation) {
-                setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-            } else {
-                setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-            }
+    stylesPanel.addMouseListener(sharedMouseListener)
+
+    configureMouseMotionListener(stylesJList, stylesListModel, stylesPanel)
+    configureMouseExitListener(stylesJList)
+    stylesPanel
+}
+
+public JPanel createAndAttachBreadcrumbsPanels() {
+    breadcrumbPanel = new JPanel() {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
+//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5))
+    breadcrumbPanel.setBackground(new Color(0, 0, 0, 0))
+//    breadcrumbPanel.setBackground(new Color(220, 220, 220))
+    breadcrumbPanel.setOpaque(false)
+
+    breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
+
+
+    if (rtlOrientation) {
+        breadcrumbPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        breadcrumbPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+
+    ancestorsOfCurrentNode.clear()
+    if (reverseAncestorsList) {
+        currentlySelectedNode.getPathToRoot().reverse().each {
+            ancestorsOfCurrentNode.addElement(it)
+        }
+    } else {
+        currentlySelectedNode.getPathToRoot().each {
+            ancestorsOfCurrentNode.addElement(it)
         }
     }
 
-    panelForField.add(tagsSearchField, BorderLayout.CENTER)
-    panelForField.add(tagsClearButton, BorderLayout.EAST)
+//    20.times {
+//        ancestorsOfCurrentNode.addElement(currentlySelectedNode)
+//    }
 
-    panelForField.setOpaque(false)
-    panelForField.setBackground(new Color(0, 0, 0, 0))
+    createBreadcrumbsJList()
 
-    tagsPanel.add(panelForField, BorderLayout.NORTH)
+//    listeners2 = ancestorsOfCurrentNode.getListDataListeners()
+//    listeners2.each { ancestorsOfCurrentNode.removeListDataListener(it) }
 
-    tagsPanel.add(scrollPane, BorderLayout.CENTER)
-    tagsPanel.revalidate()
-    tagsPanel.repaint()
+    parentPanel.add(breadcrumbPanel)
+    parentPanel.setComponentZOrder(breadcrumbPanel, 0)
+    breadcrumbPanel
+}
 
-//    tagsNeedUpdate = false
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tags Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Quick Search Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-
+public List createQuickSearchPanel() {
     quickSearchPanel = new JPanel(new BorderLayout()) {
         protected void paintComponent(Graphics g) {
             g.setColor(getBackground())
@@ -1396,8 +1265,7 @@ def createPanels() {
                             if (resultCount >= maxNumberOfResults) {
                                 searchStatusLabel.setText("Max number of results (${maxNumberOfResults}) reached.")
                                 searchStatusLabel.setOpaque(true)
-                            }
-                            else {
+                            } else {
                                 searchStatusLabel.setText("${resultCount} results. Finished.")
                                 searchStatusLabel.setOpaque(true)
                             }
@@ -1464,7 +1332,6 @@ def createPanels() {
                     }
 
 
-
                 }
                 worker.execute()
 
@@ -1497,16 +1364,13 @@ def createPanels() {
                 parentPanel.repaint()
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
                 Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
-            }
-
-            else {
+            } else {
                 searchStatusLabel.setText(" ")
                 searchStatusLabel.setOpaque(false)
             }
 
         }
     })
-
 
 
     JButton clearButton = new JButton("X")
@@ -1553,7 +1417,6 @@ def createPanels() {
     innerPanelInQuickSearchPanel.setBackground(new Color(0, 0, 0, 0))
 
 
-
     innerPanelInQuickSearchPanel.add(searchStatusLabel, BorderLayout.SOUTH)
 
     quickSearchPanel.add(innerPanelInQuickSearchPanel, BorderLayout.CENTER)
@@ -1569,7 +1432,6 @@ def createPanels() {
             isMouseOverSearchBox = false
         }
     })
-
 
 
     panelForSearchBox.addMouseListener(new MouseAdapter() {
@@ -1611,314 +1473,205 @@ def createPanels() {
     })
 
     addQuickSearchShortcut(searchField)
+    [quickSearchPanel, innerPanelInQuickSearchPanel]
+}
 
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Quick Search Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Breadcrumbs Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-
-    breadcrumbPanel = new JPanel() {
+public JPanel createTagsPanel() {
+    tagsPanel = new JPanel(new BorderLayout()) {
         protected void paintComponent(Graphics g) {
             g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
-    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
-//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5))
-    breadcrumbPanel.setBackground(new Color(0, 0, 0, 0))
-//    breadcrumbPanel.setBackground(new Color(220, 220, 220))
-    breadcrumbPanel.setOpaque(false)
-
-    breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
-
+    tagsPanel.setOpaque(false)
+    tagsPanel.setBackground(new Color(0, 0, 0, 0))
 
     if (rtlOrientation) {
-        breadcrumbPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+        tagsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
-        breadcrumbPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        tagsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
-    ancestorsOfCurrentNode.clear()
-    if(reverseAncestorsList) {
-        currentlySelectedNode.getPathToRoot().reverse().each {
-            ancestorsOfCurrentNode.addElement(it)
-        }
-    }
-    else{
-        currentlySelectedNode.getPathToRoot().each {
-            ancestorsOfCurrentNode.addElement(it)
-        }
-    }
 
-//    20.times {
-//        ancestorsOfCurrentNode.addElement(currentlySelectedNode)
-//    }
+    NodeModel selectedNode = currentlySelectedNode
 
-    createBreadcrumbsJList()
+    loadTagsIntoModel(listModelForAllTags, selectedNode)
 
-//    listeners2 = ancestorsOfCurrentNode.getListDataListeners()
-//    listeners2.each { ancestorsOfCurrentNode.removeListDataListener(it) }
-
-    parentPanel.add(breadcrumbPanel)
-    parentPanel.setComponentZOrder(breadcrumbPanel, 0)
-
-
-    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Ancestor Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Styles Panel ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-
-    stylesPanel = new JPanel(new BorderLayout()) {
-        protected void paintComponent(Graphics g) {
-            g.setColor(getBackground())
-            g.fillRect(0, 0, getWidth(), getHeight())
-            super.paintComponent(g)
-        }
-    }
-    stylesPanel.setOpaque(false)
-    stylesPanel.setBackground(new Color(0, 0, 0, 0))
+    JList<String> tagsJList = new JList<>(listModelForAllTags)
 
     if (rtlOrientation) {
-        stylesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+        tagsJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
-        stylesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+        tagsJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
-    loadStylesIntoModel(stylesListModel)
+    // search field
+    JTextField tagsSearchField = new JTextField()
 
-    JList<ProxyNode> stylesJList = new JList<>(stylesListModel)
+    tagsSearchField.addMouseListener(sharedMouseListener)
 
-    configureListFont(stylesJList)
-    if (rtlOrientation) {
-        stylesJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-    } else {
-        stylesJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-    }
-    stylesJList.setOpaque(false)
-    stylesJList.setBackground(new Color(0,0,0,0))
-
-
-    stylesJList.setCellRenderer(new DefaultListCellRenderer() {
+    tagsSearchField.getDocument().addDocumentListener(new DocumentListener() {
         @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-            if (value instanceof NodeModel) {
-                styleNode = ProxyFactory.createNode(value, ScriptUtils.getCurrentContext())
-                label.setText(styleNode.text)
-                label.setBackground(styleNode.style.backgroundColor)
-                label.setForeground(styleNode.style.textColor)
+        void insertUpdate(DocumentEvent e) { filterTags() }
 
-                plainBoldItalic = Font.PLAIN
-                if(styleNode.style.font.bold && node.style.font.italic) plainBoldItalic = Font.BOLD + Font.ITALIC
-                else if(styleNode.style.font.bold) plainBoldItalic = Font.BOLD
-                else if(styleNode.style.font.italic) plainBoldItalic = Font.ITALIC
-
-                label.setFont(new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size))
-
-                Font baseFont = new Font(styleNode.style.font.name, plainBoldItalic, styleNode.style.font.size)
-
-                Map attributes = new HashMap(baseFont.getAttributes())
-
-                attributes.put(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON)
-
-                Font fontWithStrikethrough = baseFont.deriveFont(attributes)
-
-                if(styleNode.style.font.strikedThrough) label.setFont(fontWithStrikethrough)
-
-
-//                node.style.font.strikedThrough
-
-//                borderColor = new Color(0, 0, 0, 0)
-//
-//                if(styleNode.style.border.usesEdgeColorSet) borderColor = styleNode.style.edge.color
-//                else borderColor = styleNode.style.border.color
-
-                label.setBorder(BorderFactory.createLineBorder(styleNode.style.border.color, 2))
-
-//                if (isSelected) {
-//                    label.setBackground(list.getSelectionBackground())
-//                    label.setForeground(list.getSelectionForeground())
-//                    label.setOpaque(true) // Torna opaco apenas na seleção
-//                } else {
-//                    label.setForeground(list.getForeground()) // Cor padrão do texto
-//                }
-            }
-            return label
-        }
-    })
-
-    stylesJList.addMouseListener(new MouseAdapter() {
         @Override
-        public void mouseClicked(MouseEvent e) {
-            if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 1) {
-                int index = stylesJList.locationToIndex(e.getPoint())
-                if (index >= 0) {
-                    selectedStyleNode = stylesListModel.getElementAt(index)
-                    selectedStyleNodeProxy = ProxyFactory.createNode(selectedStyleNode, ScriptUtils.getCurrentContext())
-                    String styleName = selectedStyleNodeProxy.text
-                    if (styleName) {
-                        def selectedMapNodes = c.selecteds
-                        if (!selectedMapNodes.isEmpty()) {
-                            selectedMapNodes.each { mapNode ->
-                                mapNode.style.setName(styleName)
-                            }
-//                            Controller.currentController.getMapViewManager().getMapViewComponent().repaint()
-                        } else {
-                        }
-                    }
+        void removeUpdate(DocumentEvent e) { filterTags() }
+
+        @Override
+        void changedUpdate(DocumentEvent e) { filterTags() }
+
+        private void filterTags() {
+            String searchText = tagsSearchField.getText().toLowerCase()
+            DefaultListModel<String> filteredModel = new DefaultListModel<>()
+
+            for (int i = 0; i < listModelForAllTags.size(); i++) {
+                tag = listModelForAllTags.getElementAt(i)
+                if (tag.getContent().toLowerCase().contains(searchText)) {
+                    filteredModel.addElement(tag)
                 }
             }
+            tagsJList.setModel(filteredModel)
+//            tagsNeedUpdate = true
         }
-//        @Override
-//        public void mouseEntered(MouseEvent e) {
-//            hideInspectorTimer.stop()
-//            mouseOverList = true
-//            expandMasterPanel()
-//        }
-//
-//        @Override
-//        public void mouseExited(MouseEvent e) {
-//            mouseOverList = false
-//            hideInspectorTimer.restart()
-//        }
     })
 
-    stylesJList.addMouseListener(sharedMouseListener)
-//    stylesJList.addMouseMotionListener(new MouseAdapter() {
-//        @Override
-//        public void mouseMoved(MouseEvent e) {
-//            if (shouldShowInspectors()) return
-//            lastMouseModifiers = e.getModifiersEx()
-//            if (shouldFreeze()) return
-//
-//            // hoverTimer.stop()
-//            currentList = stylesJList
-//            currentListModel = stylesListModel
-//            currentSourcePanel = stylesPanel
-//            lastMouseLocation = e.getPoint()
-//            mouseOverList = true
-//
-//            if (panelsInMasterPanels.contains(currentSourcePanel)) {
-//                expandMasterPanel()
-//            }
-//        }
-//    })
+
+    // clear button
+
+    JButton tagsClearButton = new JButton("X")
+    tagsClearButton.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            selectedTagsInPanel.clear()
+            refreshHighlighterCacheTags()
+//            tagsNeedUpdate = true
+            tagsJList.setModel(listModelForAllTags)
+            cleanAndCreateInspectors(currentlySelectedNode, panelsInMasterPanels[0])
+//            updateAllGUIs()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().revalidate()
+//            Controller.getCurrentController().getMapViewManager().getMapViewComponent().repaint()
+        }
+    })
+
+    tagsClearButton.setPreferredSize(new Dimension(widthOfTheClearButtonOnQuickSearchPanel, 1))
+    tagsClearButton.setForeground(Color.BLACK)
+    tagsClearButton.setBackground(Color.WHITE)
+    tagsClearButton.setBorder(BorderFactory.createEtchedBorder())
+    tagsClearButton.setOpaque(true)
+    tagsClearButton.setBorderPainted(true)
+    tagsClearButton.setFocusPainted(false)
+
+    tagsClearButton.addMouseListener(sharedMouseListener)
 
 
+    //↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Tag List Configs ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 
-    JScrollPane scrollPaneStyles = new JScrollPane(stylesJList) {
+
+    commonTagsJListsConfigs(tagsJList, listModelForAllTags, tagsPanel)
+
+
+    //↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Tag List Configs ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+    JScrollPane scrollPane = new JScrollPane(tagsJList) {
         protected void paintComponent(Graphics g) {
             g.setColor(getBackground())
             g.fillRect(0, 0, getWidth(), getHeight())
             super.paintComponent(g)
         }
     }
-    configureScrollPaneForRTL(scrollPaneStyles)
-    scrollPaneStyles.setOpaque(false)
-    scrollPaneStyles.getViewport().setOpaque(false)
-    scrollPaneStyles.setBackground(new Color(0, 0, 0, 0))
-    scrollPaneStyles.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
 
-    scrollPaneStyles.getVerticalScrollBar().addMouseListener(sharedMouseListener)
-    scrollPaneStyles.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
-    addMouseListenerToScrollBarButtons(scrollPaneStyles.getVerticalScrollBar())
-    addMouseListenerToScrollBarButtons(scrollPaneStyles.getHorizontalScrollBar())
+    configureScrollPaneForRTL(scrollPane)
+    scrollPane.setBackground(new Color(0, 0, 0, 0))
+    tagsJList.setOpaque(false)
+    scrollPane.setOpaque(false)
+    scrollPane.getViewport().setOpaque(false)
 
-//    TitledBorder titledBorderStyles = BorderFactory.createTitledBorder("Styles")
-//    titledBorderStyles.setTitleJustification(TitledBorder.LEFT)
-//    titledBorderStyles.setTitleFont(new Font(panelTextFontName, Font.BOLD, panelTextFontSize))
-//    titledBorderStyles.setTitleColor(Color.DARK_GRAY)
-//    scrollPaneStyles.setBorder(titledBorderStyles)
+    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
+    scrollPane.getVerticalScrollBar().addMouseListener(sharedMouseListener)
+    scrollPane.getHorizontalScrollBar().addMouseListener(sharedMouseListener)
+    addMouseListenerToScrollBarButtons(scrollPane.getVerticalScrollBar())
+    addMouseListenerToScrollBarButtons(scrollPane.getHorizontalScrollBar())
 
-
-    stylesPanel.add(scrollPaneStyles, BorderLayout.CENTER)
-
-    stylesPanel.addMouseListener(sharedMouseListener)
-
-    configureMouseMotionListener(stylesJList, stylesListModel, stylesPanel)
-    configureMouseExitListener(stylesJList)
-
-
-//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Styles Panel ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
-
-
-
-    if (!showOnlyBreadcrumbs) {
-
-        masterPanel = new JPanel()
-        masterPanel.setLayout(new BoxLayout(masterPanel, BoxLayout.Y_AXIS))
-
-        masterPanel.setOpaque(false)
-
-        if (rtlOrientation) {
-            masterPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
-        } else {
-            masterPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-        }
-
-
-//    masterPanel.setBounds(0, 100, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height -5)
-
-        masterPanel.addMouseListener(sharedMouseListener)
-
-        masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height - 5)
-
-
-
-        panelsInMasterPanels = [quickSearchPanel, recentSelectedNodesPanel, pinnedItemsPanel, stylesPanel, tagsPanel]
-
-        scrollPanelsInMasterPanelPanels = []
-
-
-        panelsInMasterPanels.eachWithIndex { panel, idx ->
+    JPanel panelForField = new JPanel(new BorderLayout()) {
+        {
             if (rtlOrientation) {
-                panel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+                setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
             } else {
-                panel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
-            }
-
-            masterPanel.add(panel)
-
-            if (idx < panelsInMasterPanels.size() - 1) {
-                masterPanel.add(Box.createVerticalStrut(20))
+                setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
             }
         }
-
-
-        loadHistoryWithFPHistory()
-
-        historyJList = createJList(history, recentSelectedNodesPanel, recentSelectedNodesPanel)
-//        listeners = history.getListDataListeners().toList()
-//        listeners.each { history.removeListDataListener(it) }
-
-        createJList(pinnedItems, pinnedItemsPanel, pinnedItemsPanel)
-        quickSearchResultsJList = createJList(quickSearchResults, innerPanelInQuickSearchPanel, quickSearchPanel)
-        JScrollPane quickSearchResultsScrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, quickSearchResultsJList);
-        quickSearchResultsScrollPane.getViewport().addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                int firstVisibleIndex = quickSearchResultsJList.getFirstVisibleIndex();
-                ensureOverlayExistsAndRepaint()
-            }
-        });
-
-
-        masterPanel.revalidate()
-        masterPanel.repaint()
-
-        masterPanel.setVisible(true)
-
-
-        parentPanel.add(masterPanel)
-        parentPanel.setComponentZOrder(masterPanel, 0)
     }
 
+    panelForField.add(tagsSearchField, BorderLayout.CENTER)
+    panelForField.add(tagsClearButton, BorderLayout.EAST)
 
+    panelForField.setOpaque(false)
+    panelForField.setBackground(new Color(0, 0, 0, 0))
 
-    parentPanel.revalidate()
-    parentPanel.repaint()
+    tagsPanel.add(panelForField, BorderLayout.NORTH)
+
+    tagsPanel.add(scrollPane, BorderLayout.CENTER)
+    tagsPanel.revalidate()
+    tagsPanel.repaint()
+
+//    tagsNeedUpdate = false
+    tagsPanel
+}
+
+public JPanel createPinnedItemsPanel() {
+    pinnedItemsPanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    pinnedItemsPanel.setOpaque(false)
+    pinnedItemsPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        pinnedItemsPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+    pinnedItemsPanel
+}
+
+public JPanel createRecentNodesPanel() {
+    recentSelectedNodesPanel = new JPanel(new BorderLayout()) {
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground())
+            g.fillRect(0, 0, getWidth(), getHeight())
+            super.paintComponent(g)
+        }
+    }
+    recentSelectedNodesPanel.setOpaque(false)
+    recentSelectedNodesPanel.setBackground(new Color(0, 0, 0, 0))
+
+    if (rtlOrientation) {
+        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
+    } else {
+        recentSelectedNodesPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
+    }
+    recentSelectedNodesPanel
+}
+
+public setupParentPanel() {
+    parentPanel = Controller.currentController.mapViewManager.mapView.parent.parent as JScrollPane
+
+    parentPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(keyStrokeToShowPanels, "togglePanels")
+    parentPanel.getActionMap().put("togglePanels", new AbstractAction() {
+        @Override
+        void actionPerformed(ActionEvent e) {
+            togglePanelsVisibility()
+        }
+    })
+
+    parentPanel.addViewportReservedAreaSupplier(this::getBreadcrumbReservedArea)
+    parentPanel.addViewportReservedAreaSupplier(this::getMasterReservedArea)
+//    parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
+    parentPanel
 }
 
 def updateAllGUIs() {
@@ -3082,12 +2835,17 @@ void configureDragAndDrop(JList<NodeModel> list) {
 
                 IMapSelection mapSelectionForTransfer = new IMapSelection() {
                     @Override
-                    void centerNode(NodeModel nodeModel) {
+                    void scrollNodeToCenter(NodeModel node, boolean slow) {
 
                     }
 
                     @Override
-                    void centerNodeSlowly(NodeModel nodeModel) {
+                    void scrollNodeToCenter(NodeModel node) {
+
+                    }
+
+                    @Override
+                    void scrollNodeTreeToVisible(final NodeModel node, boolean slow) {
 
                     }
 
@@ -5199,6 +4957,54 @@ def refreshSiblingPreviewPanels() {
     }
 }
 
+public void createSingleRunListeners() {
+    String searchText
+    IMapViewChangeListener myMapViewChangeListener = new IMapViewChangeListener() {
+        public void afterViewChange(final Component oldView, final Component newView) {
+            if (newView == null) {
+                return
+            }
+
+            searchText = ""
+            quickSearchResults.clear()
+
+//        panelsInMasterPanels.each {
+//            parentPanel.remove(it)
+//        }
+//        breadcrumbPanel.parentPanel.remove(breadcrumbPanel)
+
+            saveSettings()
+
+//        masterPanel.setVisible(false)
+//        breadcrumbPanel.setVisible(false)
+//        visibleInspectors.each {it.setVisible(false)}
+//        SwingUtilities.invokeLater {
+//            createPanels()
+//            visibleInspectors.each { it.setVisible(true) }
+//            masterPanel.revalidate()
+//            masterPanel.repaint()
+//            breadcrumbPanel.revalidate()
+//            breadcrumbPanel.repaint()
+//            parentPanel.revalidate()
+//            parentPanel.repaint()
+//            if(!showPanels) {
+//                masterPanel.setVisible(false)
+//                breadcrumbPanel.setVisible(false)
+//                visibleInspectors.each {it.setVisible(false)}
+//            }
+//        }
+
+            reloadPanels()
+
+
+            createComponentChangeListener()
+            refreshSiblingPreviewPanels()
+//        SwingUtilities.invokeLater { updateAllGUIs() }
+        }
+    }
+    Controller.currentController.mapViewManager.addMapViewChangeListener(myMapViewChangeListener)
+}
+
 def startListeners() {
 
     createComponentChangeListener()
@@ -5421,4 +5227,167 @@ def loadHistoryWithFPHistory() {
             .collect { it.node }
             .unique()
             .each { history.addElement(it) }
+}
+
+
+
+def createHighlighters() {
+    Controller controllerForHighlighter = Controller.currentModeController.controller
+    controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
+
+        @Override
+        public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
+            if(searchText.equals("")) { return  }
+            if (isPrinting) {
+                return false
+            }
+            return (quickSearchResults.contains(node))
+        }
+
+        @Override
+        public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
+            boolean isFound = quickSearchResults.contains(node)
+
+            if (isFound) {
+                g.setColor(new Color(0, 255, 0, 255))
+                g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
+            }
+        }
+
+    })
+
+
+    controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
+
+        @Override
+        public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
+            if(searchText.equals("")) { return  }
+            if (isPrinting) {
+                return false
+            }
+            return (isFoldedWithHighlightedDescendants(node))
+        }
+
+        @Override
+        public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
+            boolean hasFoldedDescendants = isFoldedWithHighlightedDescendants(node)
+
+
+            if (hasFoldedDescendants) {
+                g.setColor(new Color(1, 125, 32, 255))
+                g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
+            }
+
+
+        }
+
+        private boolean isFoldedWithHighlightedDescendants(NodeModel node) {
+            if (!node.folded) {
+                return false
+            }
+            if (cachedHighlightedNodes.contains(node)) {
+                return true
+            }
+            boolean hasDescendants = hasHighlightedDescendants(node)
+            if (hasDescendants) {
+                cachedHighlightedNodes.add(node)
+            }
+            return hasDescendants
+        }
+
+        private boolean hasHighlightedDescendants(NodeModel node) {
+            for (NodeModel child : node.children) {
+                if (quickSearchResults.contains(child) || hasHighlightedDescendants(child)) {
+                    return true
+                }
+            }
+            return false
+        }
+    })
+
+
+
+
+    controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
+
+        @Override
+        public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
+            if(selectedTagsInPanel.size() == 0) { return  }
+            if (isPrinting) {
+                return false
+            }
+            return (iconController.getTags(node).containsAll(selectedTagsInPanel))
+        }
+
+        @Override
+        public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
+            boolean hasSelectedTags = iconController.getTags(node).containsAll(selectedTagsInPanel)
+
+            if (hasSelectedTags) {
+                g.setColor(new Color(0, 183, 255, 255))
+                g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
+            }
+
+        }
+
+    })
+
+    controllerForHighlighter.getExtension(HighlightController.class).addNodeHighlighter(new NodeHighlighter() {
+
+        @Override
+        public boolean isNodeHighlighted(NodeModel node, IMapSelection selection, boolean isPrinting) {
+            if(selectedTagsInPanel.size() == 0) { return  }
+            if (isPrinting) {
+                return false
+            }
+            return (isFoldedWithHighlightedDescendantsTags(node))
+        }
+
+        @Override
+        public void configure(NodeModel node, Graphics2D g, boolean isPrinting) {
+            boolean hasFoldedDescendants = isFoldedWithHighlightedDescendantsTags(node)
+
+            if (hasFoldedDescendants) {
+                g.setColor(new Color(1, 0, 255, 255))
+                g.setStroke(new BasicStroke(5F, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10, new float[]{10, 2}, 0))
+            }
+        }
+
+        private boolean isFoldedWithHighlightedDescendantsTags(NodeModel node) {
+            if (!node.folded) {
+                return false
+            }
+            if (cachedHighlightedNodesTags.contains(node)) {
+                return true
+            }
+            boolean hasDescendants = hasHighlightedDescendants(node)
+            if (hasDescendants) {
+                cachedHighlightedNodesTags.add(node)
+            }
+            return hasDescendants
+        }
+
+        private boolean hasHighlightedDescendants(NodeModel node) {
+            for (NodeModel child : node.children) {
+                if (iconController.getTags(child).containsAll(selectedTagsInPanel) || hasHighlightedDescendants(child)) {
+                    return true
+                }
+            }
+            return false
+        }
+    })
+
+
+}
+
+def refreshHighlighterCache() {
+    cachedHighlightedNodes.clear()
+}
+
+def refreshHighlighterCacheTags() {
+    cachedHighlightedNodesTags.clear()
 }
