@@ -1,4 +1,7 @@
+> [!WARNING]  
+> There are 2 versions: add-on and [script](https://github.com/euu2021/Freeplane_UtilityPanels/blob/main/utilityPanels.groovy) . The add-on version is updated less frequently, so it may not be compatible with latest Freeplane version. If the add-on version doesn't start, try the script version.
 
+---
 <p align="center">
   <img width="500"  src="https://github.com/user-attachments/assets/d0ad8158-e22e-400b-961f-720248cf20ee">
 </p>
