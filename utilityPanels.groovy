@@ -1,4 +1,3 @@
-
 /***************************************************************************
 
  version 1.48: Updated to be compatible with Freeplane 1.12.12.
@@ -318,6 +317,8 @@ import javax.swing.event.ChangeListener
 import javax.swing.event.ChangeEvent
 
 @groovy.transform.Field uniqueIdForScript = 999
+@groovy.transform.Field boolean isScrolling = false
+
 
 
 if(checkIfUtilityPanelsIsAlreadyRunning()) return
@@ -385,7 +386,7 @@ widthOfTheClearButtonOnQuickSearchPanel = 30
 
 showAncestorsOnFirstInspector = false
 
-@groovy.transform.Field rtlOrientation = false
+@groovy.transform.Field rtlOrientation = true
 
 @groovy.transform.Field KeyStroke keyStrokeToShowPanels = KeyStroke.getKeyStroke(KeyEvent.VK_U, KeyEvent.CTRL_DOWN_MASK)
 
@@ -393,7 +394,11 @@ showAncestorsOnFirstInspector = false
 
 @groovy.transform.Field showInPlaceSiblingsPreview = true
 
-//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+@groovy.transform.Field showInspectorsOnSiblingsPreviewHover = true
+
+@groovy.transform.Field boolean fastScrollToCenter = true
+
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ User settings ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 
 
 
@@ -552,6 +557,13 @@ hideInspectorTimer.addActionListener(e -> {
     hideInspectorPanelIfNeeded()
 })
 
+@groovy.transform.Field Timer scrollEndTimer = new Timer(300, null)
+scrollEndTimer.setRepeats(false)
+scrollEndTimer.addActionListener(e -> {
+    isScrolling = false
+    updateAllPanelsAfterScroll()
+})
+
 @groovy.transform.Field MouseListener sharedMouseListener
 
 @groovy.transform.Field Timer hoverTimer = new Timer(selectionDelay, null)
@@ -624,6 +636,156 @@ class NodeModelTransferable implements Transferable {
 
 ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 */
+//↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Scroll Management Methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
+def createScrollListener() {
+    JScrollBar verticalScrollBar = parentPanel.getVerticalScrollBar()
+    JScrollBar horizontalScrollBar = parentPanel.getHorizontalScrollBar()
+    
+    AdjustmentListener scrollListener = new AdjustmentListener() {
+        @Override
+        void adjustmentValueChanged(AdjustmentEvent e) {
+            if (!isScrolling) {
+                isScrolling = true
+            }
+            scrollEndTimer.restart()
+            
+            // حرکت دادن پنل‌های In-place Siblings Preview همراه با نقشه
+            moveSiblingPreviewPanelsWithMap()
+        }
+    }
+    
+    verticalScrollBar.addAdjustmentListener(scrollListener)
+    horizontalScrollBar.addAdjustmentListener(scrollListener)
+}
+
+//↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Scroll Management Methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+
+def moveSiblingPreviewPanelsWithMap() {
+    if (!showInPlaceSiblingsPreview || activeSiblingPreviewPanels.isEmpty()) return
+    
+    def mapView = Controller.currentController.MapViewManager.mapView
+    def viewport = mapView.getParent()
+    if (!(viewport instanceof JViewport)) return
+    
+    activeSiblingPreviewPanels.each { previewPanel ->
+        NodeModel referenceNode = previewPanel.getClientProperty("referenceNode")
+        if (referenceNode) {
+            NodeView nodeView = mapView.getNodeView(referenceNode)
+            if (nodeView) {
+                Point nodePointOnMap = mapView.getNodeContentLocation(nodeView)
+                Point nodePointOnScreen = SwingUtilities.convertPoint(mapView, nodePointOnMap, viewport)
+                
+                boolean positionAtBottom = previewPanel.getClientProperty("positionAtBottom") ?: false
+                
+                int newX = nodePointOnScreen.x
+                int newY
+                
+                if (!positionAtBottom) {
+                    newY = (nodePointOnScreen.y - previewPanel.getHeight()) as int
+                } else {
+                    newY = (nodePointOnScreen.y + nodeView.getContentPane().height) as int
+                }
+                
+                // به روزرسانی موقعیت پنل بدون ایجاد پنل جدید
+                previewPanel.setLocation(newX, newY)
+            }
+        }
+    }
+    
+    // به روزرسانی موقعیت پنل‌های بازرس پیش‌نمایش
+    movePreviewInspectorsWithMap()
+}
+
+def movePreviewInspectorsWithMap() {
+    if (visiblePreviewInspectors.isEmpty()) return
+    
+    visiblePreviewInspectors.each { previewInspector ->
+        JPanel sourcePanel = findSourcePanelForInspector(previewInspector)
+        if (sourcePanel && (activeSiblingPreviewPanels.contains(sourcePanel) || visiblePreviewInspectors.contains(sourcePanel))) {
+            setInspectorLocation(previewInspector, sourcePanel)
+        }
+    }
+}
+
+def findSourcePanelForInspector(JPanel inspector) {
+    // این متد باید پنل منبع مربوط به این بازرس را پیدا کند
+    for (panel in activeSiblingPreviewPanels + visiblePreviewInspectors) {
+        if (panel != inspector) {
+            return panel
+        }
+    }
+    return null
+}
+
+def updateAllPanelsAfterScroll() {
+    // به روزرسانی پنل‌های Siblings Preview
+    if (showInPlaceSiblingsPreview) {
+        refreshSiblingPreviewPanels()
+    }
+    
+    // به روزرسانی پنل‌های بازرس
+    if (inspectorUpdateSelection) {
+        smartCreateInspectors(currentlySelectedNode)
+    }
+    
+    // فعال کردن اسکرول‌بارها
+    updateScrollBars()
+    
+    // به روزرسانی اتصالات
+    ensureOverlayExistsAndRepaint()
+    
+    parentPanel.revalidate()
+    parentPanel.repaint()
+}
+
+def updateScrollBars() {
+    // اطمینان از فعال بودن اسکرول‌بارهای مورد نیاز
+    panelsInMasterPanels.each { panel ->
+        JScrollPane scrollPane = findScrollPaneInPanel(panel)
+        if (scrollPane) {
+            updateScrollBarVisibility(scrollPane)
+        }
+    }
+    
+    activeSiblingPreviewPanels.each { previewPanel ->
+        JScrollPane scrollPane = findScrollPaneInPanel(previewPanel)
+        if (scrollPane) {
+            updateScrollBarVisibility(scrollPane)
+        }
+    }
+    
+    visiblePreviewInspectors.each { inspector ->
+        JScrollPane scrollPane = findScrollPaneInPanel(inspector)
+        if (scrollPane) {
+            updateScrollBarVisibility(scrollPane)
+        }
+    }
+}
+
+def findScrollPaneInPanel(JPanel panel) {
+    for (Component comp : panel.getComponents()) {
+        if (comp instanceof JScrollPane) {
+            return (JScrollPane) comp
+        }
+    }
+    return null
+}
+
+def updateScrollBarVisibility(JScrollPane scrollPane) {
+    // این منطق را بر اساس نیاز خود برای نمایش/مخفی کردن اسکرول‌بارها تطبیق دهید
+    Component view = scrollPane.getViewport().getView()
+    if (view instanceof JList) {
+        JList list = (JList) view
+        boolean needsVerticalScroll = list.getPreferredSize().height > scrollPane.getViewport().getHeight()
+        boolean needsHorizontalScroll = list.getPreferredSize().width > scrollPane.getViewport().getWidth()
+        
+        scrollPane.setVerticalScrollBarPolicy(needsVerticalScroll ? 
+            JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED : JScrollPane.VERTICAL_SCROLLBAR_NEVER)
+        scrollPane.setHorizontalScrollBarPolicy(needsHorizontalScroll ? 
+            JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED : JScrollPane.HORIZONTAL_SCROLLBAR_NEVER)
+    }
+}
 
 loadSettings()
 createPanels()
@@ -671,28 +833,50 @@ def boolean checkIfUtilityPanelsIsAlreadyRunning() {
 }
 
 public void manageInspectorsCreation() {
-    if (shouldFreeze()) return
-    if(panelsInMasterPanels.contains(currentSourcePanel)) expandMasterPanelAndUpdateInspectorsState()
-    if (activeSiblingPreviewPanels.contains(currentSourcePanel)) clearInspectorsAndPreviewInspectors()
-    if (!lastMouseLocation) return
-
-    int index = currentList.locationToIndex(lastMouseLocation)
-
-    if (!validateMousePositionOnList(index)) return
-
-    Object hoveredItem = currentListModel.getElementAt(index)
-
-    if(hoveredItem instanceof NodeModel) {
-        NodeModel subNode = currentListModel.getElementAt(index)
-        hoveredNode = subNode
-
-        populateAncestorsList(hoveredNode)
-
-        if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) cleanAndCreateInspectors(subNode, masterPanel)
-        else if (activeSiblingPreviewPanels.contains(currentSourcePanel)) updatePreviewInspectors(subNode)
-        else createSubInspector(hoveredNode, index, subNode)
+    if (shouldFreeze()) return;
+    
+    if (panelsInMasterPanels.contains(currentSourcePanel)) {
+        expandMasterPanelAndUpdateInspectorsState();
     }
-    else if(currentSourcePanel == tagsPanel) updateInspectorWithTagsPanel(index)
+    
+    if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
+        clearInspectorsAndPreviewInspectors();
+    }
+    
+    if (!lastMouseLocation) return;
+    
+    int index = currentList.locationToIndex(lastMouseLocation);
+    
+    if (!validateMousePositionOnList(index)) return;
+    
+    Object hoveredItem = currentListModel.getElementAt(index);
+    
+    if (hoveredItem instanceof NodeModel) {
+        NodeModel subNode = (NodeModel) hoveredItem;
+        hoveredNode = subNode;
+        
+        populateAncestorsList(hoveredNode);
+        
+        if (panelsInMasterPanels.contains(currentSourcePanel) || currentSourcePanel == breadcrumbPanel) {
+            cleanAndCreateInspectors(subNode, masterPanel);
+        } else if (activeSiblingPreviewPanels.contains(currentSourcePanel)) {
+            // فقط اگر تنظیم فعال باشد، پنل‌های بازرس نمایش داده می‌شوند
+            if (showInspectorsOnSiblingsPreviewHover) {
+                updatePreviewInspectors(subNode);
+            }
+            currentList.repaint();
+        } else {
+            // شرایط دیگر
+            createSubInspector(hoveredNode, index, subNode);
+        }
+    } else if (currentSourcePanel == tagsPanel) {
+        updateInspectorWithTagsPanel(index);
+    }
+    
+    // دیباگ برای ردیابی
+    println "Inspector Creation - Source: ${currentSourcePanel?.getClass()?.simpleName}, " +
+            "In-place: ${activeSiblingPreviewPanels.contains(currentSourcePanel)}, " +
+            "Preview: ${visiblePreviewInspectors.contains(currentSourcePanel)}"
 }
 
 public boolean validateMousePositionOnList(int index) {
@@ -727,37 +911,56 @@ public void createSubInspector(NodeModel hoveredNode, int index, NodeModel subNo
 public void updateSubInspectorsLocation(JPanel subInspectorPanel) {
     if (visiblePreviewInspectors.contains(currentSourcePanel)) {
         visiblePreviewInspectors.add(subInspectorPanel)
-        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-        visiblePreviewInspectors.clone().each {
-            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                it.setVisible(false)
-                visiblePreviewInspectors.remove(it)
+        
+        // فقط پنل‌هایی که بعد از پنل منبع هستند رو پنهان کن
+        int sourceIndex = visiblePreviewInspectors.indexOf(currentSourcePanel)
+        for (int i = visiblePreviewInspectors.size() - 1; i > sourceIndex; i--) {
+            JPanel panel = visiblePreviewInspectors.get(i)
+            if (panel != subInspectorPanel) {
+                panel.setVisible(false)
+                visiblePreviewInspectors.remove(i)
             }
         }
     } else {
         visibleInspectors.add(subInspectorPanel)
-        locationOfTheInspectorOfTheCurrentPanelUnderMouse = subInspectorPanel.getLocation().x
-        visibleInspectors.clone().each {
-            if (it != subInspectorPanel && it.getLocation().x >= locationOfTheInspectorOfTheCurrentPanelUnderMouse) {
-                it.setVisible(false)
-                visibleInspectors.remove(it)
+        
+        // فقط پنل‌هایی که بعد از پنل منبع هستند رو پنهان کن  
+        int sourceIndex = visibleInspectors.indexOf(currentSourcePanel)
+        for (int i = visibleInspectors.size() - 1; i > sourceIndex; i--) {
+            JPanel panel = visibleInspectors.get(i)
+            if (panel != subInspectorPanel) {
+                panel.setVisible(false)
+                visibleInspectors.remove(i)
             }
         }
     }
 }
 
 public void updatePreviewInspectors(NodeModel subNode) {
+    // ابتدا پنل‌های بازرس قبلی را پاک کنید
     visiblePreviewInspectors.each {
         it.setVisible(false)
         parentPanel.remove(it)
     }
     visiblePreviewInspectors.clear()
 
+    // ایجاد پنل بازرس اول
     previewInspector = createInspectorPanel(subNode, currentSourcePanel)
-    visiblePreviewInspectors.add(previewInspector)
-
-    previewInspector2 = createInspectorPanel(subNode, previewInspector)
-    visiblePreviewInspectors.add(previewInspector2)
+    if (previewInspector != null) {
+        visiblePreviewInspectors.add(previewInspector)
+        
+        // ایجاد پنل بازرس دوم (فرزندان)
+        previewInspector2 = createInspectorPanel(subNode, previewInspector)
+        if (previewInspector2 != null) {
+            visiblePreviewInspectors.add(previewInspector2)
+        }
+    }
+    
+    // اطمینان از نمایش پنل Update Selection
+    if (inspectorUpdateSelection && visibleInspectors.size() >= 2) {
+        visibleInspectors[0].setVisible(true)
+        visibleInspectors[1].setVisible(true)
+    }
 }
 
 public void updateInspectorWithTagsPanel(int index) {
@@ -887,7 +1090,8 @@ private Rectangle getInspectorReservedArea() {
 
 def createPanels() {
     setupParentPanel()
-
+    createScrollListener()
+    
     recentSelectedNodesPanel = createRecentNodesPanel()
     pinnedItemsPanel = createPinnedItemsPanel()
     tagsPanel = createTagsPanel()
@@ -970,7 +1174,14 @@ public void basicMasterPanelConfigs(JPanel masterPanel, JPanel breadcrumbPanel) 
         masterPanel.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
     masterPanel.addMouseListener(sharedMouseListener)
-    masterPanel.setBounds(0, breadcrumbPanel.height, calculateRetractedWidthForMasterPanel(), (int) mapViewWindowForSizeReferences.height - 5)
+    
+    // تغییر این خط - پنل اصلی در سمت راست
+    int retractedWidth = calculateRetractedWidthForMasterPanel()
+    int xPosition = rtlOrientation ? parentPanel.width - retractedWidth : 0
+    
+    masterPanel.setBounds(xPosition, breadcrumbPanel.height, retractedWidth, (int) mapViewWindowForSizeReferences.height - 5)
+    
+    println "Master Panel Initial Position: x=${xPosition}, width=${retractedWidth}, RTL=${rtlOrientation}"
 }
 
 public JPanel createStylesPanel() {
@@ -1099,15 +1310,16 @@ public JPanel createAndAttachBreadcrumbsPanels() {
             super.paintComponent(g)
         }
     }
-    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
-//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5))
+    
+    // تغییر این خط - از LEFT به RIGHT برای راست‌چین
+    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5))
+    
     breadcrumbPanel.setBackground(new Color(0, 0, 0, 0))
-//    breadcrumbPanel.setBackground(new Color(220, 220, 220))
     breadcrumbPanel.setOpaque(false)
 
     breadcrumbPanel.setBounds(0, 0, parentPanel.width, 40)
 
-
+    // تغییر جهت کامپوننت
     if (rtlOrientation) {
         breadcrumbPanel.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
@@ -1125,14 +1337,7 @@ public JPanel createAndAttachBreadcrumbsPanels() {
         }
     }
 
-//    20.times {
-//        ancestorsOfCurrentNode.addElement(currentlySelectedNode)
-//    }
-
     createBreadcrumbsJList()
-
-//    listeners2 = ancestorsOfCurrentNode.getListDataListeners()
-//    listeners2.each { ancestorsOfCurrentNode.removeListDataListener(it) }
 
     parentPanel.add(breadcrumbPanel)
     parentPanel.setComponentZOrder(breadcrumbPanel, 0)
@@ -1706,8 +1911,31 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 
     inspectorPanel.putClientProperty("referenceNode", nodeNotProxy)
 
-    if (!shouldShowInspectors() && !activeSiblingPreviewPanels.contains(sourcePanel) && !visiblePreviewInspectors.contains(sourcePanel))  return inspectorPanel
+    // ★★★ تغییر اصلی: شرط ساده‌تر برای نمایش پنل‌ها ★★★
+    boolean shouldCreateInspector = true
+    
+    if (!showPanels && hideInspectorsEvenIfUpdateSelection) {
+        // فقط برای پنل‌های خاص اجازه نمایش بده
+        if (!activeSiblingPreviewPanels.contains(sourcePanel) && 
+            !visiblePreviewInspectors.contains(sourcePanel) &&
+            sourcePanel != masterPanel) {
+            shouldCreateInspector = false
+        }
+    }
+    
+    if (showOnlyBreadcrumbs) {
+        if (!activeSiblingPreviewPanels.contains(sourcePanel) && 
+            !visiblePreviewInspectors.contains(sourcePanel)) {
+            shouldCreateInspector = false
+        }
+    }
+    
+    if (!shouldCreateInspector) {
+        println "Inspector creation blocked for: ${sourcePanel?.getClass()?.simpleName}"
+        return inspectorPanel
+    }
 
+    // ★★★ اگر به اینجا رسیدیم، پنل را ایجاد کن ★★★
     inspectorPanel.setLayout(new BorderLayout())
 //    if (currentlySelectedNode == nodeNotProxy) {
 //        inspectorPanel.setBorder(BorderFactory.createLineBorder(Color.RED, 5))
@@ -2306,9 +2534,11 @@ JPanel createInspectorPanel(NodeModel nodeNotProxy, JPanel sourcePanel, boolean 
 //    parentPanel.repaint()
     parentPanel.addViewportReservedAreaSupplier(this::getInspectorReservedArea)
 
+    // دیباگ نهایی
+    println "Inspector created successfully for: ${nodeNotProxy.text.take(20)}..."
+    
     return inspectorPanel
 }
-
 
 JPanel createSiblingPreviewPanel(NodeModel nodeNotProxy, boolean positionAtBottom = false, int referenceNodeScreenX, int referenceNodeScreenY) {
 
@@ -2516,13 +2746,18 @@ void hideInspectorPanelIfNeeded() {
     if (shouldFreeze()) return
     if (mouseOverList) return
 
+    // پنل‌های پیش‌نمایش را مخفی نکن اگر مربوط به In-place Siblings Preview هستند
+    def previewToRemove = []
     visiblePreviewInspectors.each {
-        it.setVisible(false)
-        parentPanel.remove(it)
+        if (!activeSiblingPreviewPanels.contains(currentSourcePanel)) {
+            it.setVisible(false)
+            parentPanel.remove(it)
+            previewToRemove.add(it)
+        }
     }
+    visiblePreviewInspectors.removeAll(previewToRemove)
 
-    visiblePreviewInspectors.clear()
-
+    // پنل‌های بازرس اصلی را مدیریت کن
     visibleInspectors.each{
         if(!inspectorUpdateSelection) {
             it.setVisible(false)
@@ -2538,7 +2773,7 @@ void hideInspectorPanelIfNeeded() {
         visibleInspectors.clear()
     }
     else {
-        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1]}
+        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1] }
         if(visibleInspectors.size() != 0) {
             setInspectorLocation(visibleInspectors[0], masterPanel)
             if(visibleInspectors.size() > 1) {
@@ -2546,21 +2781,8 @@ void hideInspectorPanelIfNeeded() {
             }
         }
     }
-//
-//        if(inspectorUpdateSelection && visibleInspectors.size() > 0) {
-//            visibleInspectors[0].setVisible(true)
-//            if(visibleInspectors.size() > 1) {
-//                visibleInspectors[1].setVisible(true)
-//            }
-//        }
 
     retractMasterPanel()
-
-
-
-
-    return
-
 }
 
 void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel sourcePanel, int indexOfNode = 0) {
@@ -2632,10 +2854,18 @@ void configureLabelForNode(JComponent component, NodeModel nodeNotProxy, JPanel 
         }
 
         else if(!panelsInMasterPanels.contains(sourcePanel) && sourcePanel != breadcrumbPanel) {
-            if (visibleInspectors.size() != 0 && visibleInspectors.any { it.getClientProperty("referenceNode") == nodeNotProxy }) {
-                label.setBorder(BorderFactory.createLineBorder((new Color(160, 32, 240, 255)), 4))
-            }
+    // فقط برای پنل‌های In-place Siblings Preview و پنل‌های بازرس مربوط به آنها
+    if (activeSiblingPreviewPanels.contains(sourcePanel) || visiblePreviewInspectors.contains(sourcePanel)) {
+        // اگر این گره هاور شده است، خط بنفش نشان بده
+        if (hoveredNode == nodeNotProxy) {
+            label.setBorder(BorderFactory.createLineBorder((new Color(160, 32, 240, 255)), 4))
         }
+    }
+    // برای پنل‌های بازرس معمولی (اگر لازم است)
+    else if (visibleInspectors.size() != 0 && visibleInspectors.any { it.getClientProperty("referenceNode") == nodeNotProxy }) {
+        label.setBorder(BorderFactory.createLineBorder((new Color(160, 32, 240, 255)), 4))
+    }
+}
 
         if(sourcePanel == quickSearchPanel) {
             Color mapBackgroundColor = Controller.currentController.MapViewManager.mapView.getBackground()
@@ -2758,11 +2988,50 @@ void configureListSelection(JList<NodeModel> list) {
                 flagFreezeInspectorsWasOn = freezeInspectors
                 if(!flagFreezeInspectorsWasOn) freezeInspectors = true
                 currentlySelectedNode = selectedItemNode
+                
+                // ★★★ ابتدا همه پنل‌های بازرس را پاک کن ★★★
+                hideAllInspectorPanels()
+                
+                // سپس گره را انتخاب کن
                 Controller.currentController.mapViewManager.mapView.getMapSelection().selectAsTheOnlyOneSelected(selectedItemNode)
+                
+                // ★★★ در نهایت اسکرول کن ★★★
+                if (fastScrollToCenter) {
+                    Controller.currentController.mapViewManager.mapView.getMapSelection().scrollNodeToCenter(selectedItemNode, false)
+                }
+                
                 freezeInspectors = flagFreezeInspectorsWasOn
             }
         }
     } as ListSelectionListener)
+}
+
+// ★★★ قدم ۲: اضافه کردن این متد جدید ★★★
+def hideAllInspectorPanels() {
+    // پاک کردن پنل‌های بازرس پیش‌نمایش
+    visiblePreviewInspectors.each {
+        it.setVisible(false)
+        parentPanel.remove(it)
+    }
+    visiblePreviewInspectors.clear()
+    
+    // پاک کردن پنل‌های بازرس معمولی (اگر freeze فعال نباشد)
+    if (!freezeInspectors) {
+        visibleInspectors.each {
+            if (it != visibleInspectors[0] && it != visibleInspectors[1]) {
+                it.setVisible(false)
+                parentPanel.remove(it)
+            }
+        }
+        visibleInspectors.removeAll { it != visibleInspectors[0] && it != visibleInspectors[1] }
+    }
+    
+    // ریتکت کردن پنل اصلی
+    retractMasterPanel()
+    
+    // به‌روزرسانی رابط
+    parentPanel.revalidate()
+    parentPanel.repaint()
 }
 
 void configureListContextMenu(JList<NodeModel> list) {
@@ -3418,7 +3687,9 @@ def saveSettings() {
                     rtlOrientation: rtlOrientation,
                     keyStrokeToShowPanels: keyStrokeToShowPanels.toString(),
                     hideInspectorsEvenIfUpdateSelection: hideInspectorsEvenIfUpdateSelection,
-                    showInPlaceSiblingsPreview: showInPlaceSiblingsPreview
+                    showInPlaceSiblingsPreview: showInPlaceSiblingsPreview,
+                    showInspectorsOnSiblingsPreviewHover: showInspectorsOnSiblingsPreviewHover,
+                    fastScrollToCenter: fastScrollToCenter
             ]
     ]).toPrettyString()
 
@@ -3497,6 +3768,8 @@ private void loadSettings() {
             keyStrokeToShowPanels = KeyStroke.getKeyStroke(settings.userSettings.keyStrokeToShowPanels as String)
             hideInspectorsEvenIfUpdateSelection = settings.userSettings.hideInspectorsEvenIfUpdateSelection ?: hideInspectorsEvenIfUpdateSelection
             showInPlaceSiblingsPreview = settings.userSettings.showInPlaceSiblingsPreview ?: showInPlaceSiblingsPreview
+            showInspectorsOnSiblingsPreviewHover = settings.userSettings.showInspectorsOnSiblingsPreviewHover ?: showInspectorsOnSiblingsPreviewHover
+            fastScrollToCenter = settings.userSettings.fastScrollToCenter != null ? settings.userSettings.fastScrollToCenter : true
         }
 
     } catch (Exception e) {
@@ -3524,38 +3797,31 @@ def int calculateInspectorWidth(int ammountOfPannelsInInspector) {
 }
 
 def setInspectorLocation(JPanel inspectorPanel, JPanel sourcePanel) {
-    int x = sourcePanel.getLocation().x + sourcePanel.width
+    int x, y
+    
+    if (rtlOrientation) {
+        // در حالت RTL: بازرس در سمت چپ پنل منبع قرار می‌گیرد
+        x = sourcePanel.getLocation().x - inspectorPanel.width
+        println "RTL Inspector Location: sourceX=${sourcePanel.getLocation().x}, inspectorWidth=${inspectorPanel.width}, finalX=${x}"
+    } else {
+        // در حالت LTR: بازرس در سمت راست پنل منبع قرار می‌گیرد
+        x = sourcePanel.getLocation().x + sourcePanel.width
+        println "LTR Inspector Location: sourceX=${sourcePanel.getLocation().x}, sourceWidth=${sourcePanel.width}, finalX=${x}"
+    }
 
-    int y = sourcePanel.getLocation().y
+    y = sourcePanel.getLocation().y
     if(panelsInMasterPanels.contains(sourcePanel)) {
         y = masterPanel.getLocation().y
     }
 
     if(activeSiblingPreviewPanels.contains(sourcePanel) || visiblePreviewInspectors.contains(sourcePanel)) {
-//        if(activeSiblingPreviewPanels.contains(sourcePanel) && !sourcePanel.getClientProperty("positionAtBottom")) {
-//            y = sourcePanel.getLocation().y
-//        }
-//        else if(activeSiblingPreviewPanels.contains(sourcePanel) && sourcePanel.getClientProperty("positionAtBottom")) {
         viewportHeight = parentPanel.height
-//            y = (viewportHeight - inspectorPanel.height) as int
-//        }
-
-
-
-//        y = sourcePanel.getLocation().y as int
         y = Math.min(sourcePanel.getLocation().y, (viewportHeight - inspectorPanel.height) as int)
-
-//        Point sourcePanelLocation = new Point(sourcePanel.getLocation().x as int, sourcePanel.getLocation().y as int)
-//        UITools.convertPointToAncestor(sourcePanel.parent, sourcePanelLocation, parentPanel)
-//        sourcepanelY = sourcePanelLocation.y
-
-//        y = (viewportHeight - (inspectorPanel.height - (viewportHeight - sourcepanelY))) as int
-
     }
 
     inspectorPanel.setLocation(x, y)
+    println "Final Inspector Position: x=${x}, y=${y}"
 }
-
 
 def containsTermInAncestors(NodeModel node, String term) {
     node = node.parent
@@ -3697,7 +3963,23 @@ public class RoundedCornerBorder implements Border {
 
 def expandMasterPanel() {
     bounds = masterPanel.getBounds()
-    bounds.width = calculateExpandedWidthForMasterPanel()
+    
+    if (rtlOrientation) {
+        // در حالت RTL: پنل به سمت چپ گسترش می‌یابد
+        int expandedWidth = calculateExpandedWidthForMasterPanel()
+        int widthDifference = expandedWidth - bounds.width
+        
+        // موقعیت X را به اندازه اختلاف عرض به چپ منتقل کن
+        bounds.x = bounds.x - widthDifference
+        bounds.width = expandedWidth
+        
+        println "RTL Expansion: x=${bounds.x}, width=${bounds.width}, difference=${widthDifference}"
+    } else {
+        // در حالت LTR: رفتار قبلی (گسترش به راست)
+        bounds.width = calculateExpandedWidthForMasterPanel()
+        println "LTR Expansion: x=${bounds.x}, width=${bounds.width}"
+    }
+    
     masterPanel.setBounds(bounds)
     panelsInMasterPanels.each {
         if(it != currentSourcePanel) {
@@ -3711,11 +3993,24 @@ def expandMasterPanel() {
     parentPanel.repaint()
     isMasterPanelExpanded = true
 }
-
 def retractMasterPanel() {
 //    if(!searchEditor.text.equals("") || quickSearchResults.size() > 0) return
     bounds = masterPanel.getBounds()
-    bounds.width = calculateRetractedWidthForMasterPanel()
+    int retractedWidth = calculateRetractedWidthForMasterPanel()
+    
+    if (rtlOrientation) {
+        // در حالت RTL: موقعیت پنل به حالت اول برگردد
+        int widthDifference = bounds.width - retractedWidth
+        bounds.x = bounds.x + widthDifference  // موقعیت X را به راست برگردان
+        bounds.width = retractedWidth
+        
+        println "RTL Retraction: x=${bounds.x}, width=${bounds.width}, difference=${widthDifference}"
+    } else {
+        // در حالت LTR: رفتار قبلی
+        bounds.width = retractedWidth
+        println "LTR Retraction: x=${bounds.x}, width=${bounds.width}"
+    }
+    
     masterPanel.setBounds(bounds)
     panelsInMasterPanels.each {
         it.setVisible(true)
@@ -3737,7 +4032,6 @@ def retractMasterPanel() {
         }
     }
 }
-
 
 
 def isCtrlPressed() {
@@ -3873,17 +4167,6 @@ def JList createJList(DefaultListModel<NodeModel> nodes, JPanel jListPanel, JPan
 }
 
 def createBreadcrumbsJList() {
-//    breadcrumbPanel.removeAll()
-//    if (!ancestorsOfCurrentNode || ancestorsOfCurrentNode.isEmpty()) {
-//        breadcrumbPanel.revalidate()
-//        breadcrumbPanel.repaint()
-//        return
-//    }
-
-//    DefaultListModel<NodeModel> listModel = new DefaultListModel<>()
-//    ancestorsOfCurrentNode.each { listModel.addElement(it) }
-
-//    JList<NodeModel> jList = new JList<>(ancestorsOfCurrentNode)
     ancestorsJList.setModel(ancestorsOfCurrentNode)
     ancestorsJList.setLayoutOrientation(JList.HORIZONTAL_WRAP)
     ancestorsJList.setVisibleRowCount(1)
@@ -3893,21 +4176,18 @@ def createBreadcrumbsJList() {
 
     commonJListsConfigs(ancestorsJList, ancestorsOfCurrentNode, breadcrumbPanel)
 
+    // تغییر جهت برای راست‌چین
     if (rtlOrientation) {
         ancestorsJList.setComponentOrientation(ComponentOrientation.RIGHT_TO_LEFT)
     } else {
         ancestorsJList.setComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT)
     }
 
-    breadcrumbPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 5))
-//    breadcrumbPanel.setLayout(new FlowLayout(rtlOrientation ? FlowLayout.RIGHT : FlowLayout.LEFT, 8, 5)) // RTL Support
-
     breadcrumbPanel.add(ancestorsJList)
 
-//    breadcrumbPanel.revalidate()
-//    breadcrumbPanel.repaint()
+    // breadcrumbPanel.revalidate()
+    // breadcrumbPanel.repaint()
 }
-
 
 def populateTagsListModel(JList<String> tagsJList) {
 
@@ -3999,6 +4279,10 @@ def cleanPreviousScriptExecution() {
 //    listenersToRemove3.each { listenerToRemove ->
 //        Controller.currentController.mapViewManager.removeMapViewChangeListener(listenerToRemove)
 //    }
+    
+    listenersToRemove3.each { listenerToRemove ->
+        Controller.currentController.mapViewManager.removeMapViewChangeListener(listenerToRemove)
+    }
 
     listenersToRemove4 = []
 
@@ -4051,6 +4335,7 @@ def togglePanelsVisibility() {
     parentPanel.revalidate()
     parentPanel.repaint()
 }
+
 
 def shouldShowInspectors() {
 //    return (showOnlyBreadcrumbs || (!showPanels && hideInspectorsEvenIfUpdateSelection))
@@ -4167,6 +4452,12 @@ def showSettingsDialog() {
     JCheckBox showInPlaceSiblingsPreviewCheck = new JCheckBox("", showInPlaceSiblingsPreview)
     settingsPanel.add(showInPlaceSiblingsPreviewCheck)
 
+    // Show Inspectors on Siblings Preview Hover (Boolean)
+    settingsPanel.add(new JLabel("Show Inspectors on Siblings Preview Hover:"))
+    JCheckBox showInspectorsOnSiblingsPreviewHoverCheck = new JCheckBox("", showInspectorsOnSiblingsPreviewHover)
+    showInspectorsOnSiblingsPreviewHoverCheck.setToolTipText("Show inspector panels when hovering over nodes in In-place Siblings Preview panels")
+    settingsPanel.add(showInspectorsOnSiblingsPreviewHoverCheck)
+
     // Hotkey to Show Panels (KeyStroke)
     settingsPanel.add(new JLabel("Hotkey to Show Panels:"))
     JTextField showPanelsHotkeyField = new JTextField(keyStrokeToShowPanels.toString())
@@ -4176,6 +4467,12 @@ def showSettingsDialog() {
     settingsPanel.add(new JLabel("Hide Inspectors Even If Update Selection:"))
     JCheckBox hideInspectorsCheck = new JCheckBox("", hideInspectorsEvenIfUpdateSelection)
     settingsPanel.add(hideInspectorsCheck)
+
+    // ★★★ قدم ۵: اضافه کردن این بخش ★★★
+    settingsPanel.add(new JLabel("Fast Scroll to Center:"))
+    JCheckBox fastScrollCheck = new JCheckBox("", fastScrollToCenter)
+    fastScrollCheck.setToolTipText("When enabled, nodes will scroll to center quickly when clicked in panels")
+    settingsPanel.add(fastScrollCheck)
 
     settingsDialog.add(new JScrollPane(settingsPanel), BorderLayout.CENTER)
 
@@ -4190,24 +4487,23 @@ def showSettingsDialog() {
         try { retractedWidthFactorForMasterPanel = Integer.parseInt(retractedFactorField.getText()) } catch(Exception ex) {}
         try { expandedWidthFactorForMasterPanel = Integer.parseInt(expandedFactorField.getText()) } catch(Exception ex) {}
         try { widthFactorForInspector = Integer.parseInt(inspectorWidthFactorField.getText()) } catch(Exception ex) {}
-//        try { selectionDelay = Integer.parseInt(selectionDelayField.getText()) } catch(Exception ex) {}
         reverseAncestorsList = reverseAncestorsCheck.isSelected()
         try { paddingBeforeHorizontalScrollBar = Integer.parseInt(paddingField.getText()) } catch(Exception ex) {}
         try { additionalInspectorDistanceToTheBottomOfTheScreen = Integer.parseInt(additionalDistanceField.getText()) } catch(Exception ex) {}
         try { widthOfTheClearButtonOnQuickSearchPanel = Integer.parseInt(clearButtonWidthField.getText()) } catch(Exception ex) {}
         try {
             keyStrokeToQuickSearch = KeyStroke.getKeyStroke(quickSearchHotkeyField.getText())
-//            reloadPanels()
         } catch(Exception ex) {}
         showOnlyBreadcrumbs = showOnlyBreadcrumbsCheck.isSelected()
         showAncestorsOnFirstInspector = showAncestorsCheck.isSelected()
         rtlOrientation = rtlOrientationCheck.isSelected()
         showInPlaceSiblingsPreview = showInPlaceSiblingsPreviewCheck.isSelected()
+        showInspectorsOnSiblingsPreviewHover = showInspectorsOnSiblingsPreviewHoverCheck.isSelected()
         try {
             keyStrokeToShowPanels = KeyStroke.getKeyStroke(showPanelsHotkeyField.getText())
-//            reloadPanels()
         } catch(Exception ex) {}
         hideInspectorsEvenIfUpdateSelection = hideInspectorsCheck.isSelected()
+        fastScrollToCenter = fastScrollCheck.isSelected()
 
         saveSettings()
         reloadPanels()
@@ -4385,10 +4681,8 @@ def createComponentChangeListener() {
     mapView1 = Controller.currentController.MapViewManager.mapView
     if (mapView1.componentListeners.any { it.getClass().getName().startsWith("UtilityPanels") }) return
 
-
     mapView1.addComponentListener(new ComponentAdapter() {
         public void componentMoved(ComponentEvent e) {
-
             ensureOverlayExistsAndRepaint()
 
             if(!showPanels) {
@@ -4400,10 +4694,15 @@ def createComponentChangeListener() {
             nv3 = mapView1.getNodeView(currentlySelectedNode)
             if (Boolean.TRUE.equals(nv3.getMainView().getClientProperty(INLINE_EDITOR_ACTIVE))) {
                 return
-
             }
 
-            if (showInPlaceSiblingsPreview) refreshSiblingPreviewPanels()
+            if (showInPlaceSiblingsPreview) {
+                if (isScrolling) {
+                    moveSiblingPreviewPanelsWithMap() // حرکت دادن پنل‌ها بدون ایجاد جدید
+                } else {
+                    refreshSiblingPreviewPanels() // ایجاد پنل‌های جدید
+                }
+            }
             else if (activeSiblingPreviewPanels.size() != 0) {
                 activeSiblingPreviewPanels.each {
                     it.setVisible(false)
@@ -4856,9 +5155,14 @@ def static getUserDefinedStylesParentNode(MapModel mapa, ScriptContext scriptCon
     return userDefinedParentNode
 }
 
-
 def refreshSiblingPreviewPanels() {
-
+    // اگر در حال اسکرول هستیم، فقط موقعیت پنل‌های موجود را به روز کنیم
+    if (isScrolling) {
+        moveSiblingPreviewPanelsWithMap()
+        return
+    }
+    
+    // غیر این صورت، منطق عادی ایجاد/حذف پنل‌ها
     activeSiblingPreviewPanels.each {
         it.visible = false
         parentPanel.remove(it)
@@ -4889,11 +5193,9 @@ def refreshSiblingPreviewPanels() {
         referenceNodeScreenX = selectedPointOnScreen.x
         referenceNodeScreenY = selectedPointOnScreen.y
 
-
 //        if(referenceNodeScreenX < 0 || referenceNodeScreenX > viewport.getViewRect().width) return
 
         if(testedNode.parent.children.size() == 1) return
-
 
         def parentNode = testedNode.parent
         def siblings = parentNode.children
@@ -4903,7 +5205,6 @@ def refreshSiblingPreviewPanels() {
         }
 
         NodeModel offScreenSiblingAbove = null
-
 
         if(selectedIndex > 0 && !isNodeVisibleInViewport(siblings[selectedIndex - 1].delegate)) offScreenSiblingAbove = siblings[selectedIndex - 1].delegate
 
@@ -4915,7 +5216,6 @@ def refreshSiblingPreviewPanels() {
             offScreenSiblingAboveXPoint = offScreenSiblingAboveSelectedPointOnScreen.x
             offScreenSiblingAboveYPoint = offScreenSiblingAboveSelectedPointOnScreen.y
 
-
             if (referenceNodeScreenY >= 0 && offScreenSiblingAboveYPoint <= 0 && referenceNodeScreenX > 0 && referenceNodeScreenX < viewport.getWidth()) {
 
                 siblingsPreviewPanelCreated = createSiblingPreviewPanel(testedNode.delegate, false, referenceNodeScreenX as int, referenceNodeScreenY as int)
@@ -4924,15 +5224,12 @@ def refreshSiblingPreviewPanels() {
 
             }
 
-
         } else {
         }
-
 
         NodeModel offScreenSiblingBelow = null
 
         if(selectedIndex + 1 < siblings.size() && !isNodeVisibleInViewport(siblings[selectedIndex + 1].delegate)) offScreenSiblingBelow = siblings[selectedIndex + 1].delegate
-
 
         if (offScreenSiblingBelow != null) {
 
@@ -4942,7 +5239,6 @@ def refreshSiblingPreviewPanels() {
             offScreenSiblingBelowXPoint = offScreenSiblingBelowSelectedPointOnScreen.x
             offScreenSiblingBelowYPoint = offScreenSiblingBelowSelectedPointOnScreen.y
 
-
             if (referenceNodeScreenY < viewport.getHeight() && offScreenSiblingBelowYPoint >= viewport.getHeight() && referenceNodeScreenX > 0 && referenceNodeScreenX < viewport.getWidth()) {
 
                 siblingsPreviewPanelCreated = createSiblingPreviewPanel(testedNode.delegate, true, referenceNodeScreenX as int, referenceNodeScreenY as int)
@@ -4950,7 +5246,6 @@ def refreshSiblingPreviewPanels() {
                 activeSiblingPreviewPanels << siblingsPreviewPanelCreated
 
             }
-
 
         } else {
         }
